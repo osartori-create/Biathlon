@@ -20,12 +20,6 @@
             object-fit: cover;
             border-radius: 50%;
         }
-        .team-container {
-            min-height: 100px;
-            border: 2px dashed #4b5563;
-            border-radius: 10px;
-            padding: 10px;
-        }
     </style>
 </head>
 <body class="bg-slate-900 text-white p-4 font-sans h-screen flex flex-col">
@@ -133,11 +127,13 @@
                 const teamsPanel = document.getElementById('teamsPanel');
 
                 if (manualPanel.classList.contains('hidden')) {
+                    // Passer en mode saisie manuelle
                     manualPanel.classList.remove('hidden');
                     teamsPanel.classList.add('hidden');
                     this.textContent = "📥 Basculer en mode import";
                     renderManualVmaTable();
                 } else {
+                    // Revenir en mode import/équipes
                     manualPanel.classList.add('hidden');
                     teamsPanel.classList.remove('hidden');
                     this.textContent = "🔄 Basculer en mode saisie manuelle";
@@ -172,6 +168,39 @@
                         row.querySelector('td:last-child').appendChild(img);
                     };
                     reader.readAsDataURL(file);
+                }
+            }
+
+            // Remplir le tableau manuel avec les élèves existants
+            function renderManualVmaTable() {
+                const tbody = document.querySelector('#manualVmaTable tbody');
+                tbody.innerHTML = '';
+
+                if (eleves.length > 0) {
+                    eleves.forEach(eleve => {
+                        const newRow = document.createElement('tr');
+                        newRow.className = 'border-b border-slate-800';
+                        newRow.innerHTML = `
+                            <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Prenom}"></td>
+                            <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Nom}"></td>
+                            <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.VMA}" step="0.1"></td>
+                            <td class="p-2">
+                                ${eleve.photo ? `<img src="${eleve.photo}" class="w-10 h-10 rounded-full object-cover">` : '<input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)">'}
+                            </td>
+                        `;
+                        tbody.appendChild(newRow);
+                    });
+                } else {
+                    // Ajouter une ligne vide si aucun élève n'est présent
+                    const newRow = document.createElement('tr');
+                    newRow.className = 'border-b border-slate-800';
+                    newRow.innerHTML = `
+                        <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Prénom"></td>
+                        <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Nom"></td>
+                        <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="VMA" step="0.1"></td>
+                        <td class="p-2"><input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)"></td>
+                    `;
+                    tbody.appendChild(newRow);
                 }
             }
 
@@ -391,7 +420,7 @@
 
                 equipes.forEach(eq => {
                     const teamDiv = document.createElement('div');
-                    teamDiv.className = 'bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 shadow-lg team-container';
+                    teamDiv.className = 'bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 shadow-lg';
                     teamDiv.id = `team-${eq.id}`;
 
                     const teamHeader = document.createElement('div');
