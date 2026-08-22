@@ -3,116 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcathlon | Maître</title>
+    <title>Arcathlon | Élève</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        body { user-select: none; background: #0f172a; color: white; }
-        .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
-        .ghost-item { opacity: 0.4; background-color: #3b82f6; }
-        .photo-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; }
-        .fiche-eleve { background: #1e293b; border-radius: 1rem; padding: 1rem; border: 2px solid #334155; }
-        .fiche-eleve input, .fiche-eleve select { background: #0f172a; border: 1px solid #475569; border-radius: 0.5rem; padding: 0.5rem; color: white; width: 100%; }
+        body { user-select: none; touch-action: manipulation; background: #0f172a; }
+        .btn-arrow:active { transform: scale(0.95); }
+        .cible-circle { cursor: pointer; transition: opacity 0.2s; }
+        .cible-circle:active { opacity: 0.7; }
+        @keyframes pulse-impact { 0% { transform: scale(1); stroke-width: 0; } 50% { transform: scale(1.05); stroke-width: 4px; stroke: white; } 100% { transform: scale(1); stroke-width: 0; } }
+        .impact { animation: pulse-impact 0.3s ease-out; }
+        .disabled { opacity: 0.5; pointer-events: none; filter: grayscale(0.6); }
+        .score-badge { background: #1e293b; border-radius: 999px; padding: 2px 12px; font-size: 0.7rem; font-weight: bold; color: #a5b4fc; border: 1px solid #4f46e5; }
     </style>
 </head>
-<body class="p-4 h-screen flex flex-col font-sans">
-    <!-- Header -->
-    <header class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4 shrink-0 flex-wrap gap-2">
-        <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black italic text-blue-500">Arcathlon</h1>
-            <span class="text-xs font-bold text-slate-400 border border-slate-700 px-3 py-1 rounded-full">Maître</span>
-        </div>
-        <div class="flex items-center gap-3">
+<body class="text-white p-4 h-screen flex flex-col font-sans">
+    <!-- Statut -->
+    <div class="flex justify-between items-center mb-2 shrink-0 px-2">
+        <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
             <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
-            <span id="connLabel" class="text-xs font-bold uppercase text-slate-500">Connexion...</span>
-            <select id="selectClasse" onchange="changeClasse(this.value)" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-sm font-bold text-white">
-                <option value="">-- Classe --</option>
+            <span id="connLabel">Connexion...</span>
+        </div>
+        <div id="modeBadge" class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/30">
+            Mode: Sprint | <span id="seanceInfo">Séance non chargée</span>
+        </div>
+    </div>
+
+    <!-- ZONE PRINCIPALE -->
+    <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[3rem] shadow-2xl flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
+        <!-- ECRAN 1 : CHOIX EQUIPE & PIN -->
+        <div id="ecranLogin" class="flex flex-col items-center">
+            <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-10 italic">Arcathlon</h1>
+            <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-6 rounded-2xl text-3xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6">
+                <option value="">-- CHOISIR L'ÉQUIPE --</option>
             </select>
-            <button onclick="addClasse()" class="bg-blue-600 px-3 py-1 rounded text-xs font-black uppercase">+ Classe</button>
-        </div>
-    </header>
-
-    <!-- Navigation -->
-    <nav class="flex border-b border-slate-700 mb-6 font-bold text-xs uppercase tracking-widest overflow-x-auto shrink-0">
-        <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500">📋 Élèves</button>
-        <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500">👥 Équipes</button>
-        <button id="btnTab3" onclick="switchTab('live')" class="px-4 py-2 text-slate-500">📊 Résultats</button>
-        <button id="btnTab4" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500">📜 Historique</button>
-    </nav>
-
-    <div class="flex-1 overflow-hidden">
-        <!-- ONGLET 1 : IMPORT & FICHE ÉLÈVE -->
-        <div id="viewImport" class="h-full flex flex-col">
-            <div class="flex flex-wrap items-center gap-4 mb-4 shrink-0 bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
-                <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-6 py-3 rounded-xl font-black text-sm shadow-lg border border-emerald-400">📄 Import CSV</button>
-                <input type="file" id="csvFile" accept=".csv" class="hidden">
-                <button onclick="document.getElementById('zipFile').click()" class="bg-indigo-600 px-6 py-3 rounded-xl font-black text-sm shadow-lg border border-indigo-400">📸 Import Photos</button>
-                <input type="file" id="zipFile" accept=".zip" class="hidden">
-                <button onclick="addManualEleve()" class="bg-slate-700 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-slate-500">+ Élève</button>
-                <button onclick="purgeEleves()" class="bg-red-900/50 text-red-400 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-red-800">🗑 Vider</button>
-            </div>
-            <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 overflow-y-auto pb-6 pr-2 content-start"></div>
-        </div>
-
-        <!-- ONGLET 2 : ÉQUIPES & CONFIG -->
-        <div id="viewEquipes" class="h-full flex flex-col hidden">
-            <div class="flex flex-wrap items-center justify-between mb-6 gap-4 border-b border-slate-700 pb-4 shrink-0">
-                <div class="flex items-center gap-4">
-                    <button onclick="generateTeams()" class="bg-orange-600 px-6 py-3 rounded-xl font-black uppercase text-sm shadow-lg border border-orange-400">🔄 Générer</button>
-                    <label class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-3 rounded-xl font-bold text-sm text-slate-300">
-                        <input type="checkbox" id="mixiteCheckbox" class="w-5 h-5 accent-orange-500"> ⚥ Mixité
-                    </label>
+            <div id="numpad" class="hidden flex-col items-center">
+                <div class="text-sm font-bold text-slate-400 mb-2 uppercase tracking-widest">Saisir le PIN (3 chiffres)</div>
+                <div id="pinDisplay" class="bg-slate-950 border-2 border-slate-700 w-48 h-16 rounded-xl flex items-center justify-center text-3xl font-mono tracking-[1em] mb-4 text-emerald-400 shadow-inner"></div>
+                <div class="grid grid-cols-3 gap-3">
+                    <script>for(let i=1; i<=9; i++) document.write(`<button onclick="addPin(${i})" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">${i}</button>`);</script>
+                    <button onclick="clearPin()" class="bg-red-900/50 text-red-400 w-16 h-16 rounded-xl text-sm font-black uppercase border border-red-800 active:bg-red-800">Effacer</button>
+                    <button onclick="addPin(0)" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">0</button>
+                    <button onclick="validatePin()" class="bg-emerald-600 text-white w-16 h-16 rounded-xl text-sm font-black uppercase border-2 border-emerald-400 active:bg-emerald-700">OK</button>
                 </div>
-                <div class="flex items-center gap-4 bg-slate-800 p-3 rounded-2xl border-2 border-slate-700">
-                    <span class="font-black text-slate-300 uppercase text-xs">⚙️ Mode :</span>
-                    <select id="modeEpreuve" class="bg-slate-900 border border-slate-600 rounded p-2 text-xs font-bold text-white outline-none">
-                        <option value="sprint">Sprint / Mass Start</option>
-                    </select>
-                </div>
-                <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-sm shadow-xl text-white border-2 border-blue-400">🚀 Envoyer aux iPads</button>
-            </div>
-
-            <!-- Configuration séance -->
-            <div class="bg-slate-800 p-4 rounded-2xl border-2 border-slate-700 mb-6">
-                <h3 class="font-black text-blue-400 uppercase text-sm mb-4">📝 Configuration de la séance</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="flex items-center gap-2"><span class="font-bold text-slate-300 text-xs uppercase">Longueur piste (m) :</span><input type="number" id="longueurPiste" value="400" min="50" class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center"></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-slate-300 text-xs uppercase">Nombre de tours :</span><select id="nbTours" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option></select></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-slate-300 text-xs uppercase">Distance totale :</span><span id="distanceTotale" class="font-bold text-emerald-400">1200 m</span></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-slate-300 text-xs uppercase">Nombre de séries :</span><select id="nbSeries" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option></select></div>
-                    <div class="flex items-center gap-2"><span class="font-bold text-slate-300 text-xs uppercase">Flèches par tir :</span><select id="nbFleches" class="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select></div>
-                </div>
-                <div class="text-xs text-slate-400 font-bold mt-4 uppercase tracking-widest">🔄 DÉROULEMENT : <span id="deroulementTexte">3 séries de (3 tours → Tir 2 flèches)</span></div>
-            </div>
-
-            <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6 pr-2 content-start"></div>
-        </div>
-
-        <!-- ONGLET 3 : RÉSULTATS LIVE -->
-        <div id="viewLive" class="h-full flex flex-col hidden">
-            <div class="flex justify-between mb-4 shrink-0">
-                <button onclick="exportResults()" class="bg-green-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">📤 Exporter Résultats</button>
-                <button onclick="purgeLive()" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs">⚠️ Purger le Direct</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-2 pb-6 space-y-8">
-                <div><h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Classement par Équipe</h3><div id="grosGlobe" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></div>
-                <div><h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Derniers Passages</h3><div id="journalPassages" class="flex flex-col gap-2"></div></div>
             </div>
         </div>
 
-        <!-- ONGLET 4 : HISTORIQUE -->
-        <div id="viewHistorique" class="h-full flex flex-col hidden">
-            <div class="flex justify-between mb-4 shrink-0">
-                <select id="selectSeance" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-bold">
-                    <option value="">-- Sélectionner une séance --</option>
-                </select>
-                <button onclick="loadHistorique()" class="bg-blue-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">🔍 Charger</button>
+        <!-- ECRAN 2 : CHOIX COUREUR -->
+        <div id="ecranCoureurs" class="hidden flex-col">
+            <button onclick="resetLogin()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-6">↩ Changer d'équipe</button>
+            <h2 id="titreEquipe" class="text-4xl font-black text-center text-slate-200 uppercase tracking-widest mb-8">Équipe X</h2>
+            <div id="maillotsGrid" class="grid grid-cols-2 gap-4"></div>
+            <div class="mt-8 pt-6 border-t border-slate-800 text-center">
+                <button onclick="toggleHistorique()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold text-sm text-slate-400 uppercase tracking-widest border border-slate-700 active:bg-slate-700">📜 Historique</button>
             </div>
-            <div class="flex-1 overflow-y-auto pr-2 pb-6"><div id="historiqueContainer" class="space-y-4"></div></div>
+        </div>
+
+        <!-- ECRAN 3 : CHRONOMÉTRAGE -->
+        <div id="ecranChrono" class="hidden flex-col h-full">
+            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
+            <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0">
+                <span id="coureurLabel" class="text-blue-400">Coureur : Maillot Rouge</span>
+                <div class="text-sm font-bold text-slate-400 mt-1">VMA: <span id="vmaCoureur">12.0</span> km/h</div>
+            </div>
+            <div class="flex-1 flex flex-col items-center justify-center gap-6">
+                <div class="text-6xl font-mono font-bold tabular-nums" id="chronoDisplay">00:00.00</div>
+                <div class="flex gap-4">
+                    <button id="btnDepart" onclick="demarrerChrono()" class="bg-green-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-green-700">Départ</button>
+                    <button id="btnArrivee" onclick="arreterChrono()" class="bg-red-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-red-700" disabled>Arrivée</button>
+                </div>
+                <div class="w-full max-w-md bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
+                    <div class="flex justify-between mb-2"><span class="font-bold text-slate-400">Série :</span><span id="serieActuelle" class="font-bold text-emerald-400">1/3</span></div>
+                    <div class="flex justify-between mb-2"><span class="font-bold text-slate-400">Tours :</span><span id="toursInfo" class="font-bold text-emerald-400">3 tours (1200 m)</span></div>
+                    <div class="flex justify-between mb-2"><span class="font-bold text-slate-400">Temps :</span><span id="tempsAffiche" class="font-bold text-emerald-400">00:00.00</span></div>
+                    <div class="flex justify-between"><span class="font-bold text-slate-400">Vitesse :</span><span id="vitesseAffiche" class="font-bold text-emerald-400">0 km/h</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECRAN 4 : SAISIE TIR -->
+        <div id="ecranSaisie" class="hidden flex-col h-full">
+            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
+            <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0" id="labelCoureur"></div>
+            <div class="flex-1 flex gap-6 min-h-0">
+                <!-- Cible -->
+                <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-4 flex flex-col items-center justify-center relative shadow-inner">
+                    <span class="absolute top-4 text-xs font-black text-slate-500 uppercase tracking-widest">Touchez la cible 🎯</span>
+                    <svg viewBox="0 0 100 100" class="w-full max-w-[250px] md:max-w-xs mx-auto drop-shadow-2xl">
+                        <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6, 'Bleu')" />
+                        <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="marquerTir(8, 'Rouge')" />
+                        <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="marquerTir(10, 'Jaune')" />
+                    </svg>
+                    <div class="grid grid-cols-2 gap-2 mt-4 w-full">
+                        <button onclick="marquerTir(5, 'Bord')" class="bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300 active:bg-slate-700">+5 (Bord)</button>
+                        <button onclick="marquerTir(0, 'Manqué')" class="bg-red-950/40 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400 active:bg-red-900">0 (Manqué)</button>
+                    </div>
+                </div>
+                <!-- Flèches et validation -->
+                <div class="flex-1 flex flex-col gap-3">
+                    <div class="bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 flex flex-col gap-2" id="flechesContainer"></div>
+                    <button id="btnValider" onclick="validerPassage()" disabled class="bg-emerald-600 border-4 border-emerald-400 py-6 rounded-2xl font-black text-2xl uppercase tracking-widest text-white shadow-xl opacity-50 transition-opacity">
+                        Valider <span id="totalPreview" class="text-lg"></span>
+                    </button>
+                    <button onclick="annulerTir()" class="bg-yellow-600/40 border-2 border-yellow-600 py-3 rounded-xl font-bold text-sm uppercase text-yellow-400 active:bg-yellow-800">↩ Annuler le tir</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECRAN HISTORIQUE -->
+        <div id="ecranHistorique" class="hidden flex-col h-full absolute inset-0 bg-slate-950/95 p-8 z-50 backdrop-blur-sm">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-4 mb-4">
+                <h2 class="text-2xl font-black text-blue-400 uppercase tracking-widest italic">Historique Équipe</h2>
+                <button onclick="toggleHistorique()" class="bg-slate-800 px-4 py-2 rounded-xl font-bold uppercase text-xs">Fermer</button>
+            </div>
+            <div id="listHistorique" class="flex flex-col gap-3 overflow-y-auto"></div>
         </div>
     </div>
 
@@ -121,482 +126,376 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v4')) || {
-            classes: {}, equipes: {}, activeCl: "", seances: {}
-        };
-        let dbPhotos;
-        const request = indexedDB.open("Arcathlon_DB", 1);
-        request.onupgradeneeded = e => { dbPhotos = e.target.result; dbPhotos.createObjectStore("eleves", { keyPath: "id" }); };
-        request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
+        let equipesConfig = {};
+        let configMode = "sprint";
+        let currentEq = "", currentPin = "", currentMaillot = "";
+        let inputPin = "";
+        let seanceConfig = {};
+        let passageActuel = 1;
+        let tirs = [];
+        let myHistory = [];
+        let scoresCoureur = {};
+        let chronoInterval = null;
+        let tempsDepart = 0;
+        let tempsEcoule = 0;
+        let currentSerie = 0;
+        let currentVitesse = 0;
+        let currentPointsCourse = 0;
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v4', JSON.stringify(state)); }
-        function savePhoto(id, blob) { dbPhotos.transaction("eleves", "readwrite").objectStore("eleves").put({ id, blob }); }
-        async function getPhotoUrl(id) {
-            return new Promise(resolve => {
-                if(!dbPhotos) resolve(null);
-                const req = dbPhotos.transaction("eleves", "readonly").objectStore("eleves").get(id);
-                req.onsuccess = () => req.result ? resolve(URL.createObjectURL(req.result.blob)) : resolve(null);
-            });
-        }
-        function clePhoto(nom, prenom) { return (nom.trim() + "_" + prenom.trim().charAt(0)).toUpperCase().replace(/\s+/g, ""); }
-
-        function initUI() {
-            updateClSelect();
-            if(state.activeCl && state.classes[state.activeCl]) { renderEleves(); renderTeams(); }
-            updateSeancesList();
-            document.getElementById('longueurPiste').addEventListener('input', updateDistanceTotale);
-            document.getElementById('nbTours').addEventListener('change', updateDistanceTotale);
-            document.getElementById('nbSeries').addEventListener('change', updateDistanceTotale);
-            document.getElementById('nbFleches').addEventListener('change', updateDistanceTotale);
-            updateDistanceTotale();
-            db.ref('.info/connected').on('value', snap => {
-                document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500 animate-pulse");
-                document.getElementById('connLabel').textContent = snap.val() ? "En Ligne" : "Hors Ligne";
-            });
-            db.ref('arcathlon/live/passages').on('value', snap => { updateLiveScores(snap.val() || {}); });
-        }
-
-        function updateClSelect() {
-            document.getElementById('selectClasse').innerHTML = Object.keys(state.classes).map(c =>
-                `<option value="${c}" ${c === state.activeCl ? 'selected' : ''}>${c}</option>`
-            ).join('');
-        }
-
-        function updateDistanceTotale() {
-            const longueur = parseInt(document.getElementById('longueurPiste').value) || 400;
-            const tours = parseInt(document.getElementById('nbTours').value) || 3;
-            const distance = longueur * tours;
-            document.getElementById('distanceTotale').textContent = `${distance} m`;
-            const series = document.getElementById('nbSeries').value;
-            const fleches = document.getElementById('nbFleches').value;
-            document.getElementById('deroulementTexte').textContent =
-                `${series} série${series > 1 ? 's' : ''} de (${tours} tour${tours > 1 ? 's' : ''} → Tir ${fleches} flèche${fleches > 1 ? 's' : ''})`;
-        }
-
-        window.changeClasse = function(val) {
-            state.activeCl = val;
-            saveToLocal();
-            renderEleves();
-            renderTeams();
-        };
-        window.addClasse = function() {
-            const nom = prompt("Nom de la nouvelle classe ?");
-            if(nom && !state.classes[nom]) { state.classes[nom] = []; state.equipes[nom] = []; state.activeCl = nom; updateClSelect(); saveToLocal(); renderEleves(); renderTeams(); }
-        };
-
-        function verifyActiveClass(msg) {
-            if(Object.keys(state.classes).length === 0) {
-                const nom = prompt(msg || "Nom de la classe pour cet import ?");
-                if(!nom) return false;
-                state.classes[nom] = []; state.equipes[nom] = []; state.activeCl = nom; updateClSelect();
-            }
-            return true;
-        }
-
-        window.switchTab = function(t) {
-            ['viewImport','viewEquipes','viewLive','viewHistorique'].forEach(v => document.getElementById(v).classList.add('hidden'));
-            ['btnTab1','btnTab2','btnTab3','btnTab4'].forEach(b => { document.getElementById(b).classList.remove('tab-active','text-blue-500'); document.getElementById(b).classList.add('text-slate-500'); });
-            const tMap = {'import':'1', 'equipes':'2', 'live':'3', 'historique':'4'};
-            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
-            document.getElementById('btnTab' + tMap[t]).classList.add('tab-active', 'text-blue-500');
-            document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
-        };
-
-        // Gestion élèves
-        document.getElementById('csvFile').addEventListener('change', function(e) {
-            if(!verifyActiveClass("Nom de la classe pour ce fichier CSV ?")) { e.target.value = ''; return; }
-            Papa.parse(e.target.files[0], {
-                delimiter: ";", header: false, skipEmptyLines: true,
-                complete: function(results) {
-                    let importes = 0;
-                    results.data.forEach(row => {
-                        if (!row[0] || row[0].trim() === "" || row[0].toLowerCase().includes("luc léger")) return;
-                        const nomComplet = row[0].trim().split(" ");
-                        const prenom = nomComplet[0];
-                        const nom = nomComplet.slice(1).join(" ").toUpperCase();
-                        const vma = parseFloat(row[1] ? String(row[1]).trim().replace(",", ".") : "");
-                        if (isNaN(vma)) return;
-                        const cle = clePhoto(nom, prenom);
-                        let existing = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                        if (existing) { existing.VMA = vma; } else { state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: "", idPhoto: cle }); }
-                        importes++;
-                    });
-                    alert(`${importes} élèves importés/mis à jour dans ${state.activeCl}.`);
-                    saveToLocal();
-                    renderEleves();
-                    e.target.value = '';
-                }
-            });
+        db.ref('.info/connected').on('value', snap => {
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
         });
 
-        document.getElementById('zipFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file || !dbPhotos || !verifyActiveClass()) { e.target.value = ''; return; }
-            JSZip.loadAsync(file).then(async function(zip) {
-                let photosCount = 0;
-                for (const path in zip.files) {
-                    const entry = zip.files[path];
-                    if (!entry.dir && entry.name.match(/\.(jpe?g|png)$/i)) {
-                        const filename = entry.name.split('/').pop().normalize("NFC");
-                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.(jpe?g|png)$/i) || filename.match(/^_([^,]+),_([^_]+)\.(jpe?g|png)$/i);
-                        if (match) {
-                            let nom = match[1].trim().toUpperCase(), prenom = match[2].trim(), sexe = match[3] ? match[3].trim().toUpperCase() : "";
-                            let cle = clePhoto(nom, prenom);
-                            const blob = await entry.async("blob");
-                            savePhoto(cle, blob);
-                            let eleve = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                            if (eleve) { eleve.idPhoto = cle; if (!eleve.Sexe && sexe) eleve.Sexe = sexe; } else { state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle }); }
-                            photosCount++;
-                        }
-                    }
-                }
-                alert(`${photosCount} photos associées dans ${state.activeCl} !`);
-                saveToLocal();
-                renderEleves();
-                renderTeams();
-                e.target.value = '';
-            });
-        });
-
-        window.addManualEleve = function() {
-            if(!verifyActiveClass("Créez d'abord une classe :")) return;
-            const prenom = prompt("Prénom :"); if (!prenom) return;
-            const nom = prompt("Nom :"); if (!nom) return;
-            const vma = parseFloat(prompt("VMA (ex: 12.5) :").replace(',', '.')); if (isNaN(vma)) return;
-            const sexe = prompt("Sexe (F/M) :")?.toUpperCase() || "";
-            state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: sexe, idPhoto: clePhoto(nom, prenom) });
-            saveToLocal();
-            renderEleves();
-        };
-
-        window.purgeEleves = function() {
-            if(state.activeCl && confirm(`Vider entièrement la classe ${state.activeCl} ?`)) {
-                state.classes[state.activeCl] = [];
-                state.equipes[state.activeCl] = [];
-                saveToLocal();
-                renderEleves();
-                renderTeams();
-            }
-        };
-
-        async function renderEleves() {
-            const list = document.getElementById('elevesGrid');
-            if(!list || !state.activeCl) return;
-            let html = "";
-            for(let i = 0; i < (state.classes[state.activeCl] || []).length; i++) {
-                const e = state.classes[state.activeCl][i];
-                const url = e.idPhoto ? await getPhotoUrl(e.idPhoto) : null;
-                const photo = url ? `<img src="${url}" class="photo-preview">` : `<div class="w-full h-full flex items-center justify-center text-2xl bg-slate-700 rounded-full">👤</div>`;
-                html += `
-                <div class="bg-slate-800 rounded-2xl border-2 border-slate-700 flex flex-col overflow-hidden relative shadow-lg">
-                    <button onclick="state.classes['${state.activeCl}'].splice(${i}, 1); saveToLocal(); renderEleves(); renderTeams();"
-                            class="absolute top-2 right-2 bg-red-600 text-white w-6 h-6 rounded-full font-bold leading-none">&times;</button>
-                    <div class="h-20 w-full bg-slate-900 flex items-center justify-center overflow-hidden">${photo}</div>
-                    <div class="p-3 text-center flex flex-col items-center">
-                        <p class="text-lg font-black leading-tight">${e.Prenom}</p>
-                        <p class="text-[10px] uppercase text-slate-400 font-bold">${e.Nom}</p>
-                        <div class="mt-2 flex gap-2">
-                            <span class="bg-slate-950 px-2 py-1 rounded border border-slate-700 text-xs font-bold text-emerald-400">VMA: ${e.VMA}</span>
-                            <span class="bg-slate-950 px-2 py-1 rounded border border-slate-700 text-xs font-bold text-blue-400">${e.Sexe || '?'}</span>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            list.innerHTML = html;
-        }
-
-        // Équipes
-        window.generateTeams = function() {
-            if(!state.activeCl) return;
-            let elevesVMA = (state.classes[state.activeCl] || []).filter(e => e.VMA && !isNaN(e.VMA));
-            const nbEquipes = Math.floor(elevesVMA.length / 4);
-            if (nbEquipes === 0) return alert("Pas assez d'élèves (min 4).");
-            let ordre = document.getElementById('mixiteCheckbox').checked
-                ? [...elevesVMA.filter(e=>e.Sexe==='F').sort((a,b)=>b.VMA-a.VMA),
-                   ...elevesVMA.filter(e=>e.Sexe==='M').sort((a,b)=>b.VMA-a.VMA),
-                   ...elevesVMA.filter(e=>e.Sexe!=='F'&&e.Sexe!=='M').sort((a,b)=>b.VMA-a.VMA)]
-                : [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
-            let newEquipes = Array.from({ length: nbEquipes }, (_, i) => ({ id: `EQ${i + 1}`, membres: [], sumVMA: 0, score: 0, pin: Math.floor(100 + Math.random() * 900).toString() }));
-            let eqIdx = 0, sens = 1;
-            ordre.forEach(eleve => {
-                const couleurs = [
-                    { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
-                    { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                    { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
-                    { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-                ];
-                let c = couleurs[newEquipes[eqIdx].membres.length % 4];
-                newEquipes[eqIdx].membres.push({ prenom: eleve.Prenom, nom: eleve.Nom.charAt(0) + ".", vma: eleve.VMA, maillot: c.nom, style: c.style, idPhoto: clePhoto(eleve.Nom, eleve.Prenom) });
-                newEquipes[eqIdx].sumVMA += eleve.VMA;
-                eqIdx += sens;
-                if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; } else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
-            });
-            state.equipes[state.activeCl] = newEquipes;
-            saveToLocal();
-            renderTeams();
-        };
-
-        async function renderTeams() {
-            const container = document.getElementById('teamsGrid');
-            if(!container || !state.activeCl) return;
-            container.innerHTML = "";
-            for(let eq of (state.equipes[state.activeCl] || [])) {
-                let html = `
-                <div class="bg-slate-900 rounded-3xl border-2 border-slate-700 p-4 flex flex-col shadow-lg" data-team-id="${eq.id}">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-black text-xl text-slate-200">${eq.id}</h3>
-                        <span class="text-emerald-400 font-black text-lg">${eq.sumVMA.toFixed(1)} <span class="text-[10px] text-slate-500">VMA</span></span>
-                    </div>
-                    <div class="team-list flex-1 space-y-2 min-h-[100px] border-2 border-dashed border-slate-700 rounded-xl p-2 bg-black/20" data-team-id="${eq.id}">`;
-                for(let m of eq.membres) {
-                    const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
-                    const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700"></div>`;
-                    html += `
-                    <div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab bg-slate-900"
-                         data-member='${JSON.stringify(m).replace(/"/g, "&quot;")}'>
-                        ${photo}
-                        <span class="font-black uppercase text-[10px] w-12 tracking-widest">${m.maillot}</span>
-                        <div class="flex flex-col"><span class="font-bold text-white text-sm">${m.prenom} ${m.nom}</span><span class="text-[10px] text-slate-400">VMA: ${m.vma}</span></div>
-                    </div>`;
-                }
-                html += `</div><div class="flex justify-between items-center mt-2"><span class="bg-slate-800 px-2 py-1 rounded text-red-400 text-xs font-mono tracking-widest border border-slate-700">PIN: ${eq.pin}</span></div></div>`;
-                container.innerHTML += html;
-            }
-            document.querySelectorAll('.team-list').forEach(el => {
-                if (el.sortableInstance) el.sortableInstance.destroy();
-                Sortable.create(el, {
-                    group: 'teams', animation: 150, ghostClass: 'ghost-item',
-                    onEnd: function() {
-                        const newEquipes = [];
-                        document.querySelectorAll('#teamsGrid > div').forEach(tDiv => {
-                            let sumVMA = 0, membres = [];
-                            tDiv.querySelectorAll('.member-item').forEach(mDiv => {
-                                const m = JSON.parse(mDiv.dataset.member);
-                                sumVMA += m.vma;
-                                membres.push(m);
-                            });
-                            let eqBase = state.equipes[state.activeCl].find(e => e.id === tDiv.dataset.teamId);
-                            newEquipes.push({ id: eqBase.id, pin: eqBase.pin, membres, sumVMA, score: 0 });
-                        });
-                        state.equipes[state.activeCl] = newEquipes;
-                        saveToLocal();
-                        renderTeams();
-                    }
-                });
-            });
-        }
-
-        window.pushConfig = function() {
-            if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0)
-                return alert("Aucune équipe générée.");
-            const seanceId = `SEANCE_${Date.now()}`;
-            const configObj = {
-                equipes: {},
-                mode: "sprint",
-                longueurPiste: parseInt(document.getElementById('longueurPiste').value) || 400,
-                nbTours: parseInt(document.getElementById('nbTours').value) || 3,
-                nbSeries: parseInt(document.getElementById('nbSeries').value) || 3,
-                nbFleches: parseInt(document.getElementById('nbFleches').value) || 2,
-                date: new Date().toISOString(),
-                distanceTotale: (parseInt(document.getElementById('longueurPiste').value) || 400) *
-                               (parseInt(document.getElementById('nbTours').value) || 3),
-                vmaReference: {}
+        db.ref('arcathlon/config').on('value', snap => {
+            const config = snap.val() || {};
+            equipesConfig = config.equipes || {};
+            configMode = config.mode || "sprint";
+            seanceConfig = {
+                seanceId: config.seanceId,
+                longueurPiste: config.longueurPiste || 400,
+                nbTours: config.nbTours || 3,
+                nbSeries: config.nbSeries || 3,
+                nbFleches: config.nbFleches || 2,
+                distanceTotale: config.distanceTotale || 1200,
+                vmaReference: config.vmaReference || {}
             };
-            state.equipes[state.activeCl].forEach(eq => {
-                configObj.equipes[eq.id] = { pin: eq.pin, membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma, prenom: m.prenom, nom: m.nom })) };
-                eq.membres.forEach(m => { configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma; });
-            });
-            if (!state.seances) state.seances = {};
-            state.seances[seanceId] = configObj;
-            saveToLocal();
-            updateSeancesList();
-            db.ref('arcathlon/config').set({ ...configObj, seanceId }).then(() => {
-                alert(`🚀 Configuration de la séance envoyée !\nID: ${seanceId}`);
-                db.ref('arcathlon/live/passages').once('value', snap => {
-                    const passages = snap.val() || {};
-                    Object.entries(passages).forEach(([key, passage]) => {
-                        db.ref('arcathlon/historique').child(seanceId).child(key).set(passage);
-                    });
+            document.getElementById('seanceInfo').textContent = `Séance ${seanceConfig.seanceId ? seanceConfig.seanceId.substring(0, 8) : 'non chargée'}`;
+            document.getElementById('toursInfo').textContent = `${seanceConfig.nbTours} tours (${seanceConfig.distanceTotale} m)`;
+
+            scoresCoureur = {};
+            Object.keys(equipesConfig).forEach(eq => {
+                equipesConfig[eq].membres.forEach(m => {
+                    const key = `${eq}-${m.maillot}`;
+                    scoresCoureur[key] = {
+                        series: Array(seanceConfig.nbSeries).fill().map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
+                        complet: false
+                    };
                 });
             });
+
+            const sel = document.getElementById('selEquipe');
+            const valActuelle = sel.value;
+            sel.innerHTML = "<option value=\"\">-- CHOISIR L'ÉQUIPE --</option>" +
+                Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+            if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
+
+            if (currentEq && !equipesConfig[currentEq]) resetLogin();
+            else if (currentEq && currentMaillot) buildCoureursGrid();
+        });
+
+        db.ref('arcathlon/live/passages').on('value', snap => {
+            const passages = snap.val() || {};
+            if (!document.getElementById('ecranHistorique').classList.contains('hidden')) {
+                renderHistorique(passages);
+            }
+        });
+
+        window.checkTeamSelection = function() {
+            const val = document.getElementById('selEquipe').value;
+            if (val) {
+                currentEq = val;
+                currentPin = equipesConfig[val].pin;
+                inputPin = "";
+                document.getElementById('pinDisplay').textContent = "";
+                document.getElementById('numpad').classList.remove('hidden');
+                document.getElementById('numpad').classList.add('flex');
+            } else {
+                document.getElementById('numpad').classList.add('hidden');
+                document.getElementById('numpad').classList.remove('flex');
+            }
         };
 
-        function updateSeancesList() {
-            const select = document.getElementById('selectSeance');
-            select.innerHTML = "<option value=\"\">-- Sélectionner une séance --</option>" +
-                Object.entries(state.seances || {}).sort((a, b) => new Date(b[1].date) - new Date(a[1].date))
-                .map(([id, seance]) => `
-                    <option value="${id}">
-                        ${new Date(seance.date).toLocaleString()} |
-                        ${seance.nbSeries} séries | ${seance.nbTours} tours | ${seance.nbFleches} flèches
-                    </option>
-                `).join('');
+        window.addPin = function(num) {
+            if (inputPin.length < 3) { inputPin += num; document.getElementById('pinDisplay').textContent = inputPin.replace(/./g, '•'); }
+        };
+        window.clearPin = function() { inputPin = ""; document.getElementById('pinDisplay').textContent = ""; };
+
+        window.validatePin = function() {
+            if (inputPin === currentPin) {
+                document.getElementById('ecranLogin').classList.add('hidden');
+                document.getElementById('ecranLogin').classList.remove('flex');
+                document.getElementById('ecranCoureurs').classList.remove('hidden');
+                document.getElementById('ecranCoureurs').classList.add('flex');
+                document.getElementById('titreEquipe').textContent = `Équipe ${currentEq}`;
+                buildCoureursGrid();
+            } else {
+                alert("Code PIN incorrect. Demandez-le au professeur.");
+                clearPin();
+            }
+        };
+
+        window.resetLogin = function() {
+            currentEq = ""; inputPin = ""; currentMaillot = "";
+            document.getElementById('selEquipe').value = "";
+            document.getElementById('numpad').classList.add('hidden');
+            document.getElementById('numpad').classList.remove('flex');
+            document.getElementById('ecranCoureurs').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranChrono').classList.add('hidden');
+            document.getElementById('ecranChrono').classList.remove('flex');
+            document.getElementById('ecranSaisie').classList.add('hidden');
+            document.getElementById('ecranSaisie').classList.remove('flex');
+            document.getElementById('ecranLogin').classList.remove('hidden');
+            document.getElementById('ecranLogin').classList.add('flex');
+            passageActuel = 1; tirs = []; currentSerie = 0;
+        };
+
+        function buildCoureursGrid() {
+            const grid = document.getElementById('maillotsGrid');
+            const membres = equipesConfig[currentEq]?.membres || [];
+            let html = "";
+            const colorMap = {
+                'Rouge': 'bg-red-950 border-red-600 text-red-400',
+                'Jaune': 'bg-yellow-950 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950 border-blue-600 text-blue-400',
+                'Vert': 'bg-green-950 border-green-600 text-green-400'
+            };
+            membres.forEach(m => {
+                const key = `${currentEq}-${m.maillot}`;
+                const scores = scoresCoureur[key] || { series: [], complet: false };
+                const serieActuelle = scores.series.findIndex(s => s.course === 0);
+                const serieMax = scores.series.length;
+                const complet = serieActuelle === -1 || serieActuelle >= serieMax;
+                const totalCourse = scores.series.reduce((acc, s) => acc + s.course, 0);
+                const totalTir = scores.series.reduce((acc, s) => acc + s.tir, 0);
+                const total = totalCourse + totalTir;
+                const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                const disabledClass = complet ? 'opacity-50 disabled' : 'active:bg-slate-900';
+                const scoreDisplay = total > 0 ? `<span class="score-badge">${total} pts</span>` : '';
+                html += `
+                <button onclick="${complet ? '' : `openChrono('${m.maillot}')`}"
+                        class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                    <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                    <span class="text-sm font-bold mt-1 text-slate-300">VMA: ${m.vma}</span>
+                    ${scoreDisplay}
+                    ${complet ? `<div class="text-xs font-bold text-green-400 mt-1">✓ Terminé</div>` : ''}
+                </button>`;
+            });
+            grid.innerHTML = html;
         }
 
-        // Résultats live
-        function updateLiveScores(passages) {
-            if(!state.activeCl) return;
-            const equipesActive = state.equipes[state.activeCl] || [];
-            equipesActive.forEach(eq => { eq.score = 0; eq.membres.forEach(m => { m.scoreIndiv = 0; m.details = { courses: [], tirs: [] }; }); });
-            Object.values(passages).forEach(p => {
-                let eq = equipesActive.find(e => e.id === p.equipe);
-                if (eq) {
-                    let membre = eq.membres.find(m => m.maillot === p.maillot);
-                    if (membre) {
-                        if (p.ptsVMA !== undefined) { membre.details.courses.push(p.ptsVMA); membre.scoreIndiv += p.ptsVMA; }
-                        if (p.ptsTir !== undefined) { membre.details.tirs.push(p.ptsTir); membre.scoreIndiv += p.ptsTir; }
-                        eq.score += (p.ptsVMA || 0) + (p.ptsTir || 0);
-                    }
-                }
-            });
-            document.getElementById('grosGlobe').innerHTML = [...equipesActive]
-                .sort((a, b) => b.score - a.score)
-                .map((eq, idx) => `
-                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
-                        <div class="flex items-center gap-2"><span class="font-black text-slate-300 text-lg">${idx+1}. ${eq.id}</span><span class="text-xs text-slate-500">(${eq.sumVMA.toFixed(1)} VMA)</span></div>
-                        <span class="text-emerald-400 font-black text-2xl">${eq.score}</span>
-                    </div>
-                `).join('');
+        window.openChrono = function(maillot) {
+            currentMaillot = maillot;
+            const key = `${currentEq}-${maillot}`;
+            const serieActuelle = scoresCoureur[key].series.findIndex(s => s.course === 0);
+            currentSerie = serieActuelle;
+            document.getElementById('ecranCoureurs').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranChrono').classList.remove('hidden');
+            document.getElementById('ecranChrono').classList.add('flex');
+            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
+            document.getElementById('coureurLabel').innerHTML = `
+                <span class="${colorTexte}">${maillot}</span>
+                <div class="text-sm font-bold text-slate-400 mt-1">
+                    Série ${serieActuelle + 1}/${seanceConfig.nbSeries} |
+                    VMA: <span id="vmaCoureur">${seanceConfig.vmaReference[key] || 'N/A'}</span> km/h
+                </div>`;
+            document.getElementById('serieActuelle').textContent = `${serieActuelle + 1}/${seanceConfig.nbSeries}`;
+            resetChrono();
+        };
 
-            const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 20);
-            document.getElementById('journalPassages').innerHTML = entries.length === 0 ?
-                '<p class="text-slate-600 text-sm text-center py-2">Aucun passage enregistré.</p>' :
-                entries.map(([key, p]) => {
-                    const type = p.ptsVMA !== undefined ? "Course" : "Tir";
-                    const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                    return `
-                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-2 shadow">
-                        <span class="text-slate-400">${h}</span>
-                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
-                        <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}</span>
-                        <button onclick="corrigerPassage('${key}', '${type}', ${pts})"
-                                class="bg-slate-700 text-yellow-400 border border-yellow-800 px-3 py-1 rounded-lg font-bold text-xs">✏️ Corriger</button>
-                        <button onclick="supprimerPassage('${key}')"
-                                class="bg-red-900/50 text-red-400 border border-red-800 px-3 py-1 rounded-lg font-bold text-xs">🗑 Supprimer</button>
+        window.retourCoureurs = function() {
+            clearInterval(chronoInterval);
+            document.getElementById('ecranChrono').classList.add('hidden');
+            document.getElementById('ecranChrono').classList.remove('flex');
+            document.getElementById('ecranSaisie').classList.add('hidden');
+            document.getElementById('ecranSaisie').classList.remove('flex');
+            document.getElementById('ecranCoureurs').classList.remove('hidden');
+            document.getElementById('ecranCoureurs').classList.add('flex');
+        };
+
+        function demarrerChrono() {
+            tempsDepart = Date.now() - tempsEcoule;
+            chronoInterval = setInterval(mettreAJourChrono, 10);
+            document.getElementById('btnDepart').disabled = true;
+            document.getElementById('btnArrivee').disabled = false;
+        }
+
+        function mettreAJourChrono() {
+            tempsEcoule = Date.now() - tempsDepart;
+            const temps = new Date(tempsEcoule);
+            const minutes = temps.getUTCMinutes().toString().padStart(2, '0');
+            const secondes = temps.getUTCSeconds().toString().padStart(2, '0');
+            const centiemes = Math.floor(temps.getUTCMilliseconds() / 10).toString().padStart(2, '0');
+            document.getElementById('chronoDisplay').textContent = `${minutes}:${secondes}.${centiemes}`;
+        }
+
+        function arreterChrono() {
+            clearInterval(chronoInterval);
+            const temps = new Date(tempsEcoule);
+            const secondesTotales = temps.getUTCMinutes() * 60 + temps.getUTCSeconds() + temps.getUTCMilliseconds() / 1000;
+            currentVitesse = (seanceConfig.distanceTotale / 1000) / (secondesTotales / 3600);
+            document.getElementById('tempsAffiche').textContent = document.getElementById('chronoDisplay').textContent;
+            document.getElementById('vitesseAffiche').textContent = `${currentVitesse.toFixed(1)} km/h`;
+
+            const key = `${currentEq}-${currentMaillot}`;
+            const vmaEleve = seanceConfig.vmaReference[key] || 12;
+            let pointsVMA = 0;
+            if (currentVitesse >= vmaEleve + 1) pointsVMA = 3;
+            else if (currentVitesse >= vmaEleve - 0.5) pointsVMA = 2;
+            else if (currentVitesse >= vmaEleve - 1) pointsVMA = 1;
+            currentPointsCourse = pointsVMA;
+
+            if (currentSerie !== -1) {
+                scoresCoureur[key].series[currentSerie].course = pointsVMA;
+                scoresCoureur[key].series[currentSerie].vitesse = currentVitesse;
+                scoresCoureur[key].series[currentSerie].temps = tempsEcoule;
+            }
+
+            document.getElementById('btnArrivee').disabled = true;
+            setTimeout(() => {
+                document.getElementById('ecranChrono').classList.add('hidden');
+                document.getElementById('ecranChrono').classList.remove('flex');
+                document.getElementById('ecranSaisie').classList.remove('hidden');
+                document.getElementById('ecranSaisie').classList.add('flex');
+                const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[currentMaillot];
+                document.getElementById('labelCoureur').innerHTML = `
+                    <span class="${colorTexte}">${currentMaillot}</span>
+                    <div class="text-sm font-bold text-slate-400 mt-1">
+                        Série ${currentSerie + 1}/${seanceConfig.nbSeries} |
+                        Vitesse: ${currentVitesse.toFixed(1)} km/h (${pointsVMA} pts)
                     </div>`;
-                }).join('');
+                genererZonesFleches();
+                resetChrono();
+            }, 500);
         }
 
-        window.corrigerPassage = function(key, type, ptsActuels) {
-            const newPts = prompt(`Points actuels: ${ptsActuels}\nNouvelle valeur (0-${type === 'Course' ? '3' : '30'}) :`, ptsActuels);
-            if (newPts === null) return;
-            const pts = parseInt(newPts);
-            if (isNaN(pts) || pts < 0 || (type === 'Course' && pts > 3) || (type === 'Tir' && pts > 30)) { alert("Valeur invalide."); return; }
-            const update = {}; update[type === 'Course' ? 'ptsVMA' : 'ptsTir'] = pts;
-            db.ref('arcathlon/live/passages').child(key).update(update);
+        function resetChrono() {
+            clearInterval(chronoInterval);
+            tempsEcoule = 0;
+            document.getElementById('chronoDisplay').textContent = "00:00.00";
+            document.getElementById('btnDepart').disabled = false;
+            document.getElementById('btnArrivee').disabled = true;
+            document.getElementById('tempsAffiche').textContent = "00:00.00";
+            document.getElementById('vitesseAffiche').textContent = "0 km/h";
+        }
+
+        function genererZonesFleches() {
+            const container = document.getElementById('flechesContainer');
+            let html = '';
+            for (let i = 0; i < seanceConfig.nbFleches; i++) {
+                html += `<div id="affF${i+1}" class="bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800">Flèche ${i+1} : --</div>`;
+            }
+            container.innerHTML = html;
+            tirs = [];
+            updateTotal();
+        }
+
+        window.marquerTir = function(pts, zoneName) {
+            if (tirs.length >= seanceConfig.nbFleches) return;
+            tirs.push(pts);
+            const aff = document.getElementById(`affF${tirs.length}`);
+            aff.className = "bg-slate-800 text-white font-black text-xl py-4 rounded-xl text-center border-4 border-slate-500 shadow-lg impact";
+            aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span><span class="text-[10px] block uppercase text-slate-400">${zoneName}</span>`;
+            updateTotal();
         };
 
-        window.supprimerPassage = function(key) {
-            if (confirm("Supprimer ce passage ?")) db.ref('arcathlon/live/passages').child(key).remove();
+        window.annulerTir = function() {
+            if (tirs.length === 0) return;
+            tirs.pop();
+            const idx = tirs.length + 1;
+            const aff = document.getElementById(`affF${idx}`);
+            aff.className = "bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800";
+            aff.textContent = `Flèche ${idx} : --`;
+            updateTotal();
         };
 
-        window.exportResults = function() {
-            const seanceId = document.getElementById('selectSeance').value;
-            if (!seanceId) return alert("Sélectionnez une séance.");
-            db.ref('arcathlon/historique').child(seanceId).once('value', snap => {
-                const passages = snap.val() || {};
-                const seance = state.seances[seanceId];
-                if (!seance) return alert("Séance introuvable.");
-                let csv = "Type;Équipe;Maillot;Points;Timestamp;Série;Vitesse;Temps\n";
-                Object.values(passages).forEach(p => {
-                    const type = p.ptsVMA !== undefined ? "Course" : "Tir";
-                    const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    csv += `${type};${p.equipe};${p.maillot};${pts};${new Date(p.timestamp).toLocaleString()};${p.serie||1};${p.vitesse||''};${p.temps||''}\n`;
-                });
-                csv += "\nTotaux par Équipe;\n";
-                const totauxEquipes = {};
-                Object.values(seance.equipes).forEach(eq => {
-                    totauxEquipes[eq.id] = { total: 0, coureurs: {} };
-                    eq.membres.forEach(m => { totauxEquipes[eq.id].coureurs[m.maillot] = { course: 0, tir: 0 }; });
-                });
-                Object.values(passages).forEach(p => {
-                    if (totauxEquipes[p.equipe]) {
-                        if (p.ptsVMA !== undefined) totauxEquipes[p.equipe].coureurs[p.maillot].course += p.ptsVMA;
-                        if (p.ptsTir !== undefined) totauxEquipes[p.equipe].coureurs[p.maillot].tir += p.ptsTir;
-                        totauxEquipes[p.equipe].total += (p.ptsVMA || 0) + (p.ptsTir || 0);
-                    }
-                });
-                Object.entries(totauxEquipes).forEach(([eqId, data]) => {
-                    csv += `Équipe;${eqId};Total;${data.total}\n`;
-                    Object.entries(data.coureurs).forEach(([maillot, scores]) => {
-                        csv += `;;${maillot};${scores.course + scores.tir};Course: ${scores.course};Tir: ${scores.tir}\n`;
-                    });
-                });
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Arcathlon_${seanceId}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
+        window.updateTotal = function() {
+            const btn = document.getElementById('btnValider');
+            if (tirs.length === seanceConfig.nbFleches) {
+                const ptsTir = tirs.reduce((a, b) => a + b, 0);
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                document.getElementById('totalPreview').textContent = `(${ptsTir} pts)`;
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+                document.getElementById('totalPreview').textContent = `(Tirez ${seanceConfig.nbFleches} flèches)`;
+            }
+        };
+
+        window.validerPassage = function() {
+            const btn = document.getElementById('btnValider');
+            btn.disabled = true;
+            const key = `${currentEq}-${currentMaillot}`;
+            const ptsTir = tirs.reduce((a, b) => a + b, 0);
+            scoresCoureur[key].series[currentSerie].tir = ptsTir;
+            const complet = scoresCoureur[key].series.every(s => s.course > 0 && s.tir > 0);
+            if (complet) scoresCoureur[key].complet = true;
+
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                ptsVMA: currentPointsCourse,
+                ptsTir: ptsTir,
+                vitesse: currentVitesse,
+                temps: tempsEcoule,
+                passage: passageActuel,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                seanceId: seanceConfig.seanceId
+            };
+
+            const ref = db.ref('arcathlon/live/passages').push();
+            ref.set(passageData).then(() => {
+                if (complet) {
+                    document.body.classList.add('bg-emerald-900');
+                    setTimeout(() => {
+                        document.body.classList.remove('bg-emerald-900');
+                        resetLogin();
+                        passageActuel = 1;
+                    }, 500);
+                } else {
+                    passageActuel++;
+                    document.getElementById('ecranSaisie').classList.add('hidden');
+                    document.getElementById('ecranSaisie').classList.remove('flex');
+                    document.getElementById('ecranCoureurs').classList.remove('hidden');
+                    document.getElementById('ecranCoureurs').classList.add('flex');
+                    buildCoureursGrid();
+                }
+            }).catch(() => {
+                alert("Erreur d'envoi. Vérifiez la connexion.");
+                btn.disabled = false;
             });
         };
 
-        window.purgeLive = function() {
-            if (prompt("Code de sécurité (RNE) :") !== "0680013V") return;
-            db.ref('arcathlon/live').remove().then(() => alert("Direct purgé !"));
+        window.toggleHistorique = function() {
+            const panel = document.getElementById('ecranHistorique');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                renderHistorique();
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            }
         };
 
-        window.loadHistorique = function() {
-            const seanceId = document.getElementById('selectSeance').value;
-            if (!seanceId) return;
-            const seance = state.seances[seanceId];
-            if (!seance) return alert("Séance introuvable.");
-            const container = document.getElementById('historiqueContainer');
-            db.ref('arcathlon/historique').child(seanceId).once('value', snap => {
-                const passages = snap.val() || {};
-                let html = `<div class="bg-slate-800 p-4 rounded-xl mb-4">
-                    <h3 class="font-black text-blue-400 text-lg mb-2">Séance du ${new Date(seance.date).toLocaleString()}</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Piste</span><div class="font-bold text-emerald-400">${seance.longueurPiste} m</div></div>
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Tours</span><div class="font-bold text-emerald-400">${seance.nbTours}</div></div>
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Séries</span><div class="font-bold text-emerald-400">${seance.nbSeries}</div></div>
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Flèches</span><div class="font-bold text-emerald-400">${seance.nbFleches}</div></div>
+        function renderHistorique() {
+            const container = document.getElementById('listHistorique');
+            const coureurKey = `${currentEq}-${currentMaillot}`;
+            const scores = scoresCoureur[coureurKey] || { series: [] };
+            if (!scores.series.length) {
+                container.innerHTML = '<p class="text-slate-500 text-center py-4">Aucun passage enregistré pour ce coureur.</p>';
+                return;
+            }
+            let html = `<div class="bg-slate-800 p-4 rounded-xl mb-4"><h3 class="font-black text-blue-400 text-lg mb-2">${currentMaillot}</h3><div class="grid grid-cols-1 gap-2">`;
+            scores.series.forEach((serie, idx) => {
+                const totalSerie = serie.course + serie.tir;
+                html += `
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <div class="flex justify-between"><span class="font-bold text-slate-300">Série ${idx + 1}</span><span class="text-emerald-400 font-bold">${totalSerie} pts</span></div>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>Course: ${serie.course} pts</span>
+                        <span>Tir: ${serie.tir} pts</span>
+                        <span>Vit: ${serie.vitesse ? serie.vitesse.toFixed(1) : '-'} km/h</span>
                     </div>
                 </div>`;
-                const scoresEquipes = {};
-                Object.values(seance.equipes).forEach(eq => {
-                    scoresEquipes[eq.id] = { total: 0, coureurs: {} };
-                    eq.membres.forEach(m => { scoresEquipes[eq.id].coureurs[m.maillot] = { course: 0, tir: 0 }; });
-                });
-                Object.values(passages).forEach(p => {
-                    if (scoresEquipes[p.equipe] && scoresEquipes[p.equipe].coureurs[p.maillot]) {
-                        if (p.ptsVMA !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].course += p.ptsVMA;
-                        if (p.ptsTir !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].tir += p.ptsTir;
-                        scoresEquipes[p.equipe].total += (p.ptsVMA || 0) + (p.ptsTir || 0);
-                    }
-                });
-                const equipesTriees = Object.entries(scoresEquipes).sort((a, b) => b[1].total - a[1].total);
-                html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`;
-                equipesTriees.forEach(([eqId, data]) => {
-                    html += `<div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                        <div class="flex justify-between items-center mb-2"><h4 class="font-black text-xl text-slate-200">Équipe ${eqId}</h4><span class="text-emerald-400 font-black text-lg">${data.total} pts</span></div>
-                        <div class="space-y-2">`;
-                    Object.entries(data.coureurs).forEach(([maillot, scores]) => {
-                        html += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-300">${maillot}</span><span class="text-emerald-400 font-bold">${scores.course + scores.tir} pts</span></div>
-                                <div class="flex justify-between text-xs text-slate-400"><span>Course: ${scores.course} | Tir: ${scores.tir}</span></div>`;
-                    });
-                    html += `</div></div>`;
-                });
-                html += `</div>`;
-                html += `<div class="mt-6"><h4 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Détails des Passages</h4>
-                    <div class="flex flex-col gap-2 max-h-96 overflow-y-auto">`;
-                Object.entries(passages).sort((a, b) => a[1].timestamp - b[1].timestamp).forEach(([key, p]) => {
-                    const type = p.ptsVMA !== undefined ? "Course" : "Tir";
-                    const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    const h = new Date(p.timestamp).toLocaleTimeString('fr-FR');
-                    html += `<div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
-                        <span class="text-slate-400">${h}</span>
-                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
-                        <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}</span>
-                        <span class="text-slate-400">Série ${p.serie || 1}</span>
-                    </div>`;
-                });
-                html += `</div></div>`;
-                container.innerHTML = html;
             });
-        };
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
     </script>
 </body>
 </html>
