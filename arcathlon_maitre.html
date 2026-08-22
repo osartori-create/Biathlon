@@ -20,13 +20,22 @@
             object-fit: cover;
             border-radius: 50%;
         }
+        .team-container {
+            min-height: 100px;
+            border: 2px dashed #4b5563;
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-white p-4 font-sans h-screen flex flex-col">
     <header class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4 shrink-0">
         <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest">Arcathlon <span class="text-slate-400 text-sm">| Professeur</span></h1>
         <div class="flex gap-2">
-            <button onclick="purgeLive()" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-800">⚠️ Purger Live</button>
+            <button id="purgeLiveBtn" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-800">⚠️ Purger Live</button>
             <label class="bg-emerald-600 px-4 py-2 rounded-lg font-bold text-xs cursor-pointer hover:bg-emerald-500 border border-emerald-500">
                 📥 Import CSV (iDoceo)
                 <input type="file" id="csvFile" accept=".csv" class="hidden">
@@ -41,7 +50,7 @@
             <button id="generateTeamsBtn" class="bg-orange-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-orange-500 border border-orange-500">
                 🔄 Générer les équipes
             </button>
-            <button onclick="pushConfig()" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 border border-blue-500">🚀 Envoyer aux iPads</button>
+            <button id="pushConfigBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 border border-blue-500">🚀 Envoyer aux iPads</button>
         </div>
     </header>
 
@@ -106,6 +115,13 @@
     </div>
 
     <script>
+        // Variables globales
+        let equipes = [];
+        let configAnonyme = {};
+        let eleves = [];
+        let photosEleve = {};
+        let isEditingTeams = false;
+
         document.addEventListener('DOMContentLoaded', function() {
             // Initialisation Firebase
             const firebaseConfig = {
@@ -114,12 +130,18 @@
             firebase.initializeApp(firebaseConfig);
             const db = firebase.database();
 
-            // Variables globales
-            let equipes = [];
-            let configAnonyme = {};
-            let eleves = [];
-            let photosEleve = {};
-            let isEditingTeams = false;
+            // Définir les fonctions globales
+            window.purgeLive = function() {
+                if (confirm("Effacer toutes les performances enregistrées ?")) {
+                    db.ref('arcathlon/live').remove();
+                }
+            };
+
+            window.pushConfig = function() {
+                if (Object.keys(configAnonyme).length === 0) return alert("Générez d'abord les équipes !");
+                db.ref('arcathlon/config/equipes').set(configAnonyme);
+                alert("Configuration envoyée avec succès aux iPads élèves !");
+            };
 
             // Basculer entre les modes
             document.getElementById('toggleImportMode').addEventListener('click', function() {
@@ -127,13 +149,11 @@
                 const teamsPanel = document.getElementById('teamsPanel');
 
                 if (manualPanel.classList.contains('hidden')) {
-                    // Passer en mode saisie manuelle
                     manualPanel.classList.remove('hidden');
                     teamsPanel.classList.add('hidden');
                     this.textContent = "📥 Basculer en mode import";
                     renderManualVmaTable();
                 } else {
-                    // Revenir en mode import/équipes
                     manualPanel.classList.add('hidden');
                     teamsPanel.classList.remove('hidden');
                     this.textContent = "🔄 Basculer en mode saisie manuelle";
@@ -155,7 +175,7 @@
             });
 
             // Gérer les photos en saisie manuelle
-            function handleManualPhoto(input) {
+            window.handleManualPhoto = function(input) {
                 const row = input.closest('tr');
                 const file = input.files[0];
                 if (file) {
@@ -169,7 +189,7 @@
                     };
                     reader.readAsDataURL(file);
                 }
-            }
+            };
 
             // Remplir le tableau manuel avec les élèves existants
             function renderManualVmaTable() {
@@ -222,7 +242,7 @@
                             VMA: vma
                         };
 
-                        if (fileInput.files.length > 0) {
+                        if (fileInput && fileInput.files.length > 0) {
                             const reader = new FileReader();
                             reader.onload = function(e) {
                                 eleve.photo = e.target.result;
@@ -256,22 +276,25 @@
                     header: false,
                     skipEmptyLines: true,
                     complete: function(results) {
-                        let data = results.data.slice(1);
+                        let data = results.data;
+
+                        // Filtrer les lignes vides ou invalides
+                        data = data.filter(row => row.length >= 2 && row[0].trim() !== "" && !isNaN(parseFloat(row[1].trim().replace(",", "."))));
+
+                        // Ignorer la première ligne (en-têtes)
+                        data = data.slice(1);
 
                         eleves = data.map(row => {
-                            if (row.length >= 2) {
-                                const nomComplet = row[0].trim().split(" ");
-                                const prenom = nomComplet[0];
-                                const nom = nomComplet.slice(1).join(" ").toUpperCase();
-                                const vma = parseFloat(row[1].trim().replace(",", "."));
+                            const nomComplet = row[0].trim().split(" ");
+                            const prenom = nomComplet[0];
+                            const nom = nomComplet.slice(1).join(" ").toUpperCase();
+                            const vma = parseFloat(row[1].trim().replace(",", "."));
 
-                                const eleveKey = nom;
-                                const photo = photosEleve[eleveKey] || "";
+                            const eleveKey = nom;
+                            const photo = photosEleve[eleveKey] || "";
 
-                                return { Nom: nom, Prenom: prenom, VMA: vma, photo: photo };
-                            }
-                            return null;
-                        }).filter(eleve => eleve !== null);
+                            return { Nom: nom, Prenom: prenom, VMA: vma, photo: photo };
+                        });
 
                         console.log("Élèves importés :", eleves.map(e => `${e.Nom}, ${e.Prenom}, VMA: ${e.VMA}`));
                         generateTeams();
@@ -282,7 +305,7 @@
             // Importer un fichier ZIP de photos
             document.getElementById('zipFile').addEventListener('change', handleZIP);
 
-            async function handleZIP(e) {
+            window.handleZIP = async function(e) {
                 const file = e.target.files[0];
                 if (!file) {
                     alert("Aucun fichier sélectionné.");
@@ -323,7 +346,9 @@
                                 eleve.photo = photosEleve[eleveKey];
                             }
                         });
-                        if (document.getElementById('teamsPanel').classList.contains('hidden') === false) {
+                        if (!document.getElementById('manualInputPanel').classList.contains('hidden')) {
+                            renderManualVmaTable();
+                        } else {
                             generateTeams();
                         }
                     }
@@ -331,12 +356,20 @@
                     console.error("Erreur lors de l'import du ZIP :", error);
                     alert(`Erreur : ${error.message}. Vérifiez le fichier ZIP.`);
                 }
-            }
+            };
 
             // Générer les équipes avec équilibrage des VMA
-            function generateTeams() {
+            window.generateTeams = function() {
                 if (eleves.length === 0) {
                     alert("Aucun élève importé ou saisi.");
+                    return;
+                }
+
+                // Filtrer les élèves avec VMA valide
+                eleves = eleves.filter(eleve => !isNaN(eleve.VMA));
+
+                if (eleves.length === 0) {
+                    alert("Aucun élève avec une VMA valide.");
                     return;
                 }
 
@@ -359,6 +392,7 @@
                 }));
 
                 // Algorithme d'équilibrage des VMA
+                // On alterne l'ajout des élèves pour équilibrer les équipes
                 for (let i = 0; i < nbEquipes * 4 && i < eleves.length; i++) {
                     const equipeIndex = i % nbEquipes;
                     const eleve = eleves[i];
@@ -403,7 +437,7 @@
                 });
 
                 renderTeams();
-            }
+            };
 
             // Afficher les équipes
             function renderTeams() {
@@ -416,6 +450,11 @@
                 } else {
                     document.getElementById('editTeamsBtn').classList.remove('hidden');
                     document.getElementById('saveTeamsBtn').classList.add('hidden');
+                }
+
+                if (equipes.length === 0) {
+                    teamsContainer.innerHTML = '<p class="text-slate-500 text-center py-8">Aucune équipe générée. Importez d\'abord un fichier CSV ou ajoutez des élèves manuellement.</p>';
+                    return;
                 }
 
                 equipes.forEach(eq => {
@@ -546,20 +585,6 @@
 
             // Bouton pour générer les équipes
             document.getElementById('generateTeamsBtn').addEventListener('click', generateTeams);
-
-            // Envoyer la configuration aux iPads
-            function pushConfig() {
-                if (Object.keys(configAnonyme).length === 0) return alert("Générez d'abord les équipes !");
-                db.ref('arcathlon/config/equipes').set(configAnonyme);
-                alert("Configuration envoyée avec succès aux iPads élèves !");
-            }
-
-            // Purger les données live
-            function purgeLive() {
-                if (confirm("Effacer toutes les performances enregistrées ?")) {
-                    db.ref('arcathlon/live').remove();
-                }
-            }
 
             // Écouter les mises à jour des scores
             db.ref('arcathlon/live/passages').on('value', snap => {
