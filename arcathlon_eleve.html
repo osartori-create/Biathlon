@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcathlon | Stand Élève</title>
+    <title>Arcathlon | Élève</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
@@ -13,39 +13,36 @@
         .btn-arrow:active { transform: scale(0.95); }
         .cible-circle { cursor: pointer; transition: opacity 0.2s; }
         .cible-circle:active { opacity: 0.7; }
-        /* Animation d'impact */
         @keyframes pulse-impact { 0% { transform: scale(1); stroke-width: 0; } 50% { transform: scale(1.05); stroke-width: 4px; stroke: white; } 100% { transform: scale(1); stroke-width: 0; } }
         .impact { animation: pulse-impact 0.3s ease-out; }
+        .disabled { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
 <body class="bg-slate-950 text-white p-4 h-screen flex flex-col font-sans">
-
     <!-- Statut & Navigation rapide -->
     <div class="flex justify-between items-center mb-2 shrink-0 px-2">
         <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-            <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span><span id="connLabel">Connexion...</span>
+            <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
+            <span id="connLabel">Connexion...</span>
         </div>
-        <div id="modeBadge" class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/30">Mode: Classique</div>
+        <div id="modeBadge" class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/30">
+            Mode: Sprint | <span id="seanceInfo">Séance non chargée</span>
+        </div>
     </div>
 
     <!-- ZONE PRINCIPALE -->
-    <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[3rem] shadow-2xl flex-1 flex flex-col justify-center max-w-4xl mx-auto w-full relative overflow-hidden">
-
+    <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[3rem] shadow-2xl flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
         <!-- ECRAN 1 : CHOIX EQUIPE & PIN -->
         <div id="ecranLogin" class="flex flex-col items-center">
-            <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-10 italic">Stand de Tir</h1>
-
+            <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-10 italic">Arcathlon</h1>
             <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-6 rounded-2xl text-3xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6">
                 <option value="">-- CHOISIR L'ÉQUIPE --</option>
             </select>
-
             <div id="numpad" class="hidden flex-col items-center">
                 <div class="text-sm font-bold text-slate-400 mb-2 uppercase tracking-widest">Saisir le PIN (3 chiffres)</div>
                 <div id="pinDisplay" class="bg-slate-950 border-2 border-slate-700 w-48 h-16 rounded-xl flex items-center justify-center text-3xl font-mono tracking-[1em] mb-4 text-emerald-400 shadow-inner"></div>
                 <div class="grid grid-cols-3 gap-3">
-                    <script>
-                        for(let i=1; i<=9; i++) document.write(`<button onclick="addPin(${i})" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">${i}</button>`);
-                    </script>
+                    <script>for(let i=1; i<=9; i++) document.write(`<button onclick="addPin(${i})" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">${i}</button>`);</script>
                     <button onclick="clearPin()" class="bg-red-900/50 text-red-400 w-16 h-16 rounded-xl text-sm font-black uppercase border border-red-800 active:bg-red-800">Effacer</button>
                     <button onclick="addPin(0)" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">0</button>
                     <button onclick="validatePin()" class="bg-emerald-600 text-white w-16 h-16 rounded-xl text-sm font-black uppercase border-2 border-emerald-400 active:bg-emerald-700">OK</button>
@@ -57,20 +54,18 @@
         <div id="ecranCoureurs" class="hidden flex-col">
             <button onclick="resetLogin()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-6">↩ Changer d'équipe</button>
             <h2 id="titreEquipe" class="text-4xl font-black text-center text-slate-200 uppercase tracking-widest mb-8">Équipe X</h2>
-            <div id="maillotsGrid" class="grid grid-cols-2 gap-4">
-                <!-- Généré dynamiquement -->
-            </div>
-
+            <div id="maillotsGrid" class="grid grid-cols-2 gap-4"></div>
             <div class="mt-8 pt-6 border-t border-slate-800 text-center">
-                <button onclick="toggleHistorique()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold text-sm text-slate-400 uppercase tracking-widest border border-slate-700 active:bg-slate-700">📜 Voir notre historique (Annulation)</button>
+                <button onclick="toggleHistorique()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold text-sm text-slate-400 uppercase tracking-widest border border-slate-700 active:bg-slate-700">📜 Historique</button>
             </div>
         </div>
 
         <!-- ECRAN 3 : CHRONOMÉTRAGE -->
         <div id="ecranChrono" class="hidden flex-col h-full">
-            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour aux coureurs</button>
+            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
             <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0">
-                Chronométrage - <span id="coureurLabel" class="text-blue-400">Coureur : Maillot Rouge</span>
+                <span id="coureurLabel" class="text-blue-400">Coureur : Maillot Rouge</span>
+                <div class="text-sm font-bold text-slate-400 mt-1">VMA: <span id="vmaCoureur">12.0</span> km/h</div>
             </div>
 
             <div class="flex-1 flex flex-col items-center justify-center gap-6">
@@ -79,81 +74,52 @@
                     <button id="btnDepart" onclick="demarrerChrono()" class="bg-green-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-green-700">Départ</button>
                     <button id="btnArrivee" onclick="arreterChrono()" class="bg-red-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-red-700" disabled>Arrivée</button>
                 </div>
-                <div class="bg-slate-800 p-4 rounded-2xl border-2 border-slate-700 w-full">
+                <div class="w-full max-w-md bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
                     <div class="flex justify-between mb-2">
-                        <span class="font-bold text-slate-400">Distance :</span>
-                        <span id="distanceAffiche" class="font-bold text-emerald-400">400 m</span>
+                        <span class="font-bold text-slate-400">Série :</span>
+                        <span id="serieActuelle" class="font-bold text-emerald-400">1/3</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="font-bold text-slate-400">Tours :</span>
+                        <span id="toursInfo" class="font-bold text-emerald-400">3 tours (1200 m)</span>
                     </div>
                     <div class="flex justify-between mb-2">
                         <span class="font-bold text-slate-400">Temps :</span>
                         <span id="tempsAffiche" class="font-bold text-emerald-400">00:00.00</span>
                     </div>
-                    <div class="flex justify-between mb-2">
+                    <div class="flex justify-between">
                         <span class="font-bold text-slate-400">Vitesse :</span>
                         <span id="vitesseAffiche" class="font-bold text-emerald-400">0 km/h</span>
                     </div>
-                    <div class="flex justify-between">
-                        <span class="font-bold text-slate-400">Points VMA :</span>
-                        <span id="pointsVMA" class="font-bold text-emerald-400">0</span>
-                    </div>
-                </div>
-                <div class="w-full mt-4">
-                    <label class="flex items-center justify-between mb-2">
-                        <span class="font-bold text-slate-400">Nombre de tours :</span>
-                        <select id="selTours" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-center">
-                            <option value="1">1 tour</option>
-                            <option value="2">2 tours</option>
-                            <option value="3">3 tours</option>
-                        </select>
-                    </label>
-                    <button id="btnValiderChrono" onclick="validerChrono()" class="bg-blue-600 text-white w-full py-3 rounded-xl font-black text-xl uppercase tracking-widest shadow-xl active:bg-blue-700 opacity-50" disabled>Valider et passer au tir</button>
                 </div>
             </div>
         </div>
 
-        <!-- ECRAN 4 : SAISIE TIR & VMA -->
+        <!-- ECRAN 4 : SAISIE TIR -->
         <div id="ecranSaisie" class="hidden flex-col h-full">
-            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour aux coureurs</button>
+            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
             <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0" id="labelCoureur"></div>
 
             <div class="flex-1 flex gap-6 min-h-0">
-                <!-- Zone Cible SVG Interactive -->
+                <!-- Zone Cible -->
                 <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-4 flex flex-col items-center justify-center relative shadow-inner">
                     <span class="absolute top-4 text-xs font-black text-slate-500 uppercase tracking-widest">Touchez la cible 🎯</span>
-
                     <svg viewBox="0 0 100 100" class="w-full max-w-[250px] md:max-w-xs mx-auto drop-shadow-2xl">
-                        <!-- Zone 6 (Bleu) -->
                         <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6, 'Bleu')" />
-                        <!-- Zone 8 (Rouge) -->
                         <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="marquerTir(8, 'Rouge')" />
-                        <!-- Zone 10 (Jaune) -->
                         <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="marquerTir(10, 'Jaune')" />
                     </svg>
-
                     <div class="grid grid-cols-2 gap-2 mt-4 w-full">
-                        <button onclick="marquerTir(5, 'Bord')" class="bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300 active:bg-slate-700">+5 (Hors zone)</button>
+                        <button onclick="marquerTir(5, 'Bord')" class="bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300 active:bg-slate-700">+5 (Bord)</button>
                         <button onclick="marquerTir(0, 'Manqué')" class="bg-red-950/40 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400 active:bg-red-900">0 (Manqué)</button>
                     </div>
                 </div>
 
                 <!-- Zone Validation -->
                 <div class="flex-1 flex flex-col gap-3">
-                    <div class="bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 flex flex-col gap-2">
-                        <div id="affF1" class="bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800">Flèche 1 : --</div>
-                        <div id="affF2" class="bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800">Flèche 2 : --</div>
-                        <button onclick="resetTir()" class="text-xs font-bold text-slate-500 mt-1 uppercase text-right">🔄 Recommencer le tir</button>
+                    <div class="bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 flex flex-col gap-2" id="flechesContainer">
+                        <!-- Généré dynamiquement -->
                     </div>
-
-                    <div class="bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 flex-1 flex flex-col justify-center">
-                        <span class="font-black text-slate-400 uppercase text-sm mb-2">Points VMA (Course) :</span>
-                        <select id="selVMA" onchange="updateTotal()" class="bg-black text-white p-4 rounded-xl text-xl font-black border-2 border-slate-600 outline-none w-full">
-                            <option value="0">+ 0 pt (Arrêt / Trop lent)</option>
-                            <option value="1">+ 1 pt (Proche VMA)</option>
-                            <option value="2" selected>+ 2 pts (Contrat VMA)</option>
-                            <option value="3">+ 3 pts (Plus rapide)</option>
-                        </select>
-                    </div>
-
                     <button id="btnValider" onclick="validerPassage()" disabled class="bg-emerald-600 border-4 border-emerald-400 py-6 rounded-2xl font-black text-2xl uppercase tracking-widest text-white shadow-xl opacity-50 transition-opacity">
                         Valider <span id="totalPreview" class="text-lg"></span>
                     </button>
@@ -161,13 +127,12 @@
             </div>
         </div>
 
-        <!-- ECRAN HISTORIQUE LOCAL -->
+        <!-- ECRAN HISTORIQUE -->
         <div id="ecranHistorique" class="hidden flex-col h-full absolute inset-0 bg-slate-950/95 p-8 z-50 backdrop-blur-sm">
             <div class="flex justify-between items-center border-b border-slate-700 pb-4 mb-4">
-                <h2 class="text-2xl font-black text-blue-400 uppercase tracking-widest italic">Notre Historique</h2>
+                <h2 class="text-2xl font-black text-blue-400 uppercase tracking-widest italic">Historique Équipe</h2>
                 <button onclick="toggleHistorique()" class="bg-slate-800 px-4 py-2 rounded-xl font-bold uppercase text-xs">Fermer</button>
             </div>
-            <p class="text-xs text-slate-400 mb-4 font-bold uppercase">Les 5 derniers passages de votre équipe (Appuyez sur 🗑 pour annuler une erreur).</p>
             <div id="listHistorique" class="flex flex-col gap-3 overflow-y-auto"></div>
         </div>
     </div>
@@ -177,74 +142,103 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // Variables globales
         let equipesConfig = {};
         let configMode = "sprint";
         let currentEq = "", currentPin = "", currentMaillot = "";
         let inputPin = "";
-        let distanceBoucle = 400; // Distance par défaut
-
-        let tirs = []; // Stocke les scores des flèches
-        let myHistory = []; // Stocke les clés Firebase des passages envoyés par cet iPad
-
-        // Variables pour le chronomètre
+        let seanceConfig = {};
+        let passageActuel = 1;
+        let tirs = [];
+        let myHistory = [];
+        let scoresCoureur = {};
         let chronoInterval = null;
         let tempsDepart = 0;
         let tempsEcoule = 0;
 
         // --- ECOUTE FIREBASE ---
         db.ref('.info/connected').on('value', snap => {
-            const connecte = snap.val() === true;
-            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (connecte ? "bg-emerald-500" : "bg-red-500");
-            document.getElementById('connLabel').textContent = connecte ? "En ligne" : "Hors ligne";
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
         });
 
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
             configMode = config.mode || "sprint";
-            distanceBoucle = config.distanceBoucle || 400;
-            document.getElementById('distanceAffiche').textContent = `${distanceBoucle} m`;
+            seanceConfig = {
+                seanceId: config.seanceId,
+                longueurPiste: config.longueurPiste || 400,
+                nbTours: config.nbTours || 3,
+                nbSeries: config.nbSeries || 3,
+                nbFleches: config.nbFleches || 2,
+                distanceTotale: config.distanceTotale || 1200,
+                vmaReference: config.vmaReference || {}
+            };
 
-            document.getElementById('modeBadge').textContent = "Mode : " + (configMode === 'relais' ? "RELAIS" : configMode === 'poursuite' ? "POURSUITE" : "CLASSIQUE");
+            document.getElementById('seanceInfo').textContent = `Séance ${seanceConfig.seanceId ? seanceConfig.seanceId.substring(0, 8) : 'non chargée'}`;
+            document.getElementById('toursInfo').textContent = `${seanceConfig.nbTours} tours (${seanceConfig.distanceTotale} m)`;
 
+            // Initialisation des scores
+            scoresCoureur = {};
+            Object.keys(equipesConfig).forEach(eq => {
+                equipesConfig[eq].membres.forEach(m => {
+                    const key = `${eq}-${m.maillot}`;
+                    scoresCoureur[key] = {
+                        series: Array(seanceConfig.nbSeries).fill().map(() => ({ course: 0, tir: 0 })),
+                        complet: false
+                    };
+                });
+            });
+
+            // Mise à jour de l'interface
             const sel = document.getElementById('selEquipe');
             const valActuelle = sel.value;
             sel.innerHTML = "<option value=\"\">-- CHOISIR L'ÉQUIPE --</option>" +
                 Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
             if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
 
-            // Si l'équipe est déjà loggée mais sa configuration change (re-génération par le prof)
-            if(currentEq && !equipesConfig[currentEq]) resetLogin();
-            else if(currentEq && currentMaillot && document.getElementById('ecranCoureurs').classList.contains('hidden')===false) buildCoureursGrid();
+            if (currentEq && !equipesConfig[currentEq]) resetLogin();
+            else if (currentEq && currentMaillot) buildCoureursGrid();
         });
 
         db.ref('arcathlon/live/passages').on('value', snap => {
             const passages = snap.val() || {};
-            // Met à jour l'historique local visuellement
-            if(!document.getElementById('ecranHistorique').classList.contains('hidden')) renderHistorique(passages);
+            if (!document.getElementById('ecranHistorique').classList.contains('hidden')) {
+                renderHistorique(passages);
+            }
         });
 
         // --- NAVIGATION & SECURITE ---
         window.checkTeamSelection = function() {
             const val = document.getElementById('selEquipe').value;
-            if(val) {
-                currentEq = val; currentPin = equipesConfig[val].pin;
-                inputPin = ""; document.getElementById('pinDisplay').textContent = "";
+            if (val) {
+                currentEq = val;
+                currentPin = equipesConfig[val].pin;
+                inputPin = "";
+                document.getElementById('pinDisplay').textContent = "";
                 document.getElementById('numpad').classList.remove('hidden');
                 document.getElementById('numpad').classList.add('flex');
             } else {
                 document.getElementById('numpad').classList.add('hidden');
                 document.getElementById('numpad').classList.remove('flex');
             }
-        }
+        };
 
         window.addPin = function(num) {
-            if(inputPin.length < 3) { inputPin += num; document.getElementById('pinDisplay').textContent = inputPin.replace(/./g, '•'); }
-        }
-        window.clearPin = function() { inputPin = ""; document.getElementById('pinDisplay').textContent = ""; }
+            if (inputPin.length < 3) {
+                inputPin += num;
+                document.getElementById('pinDisplay').textContent = inputPin.replace(/./g, '•');
+            }
+        };
+
+        window.clearPin = function() {
+            inputPin = "";
+            document.getElementById('pinDisplay').textContent = "";
+        };
 
         window.validatePin = function() {
-            if(inputPin === currentPin) {
+            if (inputPin === currentPin) {
                 document.getElementById('ecranLogin').classList.add('hidden');
                 document.getElementById('ecranLogin').classList.remove('flex');
                 document.getElementById('ecranCoureurs').classList.remove('hidden');
@@ -255,50 +249,87 @@
                 alert("Code PIN incorrect. Demandez-le au professeur.");
                 clearPin();
             }
-        }
+        };
 
         window.resetLogin = function() {
-            currentEq = ""; inputPin = "";
+            currentEq = "";
+            inputPin = "";
             document.getElementById('selEquipe').value = "";
-            document.getElementById('numpad').classList.add('hidden'); document.getElementById('numpad').classList.remove('flex');
-            document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('flex');
-            document.getElementById('ecranChrono').classList.add('hidden'); document.getElementById('ecranChrono').classList.remove('flex');
-            document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex');
-        }
+            document.getElementById('numpad').classList.add('hidden');
+            document.getElementById('numpad').classList.remove('flex');
+            document.getElementById('ecranCoureurs').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranChrono').classList.add('hidden');
+            document.getElementById('ecranChrono').classList.remove('flex');
+            document.getElementById('ecranSaisie').classList.add('hidden');
+            document.getElementById('ecranSaisie').classList.remove('flex');
+            document.getElementById('ecranLogin').classList.remove('hidden');
+            document.getElementById('ecranLogin').classList.add('flex');
+            passageActuel = 1;
+            tirs = [];
+        };
 
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
-            const membres = equipesConfig[currentEq].membres || [];
+            const membres = equipesConfig[currentEq]?.membres || [];
 
             let html = "";
-            const colorMap = {'Rouge': 'bg-red-950 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950 border-yellow-600 text-yellow-400', 'Bleu': 'bg-blue-950 border-blue-600 text-blue-400', 'Vert': 'bg-green-950 border-green-600 text-green-400'};
+            const colorMap = {
+                'Rouge': 'bg-red-950 border-red-600 text-red-400',
+                'Jaune': 'bg-yellow-950 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950 border-blue-600 text-blue-400',
+                'Vert': 'bg-green-950 border-green-600 text-green-400'
+            };
 
-            membres.forEach((m, idx) => {
-                let labelRole = configMode === 'relais' ? `RELAYEUR ${idx + 1}` : m.maillot;
-                let cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+            membres.forEach(m => {
+                const key = `${currentEq}-${m.maillot}`;
+                const scores = scoresCoureur[key] || { series: [], complet: false };
+                const serieActuelle = scores.series.findIndex(s => s.course === 0 && s.tir === 0);
+                const serieMax = scores.series.length;
+                const complet = serieActuelle === -1 || serieActuelle >= serieMax;
+
+                // Calcul du score total
+                const totalCourse = scores.series.reduce((acc, s) => acc + s.course, 0);
+                const totalTir = scores.series.reduce((acc, s) => acc + s.tir, 0);
+                const total = totalCourse + totalTir;
+
+                const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                const disabledClass = complet ? 'opacity-50 disabled' : 'active:bg-slate-900';
 
                 html += `
-                <button onclick="openChrono('${m.maillot}', '${labelRole}')" class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg active:bg-slate-900">
-                    <span class="font-black text-2xl uppercase tracking-widest">${labelRole}</span>
+                <button onclick="${complet ? '' : `openChrono('${m.maillot}')`}"
+                        class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                    <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
                     <span class="text-sm font-bold mt-1 text-slate-300">VMA: ${m.vma}</span>
+                    ${total > 0 ? `<span class="text-xs font-bold mt-1 text-emerald-400">Score: ${total} pts</span>` : ''}
+                    ${complet ? `<div class="text-xs font-bold text-green-400 mt-1">✓ Terminé</div>` : ''}
                 </button>`;
             });
             grid.innerHTML = html;
         }
 
-        // Fonction pour ouvrir l'écran de chronométrage
-        window.openChrono = function(maillot, label) {
+        // --- GESTION DU CHRONOMÉTRAGE ---
+        window.openChrono = function(maillot) {
             currentMaillot = maillot;
+            const key = `${currentEq}-${maillot}`;
+            const serieActuelle = scoresCoureur[key].series.findIndex(s => s.course === 0);
+
             document.getElementById('ecranCoureurs').classList.add('hidden');
             document.getElementById('ecranCoureurs').classList.remove('flex');
             document.getElementById('ecranChrono').classList.remove('hidden');
             document.getElementById('ecranChrono').classList.add('flex');
 
             const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
-            document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">Coureur : ${label}</span>`;
+            document.getElementById('coureurLabel').innerHTML = `
+                <span class="${colorTexte}">${maillot}</span>
+                <div class="text-sm font-bold text-slate-400 mt-1">
+                    Série ${serieActuelle + 1}/${seanceConfig.nbSeries} |
+                    VMA: <span id="vmaCoureur">${seanceConfig.vmaReference[key] || 'N/A'}</span> km/h
+                </div>`;
 
+            document.getElementById('serieActuelle').textContent = `${serieActuelle + 1}/${seanceConfig.nbSeries}`;
             resetChrono();
-        }
+        };
 
         window.retourCoureurs = function() {
             document.getElementById('ecranChrono').classList.add('hidden');
@@ -307,17 +338,15 @@
             document.getElementById('ecranSaisie').classList.remove('flex');
             document.getElementById('ecranCoureurs').classList.remove('hidden');
             document.getElementById('ecranCoureurs').classList.add('flex');
-        }
+        };
 
-        // Fonction pour démarrer le chronomètre
         function demarrerChrono() {
             tempsDepart = Date.now() - tempsEcoule;
-            chronoInterval = setInterval(mettreAJourChrono, 10); // Rafraîchissement toutes les 10ms
+            chronoInterval = setInterval(mettreAJourChrono, 10);
             document.getElementById('btnDepart').disabled = true;
             document.getElementById('btnArrivee').disabled = false;
         }
 
-        // Fonction pour mettre à jour l'affichage du chronomètre
         function mettreAJourChrono() {
             tempsEcoule = Date.now() - tempsDepart;
             const temps = new Date(tempsEcoule);
@@ -327,172 +356,213 @@
             document.getElementById('chronoDisplay').textContent = `${minutes}:${secondes}.${centiemes}`;
         }
 
-        // Fonction pour arrêter le chronomètre
         function arreterChrono() {
             clearInterval(chronoInterval);
             const temps = new Date(tempsEcoule);
             const secondesTotales = temps.getUTCMinutes() * 60 + temps.getUTCSeconds() + temps.getUTCMilliseconds() / 1000;
 
-            // Calcul de la vitesse (en km/h)
-            const distanceTotale = distanceBoucle * parseInt(document.getElementById('selTours').value);
-            const vitesse = (distanceTotale / 1000) / (secondesTotales / 3600); // Conversion en km/h
-
-            // Affichage des résultats
+            const vitesse = (seanceConfig.distanceTotale / 1000) / (secondesTotales / 3600);
             document.getElementById('tempsAffiche').textContent = document.getElementById('chronoDisplay').textContent;
             document.getElementById('vitesseAffiche').textContent = `${vitesse.toFixed(1)} km/h`;
 
             // Calcul des points VMA
+            const key = `${currentEq}-${currentMaillot}`;
+            const vmaEleve = seanceConfig.vmaReference[key] || 12;
             let pointsVMA = 0;
-            const vmaEleve = equipesConfig[currentEq].membres.find(m => m.maillot === currentMaillot).vma;
-            if (vitesse >= vmaEleve + 1) pointsVMA = 3; // Plus rapide que VMA
-            else if (vitesse >= vmaEleve - 0.5) pointsVMA = 2; // Contrat VMA rempli
-            else if (vitesse >= vmaEleve - 1) pointsVMA = 1; // Proche de la VMA
-            document.getElementById('pointsVMA').textContent = pointsVMA;
+            if (vitesse >= vmaEleve + 1) pointsVMA = 3;
+            else if (vitesse >= vmaEleve - 0.5) pointsVMA = 2;
+            else if (vitesse >= vmaEleve - 1) pointsVMA = 1;
+
+            // Mise à jour des scores locaux
+            const serieActuelle = scoresCoureur[key].series.findIndex(s => s.course === 0);
+            if (serieActuelle !== -1) {
+                scoresCoureur[key].series[serieActuelle].course = pointsVMA;
+            }
 
             document.getElementById('btnArrivee').disabled = true;
-            document.getElementById('btnValiderChrono').classList.remove('opacity-50');
-            document.getElementById('btnValiderChrono').disabled = false;
+            setTimeout(() => {
+                document.getElementById('ecranChrono').classList.add('hidden');
+                document.getElementById('ecranChrono').classList.remove('flex');
+                document.getElementById('ecranSaisie').classList.remove('hidden');
+                document.getElementById('ecranSaisie').classList.add('flex');
+
+                const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[currentMaillot];
+                document.getElementById('labelCoureur').innerHTML = `
+                    <span class="${colorTexte}">${currentMaillot}</span>
+                    <div class="text-sm font-bold text-slate-400 mt-1">
+                        Série ${serieActuelle + 1}/${seanceConfig.nbSeries} |
+                        Vitesse: ${vitesse.toFixed(1)} km/h (${pointsVMA} pts)
+                    </div>`;
+
+                // Génération des zones de flèches
+                genererZonesFleches();
+                resetChrono();
+            }, 500);
         }
 
-        // Fonction pour valider et passer à l'écran de tir
-        function validerChrono() {
-            const pointsVMA = parseInt(document.getElementById('pointsVMA').textContent);
-            document.getElementById('selVMA').value = pointsVMA; // Préremplir les points VMA
-            document.getElementById('ecranChrono').classList.add('hidden');
-            document.getElementById('ecranChrono').classList.remove('flex');
-            document.getElementById('ecranSaisie').classList.remove('hidden');
-            document.getElementById('ecranSaisie').classList.add('flex');
-
-            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[currentMaillot];
-            document.getElementById('labelCoureur').innerHTML = `<span class="${colorTexte}">Coureur : ${currentMaillot}</span>`;
-
-            resetChrono();
-        }
-
-        // Fonction pour réinitialiser le chronomètre
         function resetChrono() {
             clearInterval(chronoInterval);
             tempsEcoule = 0;
             document.getElementById('chronoDisplay').textContent = "00:00.00";
             document.getElementById('btnDepart').disabled = false;
             document.getElementById('btnArrivee').disabled = true;
-            document.getElementById('btnValiderChrono').disabled = true;
-            document.getElementById('btnValiderChrono').classList.add('opacity-50');
             document.getElementById('tempsAffiche').textContent = "00:00.00";
             document.getElementById('vitesseAffiche').textContent = "0 km/h";
-            document.getElementById('pointsVMA').textContent = "0";
-            document.getElementById('selTours').value = "1";
         }
 
-        // --- GESTION DU TIR (CIBLE SVG) ---
+        // --- GESTION DU TIR ---
+        function genererZonesFleches() {
+            const container = document.getElementById('flechesContainer');
+            let html = '';
+            for (let i = 0; i < seanceConfig.nbFleches; i++) {
+                html += `
+                <div id="affF${i+1}" class="bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800">
+                    Flèche ${i+1} : --
+                </div>`;
+            }
+            container.innerHTML = html;
+        }
+
         window.marquerTir = function(pts, zoneName) {
-            if(tirs.length >= 2) return; // Déjà 2 flèches
+            if (tirs.length >= seanceConfig.nbFleches) return;
             tirs.push(pts);
 
-            let aff = document.getElementById(tirs.length === 1 ? 'affF1' : 'affF2');
+            const aff = document.getElementById(`affF${tirs.length}`);
             aff.className = "bg-slate-800 text-white font-black text-xl py-4 rounded-xl text-center border-4 border-slate-500 shadow-lg impact";
-            aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span> <span class="text-[10px] block uppercase text-slate-400">${zoneName}</span>`;
+            aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span>
+                             <span class="text-[10px] block uppercase text-slate-400">${zoneName}</span>`;
 
             updateTotal();
-        }
+        };
 
         window.resetTir = function() {
             tirs = [];
-            ['affF1', 'affF2'].forEach(id => {
+            for (let i = 0; i < seanceConfig.nbFleches; i++) {
+                const id = `affF${i+1}`;
                 document.getElementById(id).className = "bg-black text-slate-600 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800";
-                document.getElementById(id).textContent = id === 'affF1' ? "Flèche 1 : --" : "Flèche 2 : --";
-            });
+                document.getElementById(id).textContent = `Flèche ${i+1} : --`;
+            }
             updateTotal();
-        }
+        };
 
         window.updateTotal = function() {
             const btn = document.getElementById('btnValider');
-            if(tirs.length === 2) {
-                let ptsTir = tirs[0] + tirs[1];
-                let ptsVMA = parseInt(document.getElementById('selVMA').value);
-                document.getElementById('totalPreview').textContent = `(${ptsTir + ptsVMA} pts)`;
+            if (tirs.length === seanceConfig.nbFleches) {
+                const ptsTir = tirs.reduce((a, b) => a + b, 0);
+                const key = `${currentEq}-${currentMaillot}`;
+                const serieActuelle = scoresCoureur[key].series.findIndex(s => s.tir === 0);
+
                 btn.disabled = false;
                 btn.classList.remove('opacity-50');
+                document.getElementById('totalPreview').textContent = `(${ptsTir} pts)`;
             } else {
-                document.getElementById('totalPreview').textContent = `(Tirez 2 flèches)`;
                 btn.disabled = true;
                 btn.classList.add('opacity-50');
+                document.getElementById('totalPreview').textContent = `(Tirez ${seanceConfig.nbFleches} flèches)`;
             }
-        }
+        };
 
         // --- VALIDATION & ENVOI ---
         window.validerPassage = function() {
-            const btn = document.getElementById('btnValider'); btn.disabled = true;
+            const btn = document.getElementById('btnValider');
+            btn.disabled = true;
 
-            let ptsTir = tirs[0] + tirs[1];
-            let ptsVMA = parseInt(document.getElementById('selVMA').value);
+            const key = `${currentEq}-${currentMaillot}`;
+            const serieActuelle = scoresCoureur[key].series.findIndex(s => s.tir === 0);
+            const ptsTir = tirs.reduce((a, b) => a + b, 0);
 
-            const passage = {
-                equipe: currentEq, maillot: currentMaillot, ptsTir: ptsTir, ptsVMA: ptsVMA,
-                timestamp: Date.now()
+            // Mise à jour des scores locaux
+            scoresCoureur[key].series[serieActuelle].tir = ptsTir;
+
+            // Vérification si toutes les séries sont terminées
+            const complet = scoresCoureur[key].series.every(s => s.course > 0 && s.tir > 0);
+            if (complet) scoresCoureur[key].complet = true;
+
+            // Envoi à Firebase
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                ptsTir: ptsTir,
+                passage: passageActuel,
+                serie: serieActuelle + 1,
+                timestamp: Date.now(),
+                seanceId: seanceConfig.seanceId
             };
 
             const ref = db.ref('arcathlon/live/passages').push();
-            ref.set(passage).then(() => {
-                myHistory.push(ref.key); // Mémorise qu'ON a envoyé ce passage
+            ref.set(passageData).then(() => {
+                myHistory.push({ key: ref.key, type: 'tir' });
 
-                document.body.classList.add('bg-emerald-900'); // Feed-back visuel
-                setTimeout(() => {
-                    document.body.classList.remove('bg-emerald-900');
-                    retourCoureurs();
-                }, 300);
+                // Sauvegarde dans l'historique de la séance
+                db.ref('arcathlon/historique').child(seanceConfig.seanceId).child(ref.key).set(passageData);
+
+                if (complet) {
+                    // Toutes les séries terminées
+                    document.body.classList.add('bg-emerald-900');
+                    setTimeout(() => {
+                        document.body.classList.remove('bg-emerald-900');
+                        resetLogin();
+                        passageActuel = 1;
+                    }, 500);
+                } else {
+                    // Passage à la série suivante
+                    passageActuel++;
+                    document.getElementById('ecranSaisie').classList.add('hidden');
+                    document.getElementById('ecranSaisie').classList.remove('flex');
+                    document.getElementById('ecranCoureurs').classList.remove('hidden');
+                    document.getElementById('ecranCoureurs').classList.add('flex');
+                    buildCoureursGrid();
+                }
             }).catch(() => {
-                alert("Hors ligne : Donnée non envoyée. Rapprochez-vous de la borne.");
+                alert("Erreur d'envoi. Vérifiez la connexion.");
                 btn.disabled = false;
             });
-        }
+        };
 
         // --- HISTORIQUE LOCAL ---
         window.toggleHistorique = function() {
             const panel = document.getElementById('ecranHistorique');
-            if(panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden'); panel.classList.add('flex');
-                db.ref('arcathlon/live/passages').once('value').then(snap => renderHistorique(snap.val() || {}));
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                renderHistorique();
             } else {
-                panel.classList.add('hidden'); panel.classList.remove('flex');
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
             }
-        }
+        };
 
-        function renderHistorique(passages) {
+        function renderHistorique() {
             const container = document.getElementById('listHistorique');
-            // Filtrer uniquement les passages de NOTRE équipe qui sont dans NOTRE historique iPad
-            const entries = Object.entries(passages)
-                .filter(([key, p]) => p.equipe === currentEq && myHistory.includes(key))
-                .sort((a, b) => b[1].timestamp - a[1].timestamp)
-                .slice(0, 5); // 5 derniers
+            const coureurKey = `${currentEq}-${currentMaillot}`;
+            const scores = scoresCoureur[coureurKey] || { series: [] };
 
-            if(entries.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 font-bold italic text-center py-4">Aucun passage enregistré pour votre équipe.</p>';
+            if (!scores.series.length) {
+                container.innerHTML = '<p class="text-slate-500 text-center py-4">Aucun passage enregistré pour ce coureur.</p>';
                 return;
             }
 
-            container.innerHTML = entries.map(([key, p]) => {
-                const total = (p.ptsTir || 0) + (p.ptsVMA || 0);
-                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
-                return `
-                <div class="bg-black border border-slate-700 p-4 rounded-xl flex justify-between items-center">
-                    <div>
-                        <span class="font-black text-slate-200 uppercase">${p.maillot}</span> <span class="text-xs text-slate-500 ml-2">${h}</span>
-                        <div class="text-xs font-bold text-slate-400 mt-1">Course: +${p.ptsVMA} | Tir: +${p.ptsTir}</div>
+            let html = `<div class="bg-slate-800 p-4 rounded-xl mb-4">
+                <h3 class="font-black text-blue-400 text-lg mb-2">${currentMaillot}</h3>
+                <div class="grid grid-cols-1 gap-2">`;
+
+            scores.series.forEach((serie, idx) => {
+                const totalSerie = serie.course + serie.tir;
+                html += `
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <div class="flex justify-between">
+                        <span class="font-bold text-slate-300">Série ${idx + 1}</span>
+                        <span class="text-emerald-400 font-bold">${totalSerie} pts</span>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <span class="font-black text-emerald-400 text-xl">${total} pts</span>
-                        <button onclick="annulerPassage('${key}')" class="bg-red-900/40 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-black uppercase text-xs active:bg-red-800">🗑 Annuler</button>
+                    <div class="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>Course: ${serie.course} pts</span>
+                        <span>Tir: ${serie.tir} pts</span>
                     </div>
                 </div>`;
-            }).join('');
-        }
+            });
 
-        window.annulerPassage = function(key) {
-            if(confirm("Êtes-vous sûr de vouloir annuler et effacer ce passage ?")) {
-                db.ref('arcathlon/live/passages/' + key).remove();
-                myHistory = myHistory.filter(k => k !== key);
-            }
+            html += `</div></div>`;
+            container.innerHTML = html;
         }
     </script>
 </body>
