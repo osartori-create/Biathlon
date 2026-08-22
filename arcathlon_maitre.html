@@ -15,25 +15,11 @@
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
         .ghost-item { opacity: 0.4; background-color: #3b82f6; }
         .photo-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; }
-        .fiche-eleve { background: #1e293b; border-radius: 1rem; padding: 1rem; border: 2px solid #334155; }
-        .fiche-eleve input, .fiche-eleve select { background: #0f172a; border: 1px solid #475569; border-radius: 0.5rem; padding: 0.5rem; color: white; width: 100%; }
-        /* Pour le défilement fluide sur iPad */
-        .nav-scroll {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: thin;
-            min-width: 0;
-        }
-        .nav-scroll::-webkit-scrollbar {
-            height: 4px;
-        }
-        .nav-scroll::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 10px;
-        }
-        .nav-scroll::-webkit-scrollbar-track {
-            background: transparent;
-        }
+        .nav-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; min-width: 0; }
+        .nav-scroll::-webkit-scrollbar { height: 4px; }
+        .nav-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        .nav-scroll::-webkit-scrollbar-track { background: transparent; }
+        .doubleur-badge { background: #fbbf24; color: #0f172a; padding: 0 8px; border-radius: 999px; font-size: 0.6rem; font-weight: 900; text-transform: uppercase; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col font-sans">
@@ -53,7 +39,7 @@
         </div>
     </header>
 
-    <!-- Navigation corrigée : défilement horizontal sur iPad -->
+    <!-- Navigation -->
     <nav class="nav-scroll flex border-b border-slate-700 mb-6 font-bold text-xs uppercase tracking-widest shrink-0">
         <button id="btnTab1" onclick="switchTab('import')" class="px-3 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves</button>
         <button id="btnTab2" onclick="switchTab('equipes')" class="px-3 py-2 text-slate-500 whitespace-nowrap">👥 Équipes</button>
@@ -138,7 +124,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v4')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v5')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -146,7 +132,7 @@
         request.onupgradeneeded = e => { dbPhotos = e.target.result; dbPhotos.createObjectStore("eleves", { keyPath: "id" }); };
         request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v4', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v5', JSON.stringify(state)); }
         function savePhoto(id, blob) { dbPhotos.transaction("eleves", "readwrite").objectStore("eleves").put({ id, blob }); }
         async function getPhotoUrl(id) {
             return new Promise(resolve => {
@@ -322,32 +308,128 @@
             list.innerHTML = html;
         }
 
-        // Équipes
+        // Génération des équipes avec gestion des doubleurs
         window.generateTeams = function() {
             if(!state.activeCl) return;
-            let elevesVMA = (state.classes[state.activeCl] || []).filter(e => e.VMA && !isNaN(e.VMA));
-            const nbEquipes = Math.floor(elevesVMA.length / 4);
-            if (nbEquipes === 0) return alert("Pas assez d'élèves (min 4).");
+            const eleves = state.classes[state.activeCl] || [];
+            let elevesVMA = eleves.filter(e => e.VMA && !isNaN(e.VMA));
+            if (elevesVMA.length === 0) return alert("Aucun élève avec VMA valide.");
+
             let ordre = document.getElementById('mixiteCheckbox').checked
                 ? [...elevesVMA.filter(e=>e.Sexe==='F').sort((a,b)=>b.VMA-a.VMA),
                    ...elevesVMA.filter(e=>e.Sexe==='M').sort((a,b)=>b.VMA-a.VMA),
                    ...elevesVMA.filter(e=>e.Sexe!=='F'&&e.Sexe!=='M').sort((a,b)=>b.VMA-a.VMA)]
                 : [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
-            let newEquipes = Array.from({ length: nbEquipes }, (_, i) => ({ id: `EQ${i + 1}`, membres: [], sumVMA: 0, score: 0, pin: Math.floor(100 + Math.random() * 900).toString() }));
-            let eqIdx = 0, sens = 1;
-            ordre.forEach(eleve => {
-                const couleurs = [
-                    { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
-                    { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                    { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
-                    { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-                ];
-                let c = couleurs[newEquipes[eqIdx].membres.length % 4];
-                newEquipes[eqIdx].membres.push({ prenom: eleve.Prenom, nom: eleve.Nom.charAt(0) + ".", vma: eleve.VMA, maillot: c.nom, style: c.style, idPhoto: clePhoto(eleve.Nom, eleve.Prenom) });
-                newEquipes[eqIdx].sumVMA += eleve.VMA;
-                eqIdx += sens;
-                if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; } else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
-            });
+
+            const total = ordre.length;
+            const nbEquipes = Math.floor(total / 4);
+            const reste = total % 4;
+
+            let newEquipes = [];
+            let idx = 0;
+
+            // Créer d'abord des équipes de 4
+            for (let i = 0; i < nbEquipes; i++) {
+                const membres = [];
+                let sumVMA = 0;
+                for (let j = 0; j < 4; j++) {
+                    if (idx < total) {
+                        const eleve = ordre[idx];
+                        const couleurs = [
+                            { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
+                            { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
+                            { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
+                            { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
+                        ];
+                        const c = couleurs[j % 4];
+                        membres.push({
+                            prenom: eleve.Prenom,
+                            nom: eleve.Nom.charAt(0) + ".",
+                            vma: eleve.VMA,
+                            maillot: c.nom,
+                            style: c.style,
+                            idPhoto: clePhoto(eleve.Nom, eleve.Prenom),
+                            doubleur: false
+                        });
+                        sumVMA += eleve.VMA;
+                        idx++;
+                    }
+                }
+                newEquipes.push({ id: `EQ${i + 1}`, membres, sumVMA, score: 0, pin: Math.floor(100 + Math.random() * 900).toString() });
+            }
+
+            // Gérer le reste : on va transformer certaines équipes en équipes de 3 et désigner un doubleur
+            // Si reste > 0, on va prendre les derniers élèves et les ajouter à des équipes existantes (en passant à 5 ? non, on veut max 4)
+            // Donc on va plutôt réduire le nombre d'équipes pour avoir des équipes de 3 et un doubleur.
+            // On va retirer des élèves des équipes existantes pour les mettre dans de nouvelles équipes de 3 avec doubleur.
+            // Simplification : on va supprimer la dernière équipe de 4 si elle n'est pas pleine, et répartir ses membres.
+            // Mais le plus simple est de refaire la répartition en prenant en compte le reste.
+
+            // On va reconstruire en fonction du reste.
+            if (reste > 0) {
+                // On a nbEquipes équipes de 4, et reste élèves non placés.
+                // On va retirer un élève de chaque équipe pour former des équipes de 3, et ces élèves retirés formeront des équipes de 3 avec doubleur.
+                // Mais l'énoncé veut que certaines équipes soient de 3 avec un doubleur.
+                // Je vais faire simple : je prends les (nbEquipes - reste) équipes de 4, et les reste équipes de 3 (avec un doubleur).
+                // Pour cela, je recommence la génération avec un nombre d'équipes = Math.ceil(total/4) ?
+                // Je vais plutôt utiliser la méthode de remplissage classique : on crée des équipes de taille 4 ou 3, et on marque un doubleur dans les équipes de 3.
+
+                // Réinitialiser
+                newEquipes = [];
+                idx = 0;
+                const nbTotalEquipes = Math.ceil(total / 4); // on aura des équipes de 4 ou 3
+                // On détermine combien d'équipes auront 4 membres et combien 3
+                const nb4 = total - 3 * nbTotalEquipes; // nombre d'équipes de 4
+                const nb3 = nbTotalEquipes - nb4;
+                let tailles = [];
+                for (let i = 0; i < nb4; i++) tailles.push(4);
+                for (let i = 0; i < nb3; i++) tailles.push(3);
+
+                // On trie pour que les plus grandes équipes soient d'abord (pour répartir la VMA)
+                tailles.sort((a,b) => b - a);
+
+                let eqIdx = 0;
+                for (let t of tailles) {
+                    const membres = [];
+                    let sumVMA = 0;
+                    for (let j = 0; j < t; j++) {
+                        if (idx < total) {
+                            const eleve = ordre[idx];
+                            const couleurs = [
+                                { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
+                                { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
+                                { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
+                                { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
+                            ];
+                            const c = couleurs[j % 4];
+                            membres.push({
+                                prenom: eleve.Prenom,
+                                nom: eleve.Nom.charAt(0) + ".",
+                                vma: eleve.VMA,
+                                maillot: c.nom,
+                                style: c.style,
+                                idPhoto: clePhoto(eleve.Nom, eleve.Prenom),
+                                doubleur: false
+                            });
+                            sumVMA += eleve.VMA;
+                            idx++;
+                        }
+                    }
+                    // Si l'équipe a 3 membres, on marque le premier comme doubleur
+                    if (t === 3 && membres.length === 3) {
+                        membres[0].doubleur = true;
+                    }
+                    newEquipes.push({
+                        id: `EQ${eqIdx + 1}`,
+                        membres,
+                        sumVMA,
+                        score: 0,
+                        pin: Math.floor(100 + Math.random() * 900).toString()
+                    });
+                    eqIdx++;
+                }
+            }
+
             state.equipes[state.activeCl] = newEquipes;
             saveToLocal();
             renderTeams();
@@ -368,15 +450,22 @@
                 for(let m of eq.membres) {
                     const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
                     const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700"></div>`;
+                    const doubleurBadge = m.doubleur ? `<span class="doubleur-badge">⭐ Doubleur</span>` : '';
                     html += `
                     <div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab bg-slate-900"
                          data-member='${JSON.stringify(m).replace(/"/g, "&quot;")}'>
                         ${photo}
                         <span class="font-black uppercase text-[10px] w-12 tracking-widest">${m.maillot}</span>
                         <div class="flex flex-col"><span class="font-bold text-white text-sm">${m.prenom} ${m.nom}</span><span class="text-[10px] text-slate-400">VMA: ${m.vma}</span></div>
+                        ${doubleurBadge}
                     </div>`;
                 }
-                html += `</div><div class="flex justify-between items-center mt-2"><span class="bg-slate-800 px-2 py-1 rounded text-red-400 text-xs font-mono tracking-widest border border-slate-700">PIN: ${eq.pin}</span></div></div>`;
+                html += `</div>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="bg-slate-800 px-2 py-1 rounded text-red-400 text-xs font-mono tracking-widest border border-slate-700">PIN: ${eq.pin}</span>
+                        ${eq.membres.length === 3 ? `<button onclick="changerDoubleur('${eq.id}')" class="bg-yellow-600/30 text-yellow-300 border border-yellow-700 px-2 py-1 rounded text-xs font-bold uppercase">Changer doubleur</button>` : ''}
+                    </div>
+                </div>`;
                 container.innerHTML += html;
             }
             document.querySelectorAll('.team-list').forEach(el => {
@@ -403,6 +492,22 @@
             });
         }
 
+        // Fonction pour changer le doubleur dans une équipe de 3
+        window.changerDoubleur = function(teamId) {
+            const equipe = state.equipes[state.activeCl].find(e => e.id === teamId);
+            if (!equipe || equipe.membres.length !== 3) return;
+            // On retire le doubleur actuel
+            equipe.membres.forEach(m => m.doubleur = false);
+            // On propose de choisir un nouveau doubleur parmi les 3
+            const choix = prompt(`Quel coureur doit être le doubleur ?\n1: ${equipe.membres[0].maillot} (${equipe.membres[0].prenom})\n2: ${equipe.membres[1].maillot} (${equipe.membres[1].prenom})\n3: ${equipe.membres[2].maillot} (${equipe.membres[2].prenom})`, "1");
+            const idx = parseInt(choix) - 1;
+            if (idx >= 0 && idx < 3) {
+                equipe.membres[idx].doubleur = true;
+                saveToLocal();
+                renderTeams();
+            }
+        };
+
         window.pushConfig = function() {
             if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0)
                 return alert("Aucune équipe générée.");
@@ -420,7 +525,16 @@
                 vmaReference: {}
             };
             state.equipes[state.activeCl].forEach(eq => {
-                configObj.equipes[eq.id] = { pin: eq.pin, membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma, prenom: m.prenom, nom: m.nom })) };
+                configObj.equipes[eq.id] = {
+                    pin: eq.pin,
+                    membres: eq.membres.map(m => ({
+                        maillot: m.maillot,
+                        vma: m.vma,
+                        prenom: m.prenom,
+                        nom: m.nom,
+                        doubleur: m.doubleur || false
+                    }))
+                };
                 eq.membres.forEach(m => { configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma; });
             });
             if (!state.seances) state.seances = {};
