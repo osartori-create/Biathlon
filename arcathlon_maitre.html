@@ -121,6 +121,7 @@
         let eleves = [];
         let photosEleve = {};
         let isEditingTeams = false;
+        let db; // Variable globale pour la base de données Firebase
 
         document.addEventListener('DOMContentLoaded', function() {
             // Initialisation Firebase
@@ -128,15 +129,30 @@
                 databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
             };
             firebase.initializeApp(firebaseConfig);
-            const db = firebase.database();
+            db = firebase.database();
 
-            // Définir les fonctions globales
+            // Fonction pour purger les données Firebase
             window.purgeLive = function() {
                 if (confirm("Effacer toutes les performances enregistrées ?")) {
-                    db.ref('arcathlon/live').remove();
+                    // Purge complète de la base de données
+                    db.ref('arcathlon').remove()
+                        .then(() => {
+                            alert("Toutes les données Firebase ont été purgées avec succès.");
+                            // Réinitialisation des variables locales
+                            equipes = [];
+                            configAnonyme = {};
+                            eleves = [];
+                            photosEleve = {};
+                            isEditingTeams = false;
+                            document.getElementById('teamsContainer').innerHTML = '';
+                            document.getElementById('grosGlobe').innerHTML = '';
+                            document.querySelectorAll('[id^="globe"]').forEach(el => el.innerHTML = '');
+                        })
+                        .catch(err => alert("Erreur lors de la purge : " + err.message));
                 }
             };
 
+            // Fonction pour envoyer la configuration aux iPads
             window.pushConfig = function() {
                 if (Object.keys(configAnonyme).length === 0) {
                     alert("Générez d'abord les équipes !");
@@ -265,7 +281,7 @@
 
                 if (eleves.length > 0) {
                     alert(`Données enregistrées pour ${eleves.length} élèves.`);
-                    generateTeams(); // Appel explicite pour générer les équipes
+                    generateTeams();
                 } else {
                     alert("Aucun élève valide saisi. Vérifiez les données.");
                 }
@@ -305,8 +321,8 @@
                             return { Nom: nom, Prenom: prenom, VMA: vma, photo: photo };
                         });
 
-                        console.log("Élèves importés :", eleves.map(e => `${e.Nom}, ${e.Prenom}, VMA: ${e.VMA}`));
-                        generateTeams(); // Appel explicite pour générer les équipes
+                        console.log("Élèves importés :", eleves);
+                        generateTeams();
                     }
                 });
             }
@@ -358,7 +374,7 @@
                         if (!document.getElementById('manualInputPanel').classList.contains('hidden')) {
                             renderManualVmaTable();
                         } else {
-                            generateTeams(); // Appel explicite pour générer les équipes
+                            generateTeams();
                         }
                     }
                 } catch (error) {
@@ -396,9 +412,10 @@
                 }));
 
                 // Algorithme d'équilibrage des VMA
-                for (let i = 0; i < nbEquipes * 4 && i < eleves.length; i++) {
-                    const equipeIndex = i % nbEquipes;
-                    const eleve = eleves[i];
+                // Répartition en serpentin pour équilibrer les équipes
+                let eqIdx = 0, sens = 1;
+                eleves.forEach((eleve, i) => {
+                    const equipeIndex = eqIdx;
                     equipes[equipeIndex].membres.push({
                         prenom: eleve.Prenom,
                         nom: eleve.Nom.charAt(0) + ".",
@@ -409,7 +426,11 @@
                         photo: eleve.photo
                     });
                     equipes[equipeIndex].sumVMA += eleve.VMA;
-                }
+                    eqIdx += sens;
+                    if (eqIdx === nbEquipes - 1 || eqIdx === 0) {
+                        sens *= -1; // Inverser le sens
+                    }
+                });
 
                 // Attribution des couleurs de maillots
                 const couleurs = [
@@ -420,26 +441,21 @@
                 ];
 
                 // Attribution des couleurs en serpentin pour favoriser la mixité
-                for (let i = 0; i < nbEquipes; i++) {
-                    for (let j = 0; j < 4; j++) {
-                        if (equipes[i] && equipes[i].membres[j]) {
-                            const couleurIndex = (i * 4 + j) % 4;
-                            equipes[i].membres[j].maillot = couleurs[couleurIndex].nom;
-                            equipes[i].membres[j].style = couleurs[couleurIndex].style;
-                        }
-                    }
-                }
+                equipes.forEach((eq, eqIndex) => {
+                    eq.membres.forEach((membre, j) => {
+                        const c = couleurs[j % 4];
+                        membre.maillot = c.nom;
+                        membre.style = c.style;
+                    });
+                });
 
                 // Mise à jour de la configuration anonyme pour Firebase
                 configAnonyme = {};
-                equipes.forEach((eq, eqIndex) => {
-                    configAnonyme[eq.id] = eq.membres.map(m => ({
-                        maillot: m.maillot,
-                        vma: m.vma
-                    }));
+                equipes.forEach(eq => {
+                    configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma }));
                 });
 
-                renderTeams(); // Appel explicite pour afficher les équipes
+                renderTeams();
             };
 
             // Afficher les équipes
@@ -621,8 +637,7 @@
                 ['Vert', 'Bleu', 'Jaune', 'Rouge'].forEach(c => {
                     let joueurs = [];
                     equipes.forEach(eq => {
-                        let j = eq.membres.find(m => m.maillot === c);
-                        if (j) joueurs.push({ prenom: j.prenom, nom: j.nom, eq: eq.id, score: j.scoreIndiv });
+                        eq.membres.filter(m => m.maillot === c).forEach(j => joueurs.push({ prenom: j.prenom, nom: j.nom, eq: eq.id, score: j.scoreIndiv }));
                     });
                     joueurs.sort((a, b) => b.score - a.score);
 
