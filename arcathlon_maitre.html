@@ -20,9 +20,6 @@
             object-fit: cover;
             border-radius: 50%;
         }
-        .draggable {
-            cursor: move;
-        }
         .team-container {
             min-height: 100px;
             border: 2px dashed #4b5563;
@@ -54,9 +51,9 @@
         </div>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
+    <div class="grid grid-cols-1 gap-6 flex-1 overflow-hidden">
         <!-- Panneau de saisie manuelle -->
-        <div id="manualInputPanel" class="col-span-1 bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden hidden">
+        <div id="manualInputPanel" class="bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden hidden">
             <h2 class="font-black text-purple-400 mb-4 uppercase shrink-0">Saisie Manuelle des Élèves</h2>
             <div class="flex flex-col gap-3 overflow-y-auto pr-2 pb-4">
                 <table id="manualVmaTable" class="w-full text-sm">
@@ -84,20 +81,22 @@
         </div>
 
         <!-- Équipes -->
-        <div id="teamsPanel" class="col-span-3 bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden">
+        <div id="teamsPanel" class="bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden">
             <h2 class="font-black text-emerald-400 mb-4 uppercase shrink-0">Équipes</h2>
             <div id="teamsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 pb-4"></div>
-            <button id="editTeamsBtn" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 border border-yellow-500 mt-4 hidden">
-                ✏️ Modifier les équipes
-            </button>
-            <button id="saveTeamsBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500 mt-4 hidden">
-                ✓ Sauvegarder les équipes
-            </button>
+            <div class="mt-4 flex gap-2">
+                <button id="editTeamsBtn" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 border border-yellow-500 hidden">
+                    ✏️ Modifier les équipes
+                </button>
+                <button id="saveTeamsBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500 hidden">
+                    ✓ Sauvegarder les équipes
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Live & Globes -->
-    <div class="col-span-3 bg-slate-800 p-6 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden mt-6">
+    <div class="bg-slate-800 p-6 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden mt-6">
         <h2 class="font-black text-amber-400 mb-6 uppercase shrink-0 text-xl">🏆 Live Score & Classements</h2>
         <div class="flex-1 overflow-y-auto pr-2 pb-4">
             <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Gros Globe (Par Équipe)</h3>
@@ -130,21 +129,15 @@
 
             // Basculer entre les modes
             document.getElementById('toggleImportMode').addEventListener('click', function() {
-                const csvLabel = document.querySelector('label[for="csvFile"]');
-                const zipLabel = document.querySelector('label[for="zipFile"]');
                 const manualPanel = document.getElementById('manualInputPanel');
                 const teamsPanel = document.getElementById('teamsPanel');
 
                 if (manualPanel.classList.contains('hidden')) {
-                    csvLabel.classList.add('hidden');
-                    zipLabel.classList.add('hidden');
                     manualPanel.classList.remove('hidden');
                     teamsPanel.classList.add('hidden');
                     this.textContent = "📥 Basculer en mode import";
                     renderManualVmaTable();
                 } else {
-                    csvLabel.classList.remove('hidden');
-                    zipLabel.classList.remove('hidden');
                     manualPanel.classList.add('hidden');
                     teamsPanel.classList.remove('hidden');
                     this.textContent = "🔄 Basculer en mode saisie manuelle";
@@ -337,7 +330,6 @@
                 }));
 
                 // Algorithme d'équilibrage des VMA
-                // On alterne l'ajout des élèves pour équilibrer les équipes
                 for (let i = 0; i < nbEquipes * 4 && i < eleves.length; i++) {
                     const equipeIndex = i % nbEquipes;
                     const eleve = eleves[i];
@@ -345,7 +337,7 @@
                         prenom: eleve.Prenom,
                         nom: eleve.Nom.charAt(0) + ".",
                         vma: eleve.VMA,
-                        maillot: "", // À attribuer ensuite
+                        maillot: "",
                         style: "",
                         scoreIndiv: 0,
                         photo: eleve.photo
@@ -353,7 +345,7 @@
                     equipes[equipeIndex].sumVMA += eleve.VMA;
                 }
 
-                // Attribution des couleurs de maillots en respectant la mixité si possible
+                // Attribution des couleurs de maillots
                 const couleurs = [
                     { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
                     { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
@@ -471,9 +463,11 @@
             let draggedMemberIndex = null;
 
             function handleDragStart(e) {
-                draggedMember = equipes.find(eq => eq.id === this.dataset.teamId).membres[this.dataset.memberIndex];
-                draggedFromTeam = this.dataset.teamId;
-                draggedMemberIndex = this.dataset.memberIndex;
+                const teamId = this.dataset.teamId;
+                const memberIndex = this.dataset.memberIndex;
+                draggedMember = equipes.find(eq => eq.id === teamId).membres[memberIndex];
+                draggedFromTeam = teamId;
+                draggedMemberIndex = memberIndex;
                 e.dataTransfer.setData('text/plain', 'drag-member');
             }
 
