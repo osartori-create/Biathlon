@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Arcathlon | Maître</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
@@ -59,6 +59,9 @@
                 <input type="file" id="zipFile" accept=".zip" class="hidden">
                 <button onclick="addManualEleve()" class="bg-slate-700 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-slate-500">+ Élève</button>
                 <button onclick="purgeEleves()" class="bg-red-900/50 text-red-400 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-red-800">🗑 Vider</button>
+                <button onclick="exportData()" class="bg-blue-600 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-blue-400">💾 Exporter données</button>
+                <button onclick="document.getElementById('importDataInput').click()" class="bg-indigo-600 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-indigo-400">📥 Importer données</button>
+                <input type="file" id="importDataInput" accept=".json" class="hidden">
             </div>
             <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 overflow-y-auto pb-6 pr-2 content-start"></div>
         </div>
@@ -125,51 +128,146 @@
     </div>
 
     <script>
+        // ------------------------------------------------------------------
+        // CONFIGURATION FIREBASE
+        // ------------------------------------------------------------------
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // ------------------------------------------------------------------
+        // ÉTAT LOCAL (persistant dans localStorage)
+        // ------------------------------------------------------------------
         let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v6')) || {
-            classes: {}, equipes: {}, activeCl: "", seances: {}
+            classes: {},     // { nomClasse: [ {Nom, Prenom, VMA, Sexe, idPhoto}, ... ] }
+            equipes: {},     // { nomClasse: [ {id, pin, membres, sumVMA, score}, ... ] }
+            activeCl: "",    // nom de la classe active
+            seances: {}      // { seanceId: { equipes, mode, longueurPiste, nbTours, nbSeries, nbFleches, date, distanceTotale, vmaReference } }
         };
+
+        // ------------------------------------------------------------------
+        // INDEXEDDB POUR LES PHOTOS
+        // ------------------------------------------------------------------
         let dbPhotos;
         const request = indexedDB.open("Arcathlon_DB", 1);
         request.onupgradeneeded = e => { dbPhotos = e.target.result; dbPhotos.createObjectStore("eleves", { keyPath: "id" }); };
         request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v6', JSON.stringify(state)); }
-        function savePhoto(id, blob) { dbPhotos.transaction("eleves", "readwrite").objectStore("eleves").put({ id, blob }); }
+        // ------------------------------------------------------------------
+        // FONCTIONS UTILITAIRES
+        // ------------------------------------------------------------------
+        function saveToLocal() {
+            localStorage.setItem('arcathlon_state_master_v6', JSON.stringify(state));
+        }
+
+        function savePhoto(id, blob) {
+            dbPhotos.transaction("eleves", "readwrite").objectStore("eleves").put({ id, blob });
+        }
+
         async function getPhotoUrl(id) {
             return new Promise(resolve => {
-                if(!dbPhotos) resolve(null);
+                if (!dbPhotos) resolve(null);
                 const req = dbPhotos.transaction("eleves", "readonly").objectStore("eleves").get(id);
                 req.onsuccess = () => req.result ? resolve(URL.createObjectURL(req.result.blob)) : resolve(null);
             });
         }
-        function clePhoto(nom, prenom) { return (nom.trim() + "_" + prenom.trim().charAt(0)).toUpperCase().replace(/\s+/g, ""); }
 
+        function clePhoto(nom, prenom) {
+            return (nom.trim() + "_" + prenom.trim().charAt(0)).toUpperCase().replace(/\s+/g, "");
+        }
+
+        // ------------------------------------------------------------------
+        // INITIALISATION
+        // ------------------------------------------------------------------
         function initUI() {
             updateClSelect();
-            if(state.activeCl && state.classes[state.activeCl]) { renderEleves(); renderTeams(); }
+            if (state.activeCl && state.classes[state.activeCl]) {
+                renderEleves();
+                renderTeams();
+            }
             updateSeancesList();
             document.getElementById('longueurPiste').addEventListener('input', updateDistanceTotale);
             document.getElementById('nbTours').addEventListener('change', updateDistanceTotale);
             document.getElementById('nbSeries').addEventListener('change', updateDistanceTotale);
             document.getElementById('nbFleches').addEventListener('change', updateDistanceTotale);
             updateDistanceTotale();
+
             db.ref('.info/connected').on('value', snap => {
                 document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500 animate-pulse");
                 document.getElementById('connLabel').textContent = snap.val() ? "En Ligne" : "Hors Ligne";
             });
-            db.ref('arcathlon/live/passages').on('value', snap => { updateLiveScores(snap.val() || {}); });
+
+            db.ref('arcathlon/live/passages').on('value', snap => {
+                updateLiveScores(snap.val() || {});
+            });
+
+            // Écoute du changement de séance pour mettre à jour le filtre équipe
+            document.getElementById('selectSeance').addEventListener('change', updateFilterEquipes);
         }
 
+        // ------------------------------------------------------------------
+        // GESTION DES CLASSES
+        // ------------------------------------------------------------------
         function updateClSelect() {
-            document.getElementById('selectClasse').innerHTML = Object.keys(state.classes).map(c =>
+            const sel = document.getElementById('selectClasse');
+            sel.innerHTML = Object.keys(state.classes).map(c =>
                 `<option value="${c}" ${c === state.activeCl ? 'selected' : ''}>${c}</option>`
             ).join('');
         }
 
+        window.changeClasse = function(val) {
+            state.activeCl = val;
+            saveToLocal();
+            renderEleves();
+            renderTeams();
+        };
+
+        window.addClasse = function() {
+            const nom = prompt("Nom de la nouvelle classe ?");
+            if (nom && !state.classes[nom]) {
+                state.classes[nom] = [];
+                state.equipes[nom] = [];
+                state.activeCl = nom;
+                updateClSelect();
+                saveToLocal();
+                renderEleves();
+                renderTeams();
+            }
+        };
+
+        function verifyActiveClass(msg) {
+            if (Object.keys(state.classes).length === 0) {
+                const nom = prompt(msg || "Nom de la classe pour cet import ?");
+                if (!nom) return false;
+                state.classes[nom] = [];
+                state.equipes[nom] = [];
+                state.activeCl = nom;
+                updateClSelect();
+            }
+            return true;
+        }
+
+        // ------------------------------------------------------------------
+        // NAVIGATION PAR ONGLETS
+        // ------------------------------------------------------------------
+        window.switchTab = function(t) {
+            ['viewImport', 'viewEquipes', 'viewLive', 'viewHistorique'].forEach(v =>
+                document.getElementById(v).classList.add('hidden')
+            );
+            ['btnTab1', 'btnTab2', 'btnTab3', 'btnTab4'].forEach(b => {
+                document.getElementById(b).classList.remove('tab-active', 'text-blue-500');
+                document.getElementById(b).classList.add('text-slate-500');
+            });
+            const tMap = { 'import': '1', 'equipes': '2', 'live': '3', 'historique': '4' };
+            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
+            document.getElementById('btnTab' + tMap[t]).classList.add('tab-active', 'text-blue-500');
+            document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
+            if (t === 'historique') updateFilterEquipes();
+        };
+
+        // ------------------------------------------------------------------
+        // CONFIGURATION DE LA SÉANCE (distance, déroulement)
+        // ------------------------------------------------------------------
         function updateDistanceTotale() {
             const longueur = parseInt(document.getElementById('longueurPiste').value) || 400;
             const tours = parseInt(document.getElementById('nbTours').value) || 3;
@@ -181,42 +279,15 @@
                 `${series} série${series > 1 ? 's' : ''} de (${tours} tour${tours > 1 ? 's' : ''} → Tir ${fleches} flèche${fleches > 1 ? 's' : ''})`;
         }
 
-        window.changeClasse = function(val) {
-            state.activeCl = val;
-            saveToLocal();
-            renderEleves();
-            renderTeams();
-        };
-        window.addClasse = function() {
-            const nom = prompt("Nom de la nouvelle classe ?");
-            if(nom && !state.classes[nom]) { state.classes[nom] = []; state.equipes[nom] = []; state.activeCl = nom; updateClSelect(); saveToLocal(); renderEleves(); renderTeams(); }
-        };
-
-        function verifyActiveClass(msg) {
-            if(Object.keys(state.classes).length === 0) {
-                const nom = prompt(msg || "Nom de la classe pour cet import ?");
-                if(!nom) return false;
-                state.classes[nom] = []; state.equipes[nom] = []; state.activeCl = nom; updateClSelect();
-            }
-            return true;
-        }
-
-        window.switchTab = function(t) {
-            ['viewImport','viewEquipes','viewLive','viewHistorique'].forEach(v => document.getElementById(v).classList.add('hidden'));
-            ['btnTab1','btnTab2','btnTab3','btnTab4'].forEach(b => { document.getElementById(b).classList.remove('tab-active','text-blue-500'); document.getElementById(b).classList.add('text-slate-500'); });
-            const tMap = {'import':'1', 'equipes':'2', 'live':'3', 'historique':'4'};
-            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
-            document.getElementById('btnTab' + tMap[t]).classList.add('tab-active', 'text-blue-500');
-            document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
-            // Mettre à jour le filtre équipe dans l'historique
-            if (t === 'historique') updateFilterEquipes();
-        };
-
-        // Gestion élèves
+        // ------------------------------------------------------------------
+        // GESTION DES ÉLÈVES (import CSV, photos, ajout manuel, purge)
+        // ------------------------------------------------------------------
         document.getElementById('csvFile').addEventListener('change', function(e) {
-            if(!verifyActiveClass("Nom de la classe pour ce fichier CSV ?")) { e.target.value = ''; return; }
+            if (!verifyActiveClass("Nom de la classe pour ce fichier CSV ?")) { e.target.value = ''; return; }
             Papa.parse(e.target.files[0], {
-                delimiter: ";", header: false, skipEmptyLines: true,
+                delimiter: ";",
+                header: false,
+                skipEmptyLines: true,
                 complete: function(results) {
                     let importes = 0;
                     results.data.forEach(row => {
@@ -228,7 +299,11 @@
                         if (isNaN(vma)) return;
                         const cle = clePhoto(nom, prenom);
                         let existing = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                        if (existing) { existing.VMA = vma; } else { state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: "", idPhoto: cle }); }
+                        if (existing) {
+                            existing.VMA = vma;
+                        } else {
+                            state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: "", idPhoto: cle });
+                        }
                         importes++;
                     });
                     alert(`${importes} élèves importés/mis à jour dans ${state.activeCl}.`);
@@ -248,14 +323,22 @@
                     const entry = zip.files[path];
                     if (!entry.dir && entry.name.match(/\.(jpe?g|png)$/i)) {
                         const filename = entry.name.split('/').pop().normalize("NFC");
-                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.(jpe?g|png)$/i) || filename.match(/^_([^,]+),_([^_]+)\.(jpe?g|png)$/i);
+                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.(jpe?g|png)$/i) ||
+                                      filename.match(/^_([^,]+),_([^_]+)\.(jpe?g|png)$/i);
                         if (match) {
-                            let nom = match[1].trim().toUpperCase(), prenom = match[2].trim(), sexe = match[3] ? match[3].trim().toUpperCase() : "";
+                            let nom = match[1].trim().toUpperCase(),
+                                prenom = match[2].trim(),
+                                sexe = match[3] ? match[3].trim().toUpperCase() : "";
                             let cle = clePhoto(nom, prenom);
                             const blob = await entry.async("blob");
                             savePhoto(cle, blob);
                             let eleve = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                            if (eleve) { eleve.idPhoto = cle; if (!eleve.Sexe && sexe) eleve.Sexe = sexe; } else { state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle }); }
+                            if (eleve) {
+                                eleve.idPhoto = cle;
+                                if (!eleve.Sexe && sexe) eleve.Sexe = sexe;
+                            } else {
+                                state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle });
+                            }
                             photosCount++;
                         }
                     }
@@ -269,18 +352,27 @@
         });
 
         window.addManualEleve = function() {
-            if(!verifyActiveClass("Créez d'abord une classe :")) return;
-            const prenom = prompt("Prénom :"); if (!prenom) return;
-            const nom = prompt("Nom :"); if (!nom) return;
-            const vma = parseFloat(prompt("VMA (ex: 12.5) :").replace(',', '.')); if (isNaN(vma)) return;
+            if (!verifyActiveClass("Créez d'abord une classe :")) return;
+            const prenom = prompt("Prénom :");
+            if (!prenom) return;
+            const nom = prompt("Nom :");
+            if (!nom) return;
+            const vma = parseFloat(prompt("VMA (ex: 12.5) :").replace(',', '.'));
+            if (isNaN(vma)) return;
             const sexe = prompt("Sexe (F/M) :")?.toUpperCase() || "";
-            state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: sexe, idPhoto: clePhoto(nom, prenom) });
+            state.classes[state.activeCl].push({
+                Nom: nom.toUpperCase(),
+                Prenom: prenom,
+                VMA: vma,
+                Sexe: sexe,
+                idPhoto: clePhoto(nom, prenom)
+            });
             saveToLocal();
             renderEleves();
         };
 
         window.purgeEleves = function() {
-            if(state.activeCl && confirm(`Vider entièrement la classe ${state.activeCl} ?`)) {
+            if (state.activeCl && confirm(`Vider entièrement la classe ${state.activeCl} ?`)) {
                 state.classes[state.activeCl] = [];
                 state.equipes[state.activeCl] = [];
                 saveToLocal();
@@ -289,14 +381,18 @@
             }
         };
 
+        // ------------------------------------------------------------------
+        // AFFICHAGE DES ÉLÈVES
+        // ------------------------------------------------------------------
         async function renderEleves() {
             const list = document.getElementById('elevesGrid');
-            if(!list || !state.activeCl) return;
+            if (!list || !state.activeCl) return;
             let html = "";
-            for(let i = 0; i < (state.classes[state.activeCl] || []).length; i++) {
+            for (let i = 0; i < (state.classes[state.activeCl] || []).length; i++) {
                 const e = state.classes[state.activeCl][i];
                 const url = e.idPhoto ? await getPhotoUrl(e.idPhoto) : null;
-                const photo = url ? `<img src="${url}" class="photo-preview">` : `<div class="w-full h-full flex items-center justify-center text-2xl bg-slate-700 rounded-full">👤</div>`;
+                const photo = url ? `<img src="${url}" class="photo-preview">` :
+                    `<div class="w-full h-full flex items-center justify-center text-2xl bg-slate-700 rounded-full">👤</div>`;
                 html += `
                 <div class="bg-slate-800 rounded-2xl border-2 border-slate-700 flex flex-col overflow-hidden relative shadow-lg">
                     <button onclick="state.classes['${state.activeCl}'].splice(${i}, 1); saveToLocal(); renderEleves(); renderTeams();"
@@ -315,85 +411,110 @@
             list.innerHTML = html;
         }
 
-        // Génération des équipes avec gestion des doubleurs et absents
+        // ------------------------------------------------------------------
+        // GÉNÉRATION DES ÉQUIPES (algorithme glouton équilibré)
+        // ------------------------------------------------------------------
         window.generateTeams = function() {
-            if(!state.activeCl) return;
+            if (!state.activeCl) return;
             const eleves = state.classes[state.activeCl] || [];
             let elevesVMA = eleves.filter(e => e.VMA && !isNaN(e.VMA));
             if (elevesVMA.length === 0) return alert("Aucun élève avec VMA valide.");
 
-            let ordre = document.getElementById('mixiteCheckbox').checked
-                ? [...elevesVMA.filter(e=>e.Sexe==='F').sort((a,b)=>b.VMA-a.VMA),
-                   ...elevesVMA.filter(e=>e.Sexe==='M').sort((a,b)=>b.VMA-a.VMA),
-                   ...elevesVMA.filter(e=>e.Sexe!=='F'&&e.Sexe!=='M').sort((a,b)=>b.VMA-a.VMA)]
-                : [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
+            // Tri initial (mixité ou non)
+            let ordre = [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
+            if (document.getElementById('mixiteCheckbox').checked) {
+                const F = elevesVMA.filter(e => e.Sexe === 'F').sort((a, b) => b.VMA - a.VMA);
+                const M = elevesVMA.filter(e => e.Sexe === 'M').sort((a, b) => b.VMA - a.VMA);
+                const autres = elevesVMA.filter(e => e.Sexe !== 'F' && e.Sexe !== 'M').sort((a, b) => b.VMA - a.VMA);
+                ordre = [];
+                const maxLen = Math.max(F.length, M.length, autres.length);
+                for (let i = 0; i < maxLen; i++) {
+                    if (F[i]) ordre.push(F[i]);
+                    if (M[i]) ordre.push(M[i]);
+                    if (autres[i]) ordre.push(autres[i]);
+                }
+            }
 
             const total = ordre.length;
-            // On veut des équipes de 4 ou 3, avec au maximum 4 par équipe.
-            // Si le total n'est pas un multiple de 4, on fait des équipes de 3 avec un doubleur.
             const nbEquipes = Math.ceil(total / 4);
-            const nb4 = total - 3 * nbEquipes; // nombre d'équipes de 4
-            const nb3 = nbEquipes - nb4;
+            // Tailles : répartir équitablement (différence max 1)
+            const base = Math.floor(total / nbEquipes);
+            const extra = total - base * nbEquipes;
             let tailles = [];
-            for (let i = 0; i < nb4; i++) tailles.push(4);
-            for (let i = 0; i < nb3; i++) tailles.push(3);
-            tailles.sort((a,b) => b - a); // les plus grandes d'abord
+            for (let i = 0; i < nbEquipes; i++) {
+                tailles.push(base + (i < extra ? 1 : 0));
+            }
 
-            let idx = 0;
-            let newEquipes = [];
-            let eqIdx = 0;
-            for (let t of tailles) {
-                const membres = [];
-                let sumVMA = 0;
-                for (let j = 0; j < t; j++) {
-                    if (idx < total) {
-                        const eleve = ordre[idx];
-                        const couleurs = [
-                            { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
-                            { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                            { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
-                            { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-                        ];
-                        const c = couleurs[j % 4];
-                        membres.push({
-                            prenom: eleve.Prenom,
-                            nom: eleve.Nom.charAt(0) + ".",
-                            vma: eleve.VMA,
-                            maillot: c.nom,
-                            style: c.style,
-                            idPhoto: clePhoto(eleve.Nom, eleve.Prenom),
-                            doubleur: false,
-                            absent: false,
-                            remplaceAbsent: false
-                        });
-                        sumVMA += eleve.VMA;
-                        idx++;
+            // Initialiser les équipes
+            let equipes = tailles.map(() => ({ membres: [], sumVMA: 0 }));
+
+            // Algorithme glouton : attribuer chaque élève à l'équipe ayant la plus petite somme VMA
+            for (let eleve of ordre) {
+                let minIdx = -1;
+                let minSum = Infinity;
+                for (let i = 0; i < equipes.length; i++) {
+                    if (equipes[i].membres.length < tailles[i] && equipes[i].sumVMA < minSum) {
+                        minSum = equipes[i].sumVMA;
+                        minIdx = i;
                     }
                 }
-                // Si l'équipe a 3 membres, on marque le premier comme doubleur
-                if (t === 3 && membres.length === 3) {
-                    membres[0].doubleur = true;
-                }
-                newEquipes.push({
-                    id: `EQ${eqIdx + 1}`,
-                    membres,
-                    sumVMA,
-                    score: 0,
-                    pin: Math.floor(100 + Math.random() * 900).toString()
-                });
-                eqIdx++;
+                if (minIdx === -1) break;
+                equipes[minIdx].membres.push(eleve);
+                equipes[minIdx].sumVMA += eleve.VMA;
             }
+
+            // Assigner les maillots (Rouge, Jaune, Bleu, Vert) par ordre de VMA décroissante
+            const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
+            const styleMap = {
+                'Rouge': 'text-red-400 bg-red-950 border-red-800',
+                'Jaune': 'text-yellow-400 bg-yellow-950 border-yellow-800',
+                'Bleu': 'text-blue-400 bg-blue-950 border-blue-800',
+                'Vert': 'text-green-400 bg-green-950 border-green-800'
+            };
+
+            let newEquipes = equipes.map((eq, idx) => {
+                // Trier les membres par VMA décroissante pour attribuer les couleurs
+                eq.membres.sort((a, b) => b.VMA - a.VMA);
+                let membresFinal = eq.membres.map((eleve, j) => {
+                    const maillot = couleurs[j % 4];
+                    return {
+                        prenom: eleve.Prenom,
+                        nom: eleve.Nom.charAt(0) + ".",
+                        vma: eleve.VMA,
+                        maillot: maillot,
+                        style: styleMap[maillot],
+                        idPhoto: clePhoto(eleve.Nom, eleve.Prenom),
+                        doubleur: false,
+                        absent: false,
+                        remplaceAbsent: false
+                    };
+                });
+                // Si l'équipe a 3 membres, le premier (meilleur) devient doubleur
+                if (membresFinal.length === 3) {
+                    membresFinal[0].doubleur = true;
+                }
+                return {
+                    id: `EQ${idx + 1}`,
+                    pin: Math.floor(100 + Math.random() * 900).toString(),
+                    membres: membresFinal,
+                    sumVMA: eq.sumVMA,
+                    score: 0
+                };
+            });
 
             state.equipes[state.activeCl] = newEquipes;
             saveToLocal();
             renderTeams();
         };
 
+        // ------------------------------------------------------------------
+        // AFFICHAGE DES ÉQUIPES (avec gestion des absents et drag & drop)
+        // ------------------------------------------------------------------
         async function renderTeams() {
             const container = document.getElementById('teamsGrid');
-            if(!container || !state.activeCl) return;
+            if (!container || !state.activeCl) return;
             container.innerHTML = "";
-            for(let eq of (state.equipes[state.activeCl] || [])) {
+            for (let eq of (state.equipes[state.activeCl] || [])) {
                 let html = `
                 <div class="bg-slate-900 rounded-3xl border-2 border-slate-700 p-4 flex flex-col shadow-lg" data-team-id="${eq.id}">
                     <div class="flex justify-between items-center mb-4">
@@ -401,9 +522,10 @@
                         <span class="text-emerald-400 font-black text-lg">${eq.sumVMA.toFixed(1)} <span class="text-[10px] text-slate-500">VMA</span></span>
                     </div>
                     <div class="team-list flex-1 space-y-2 min-h-[100px] border-2 border-dashed border-slate-700 rounded-xl p-2 bg-black/20" data-team-id="${eq.id}">`;
-                for(let m of eq.membres) {
+                for (let m of eq.membres) {
                     const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
-                    const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700"></div>`;
+                    const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` :
+                        `<div class="w-10 h-10 rounded-full bg-slate-700"></div>`;
                     const doubleurBadge = m.doubleur ? `<span class="doubleur-badge">⭐ Doubleur</span>` : '';
                     const absentBadge = m.absent ? `<span class="absent-badge">⚠️ Absent</span>` : '';
                     const remplaceBadge = m.remplaceAbsent ? `<span class="doubleur-badge">🔄 Remplace</span>` : '';
@@ -429,21 +551,32 @@
                 </div>`;
                 container.innerHTML += html;
             }
+
+            // Initialiser Sortable pour le drag & drop
             document.querySelectorAll('.team-list').forEach(el => {
                 if (el.sortableInstance) el.sortableInstance.destroy();
                 Sortable.create(el, {
-                    group: 'teams', animation: 150, ghostClass: 'ghost-item',
+                    group: 'teams',
+                    animation: 150,
+                    ghostClass: 'ghost-item',
                     onEnd: function() {
                         const newEquipes = [];
                         document.querySelectorAll('#teamsGrid > div').forEach(tDiv => {
-                            let sumVMA = 0, membres = [];
+                            let sumVMA = 0,
+                                membres = [];
                             tDiv.querySelectorAll('.member-item').forEach(mDiv => {
                                 const m = JSON.parse(mDiv.dataset.member);
                                 sumVMA += m.vma;
                                 membres.push(m);
                             });
                             let eqBase = state.equipes[state.activeCl].find(e => e.id === tDiv.dataset.teamId);
-                            newEquipes.push({ id: eqBase.id, pin: eqBase.pin, membres, sumVMA, score: 0 });
+                            newEquipes.push({
+                                id: eqBase.id,
+                                pin: eqBase.pin,
+                                membres: membres,
+                                sumVMA: sumVMA,
+                                score: 0
+                            });
                         });
                         state.equipes[state.activeCl] = newEquipes;
                         saveToLocal();
@@ -453,20 +586,20 @@
             });
         }
 
-        // Gestion des absents
+        // ------------------------------------------------------------------
+        // GESTION DES ABSENTS ET REMPLAÇANTS
+        // ------------------------------------------------------------------
         window.marquerAbsent = function(teamId) {
             const equipe = state.equipes[state.activeCl].find(e => e.id === teamId);
             if (!equipe) return;
-            // Trouver un membre non absent
             const actifs = equipe.membres.filter(m => !m.absent);
             if (actifs.length === 0) { alert("Tous les membres sont déjà absents !"); return; }
-            // Demander quel membre mettre absent
             const choix = prompt(`Quel membre mettre absent ?\n${actifs.map((m, i) => `${i+1}: ${m.maillot} (${m.prenom})`).join('\n')}`, "1");
             const idx = parseInt(choix) - 1;
             if (idx < 0 || idx >= actifs.length) return;
             const absent = actifs[idx];
             absent.absent = true;
-            // Désigner un remplaçant : le premier actif non absent (autre que lui)
+            // Désigner un remplaçant : premier actif non absent (autre que lui)
             const remplacants = equipe.membres.filter(m => !m.absent && m.maillot !== absent.maillot);
             if (remplacants.length > 0) {
                 remplacants[0].remplaceAbsent = true;
@@ -480,7 +613,8 @@
         window.reactiverAbsent = function(teamId) {
             const equipe = state.equipes[state.activeCl].find(e => e.id === teamId);
             if (!equipe) return;
-            equipe.membres.forEach(m => { m.absent = false; m.remplaceAbsent = false; });
+            equipe.membres.forEach(m => { m.absent = false;
+                m.remplaceAbsent = false; });
             // Réattribuer un doubleur si l'équipe est de 3
             const actifs = equipe.membres.filter(m => !m.absent);
             if (actifs.length === 3) {
@@ -503,6 +637,9 @@
             }
         };
 
+        // ------------------------------------------------------------------
+        // ENVOI DE LA CONFIGURATION AUX iPads
+        // ------------------------------------------------------------------
         window.pushConfig = function() {
             if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0)
                 return alert("Aucune équipe générée.");
@@ -532,7 +669,9 @@
                         remplaceAbsent: m.remplaceAbsent || false
                     }))
                 };
-                eq.membres.forEach(m => { configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma; });
+                eq.membres.forEach(m => {
+                    configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma;
+                });
             });
             if (!state.seances) state.seances = {};
             state.seances[seanceId] = configObj;
@@ -540,6 +679,7 @@
             updateSeancesList();
             db.ref('arcathlon/config').set({ ...configObj, seanceId }).then(() => {
                 alert(`🚀 Configuration de la séance envoyée !\nID: ${seanceId}`);
+                // Copie des passages live vers l'historique
                 db.ref('arcathlon/live/passages').once('value', snap => {
                     const passages = snap.val() || {};
                     Object.entries(passages).forEach(([key, passage]) => {
@@ -549,6 +689,9 @@
             });
         };
 
+        // ------------------------------------------------------------------
+        // HISTORIQUE DES SÉANCES
+        // ------------------------------------------------------------------
         function updateSeancesList() {
             const select = document.getElementById('selectSeance');
             select.innerHTML = "<option value=\"\">-- Sélectionner une séance --</option>" +
@@ -574,18 +717,103 @@
                 equipes.map(eq => `<option value="${eq}">${eq}</option>`).join('');
         }
 
-        // Résultats live
+        window.loadHistorique = function() {
+            const seanceId = document.getElementById('selectSeance').value;
+            if (!seanceId) return;
+            const seance = state.seances[seanceId];
+            if (!seance) return alert("Séance introuvable.");
+            const filterEquipe = document.getElementById('filterEquipe').value;
+            const container = document.getElementById('historiqueContainer');
+            db.ref('arcathlon/historique').child(seanceId).once('value', snap => {
+                const passages = snap.val() || {};
+                let html = `<div class="bg-slate-800 p-4 rounded-xl mb-4">
+                    <h3 class="font-black text-blue-400 text-lg mb-2">Séance du ${new Date(seance.date).toLocaleString()}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Piste</span><div class="font-bold text-emerald-400">${seance.longueurPiste} m</div></div>
+                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Tours</span><div class="font-bold text-emerald-400">${seance.nbTours}</div></div>
+                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Séries</span><div class="font-bold text-emerald-400">${seance.nbSeries}</div></div>
+                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Flèches</span><div class="font-bold text-emerald-400">${seance.nbFleches}</div></div>
+                    </div>
+                </div>`;
+
+                // Filtrer les passages selon l'équipe
+                const passagesFiltres = {};
+                Object.entries(passages).forEach(([key, p]) => {
+                    if (filterEquipe === 'all' || p.equipe === filterEquipe) {
+                        passagesFiltres[key] = p;
+                    }
+                });
+
+                // Calcul des scores par équipe
+                const scoresEquipes = {};
+                Object.values(seance.equipes).forEach(eq => {
+                    if (filterEquipe === 'all' || eq.id === filterEquipe) {
+                        scoresEquipes[eq.id] = { total: 0, coureurs: {} };
+                        eq.membres.forEach(m => { scoresEquipes[eq.id].coureurs[m.maillot] = { course: 0, tir: 0 }; });
+                    }
+                });
+                Object.values(passagesFiltres).forEach(p => {
+                    if (scoresEquipes[p.equipe] && scoresEquipes[p.equipe].coureurs[p.maillot]) {
+                        if (p.ptsVMA !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].course += p.ptsVMA;
+                        if (p.ptsTir !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].tir += p.ptsTir;
+                        scoresEquipes[p.equipe].total += (p.ptsVMA || 0) + (p.ptsTir || 0);
+                    }
+                });
+                const equipesTriees = Object.entries(scoresEquipes).sort((a, b) => b[1].total - a[1].total);
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`;
+                equipesTriees.forEach(([eqId, data]) => {
+                    html += `<div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                        <div class="flex justify-between items-center mb-2"><h4 class="font-black text-xl text-slate-200">Équipe ${eqId}</h4><span class="text-emerald-400 font-black text-lg">${data.total} pts</span></div>
+                        <div class="space-y-2">`;
+                    Object.entries(data.coureurs).forEach(([maillot, scores]) => {
+                        html += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-300">${maillot}</span><span class="text-emerald-400 font-bold">${scores.course + scores.tir} pts</span></div>
+                                <div class="flex justify-between text-xs text-slate-400"><span>Course: ${scores.course} | Tir: ${scores.tir}</span></div>`;
+                    });
+                    html += `</div></div>`;
+                });
+                html += `</div>`;
+                // Détails des passages
+                html += `<div class="mt-6"><h4 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Détails des Passages</h4>
+                    <div class="flex flex-col gap-2 max-h-96 overflow-y-auto">`;
+                Object.entries(passagesFiltres).sort((a, b) => a[1].timestamp - b[1].timestamp).forEach(([key, p]) => {
+                    const type = p.ptsVMA !== undefined ? "Course" : "Tir";
+                    const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
+                    const h = new Date(p.timestamp).toLocaleTimeString('fr-FR');
+                    const alerte = p.alerteTriche ? ' ⚠️' : '';
+                    html += `<div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
+                        <span class="text-slate-400">${h}</span>
+                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
+                        <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}${alerte}</span>
+                        <span class="text-slate-400">Série ${p.serie || 1}</span>
+                    </div>`;
+                });
+                html += `</div></div>`;
+                container.innerHTML = html;
+            });
+        };
+
+        // ------------------------------------------------------------------
+        // RÉSULTATS LIVE
+        // ------------------------------------------------------------------
         function updateLiveScores(passages) {
-            if(!state.activeCl) return;
+            if (!state.activeCl) return;
             const equipesActive = state.equipes[state.activeCl] || [];
-            equipesActive.forEach(eq => { eq.score = 0; eq.membres.forEach(m => { m.scoreIndiv = 0; m.details = { courses: [], tirs: [] }; }); });
+            equipesActive.forEach(eq => {
+                eq.score = 0;
+                eq.membres.forEach(m => {
+                    m.scoreIndiv = 0;
+                    m.details = { courses: [], tirs: [] };
+                });
+            });
             Object.values(passages).forEach(p => {
                 let eq = equipesActive.find(e => e.id === p.equipe);
                 if (eq) {
                     let membre = eq.membres.find(m => m.maillot === p.maillot);
                     if (membre) {
-                        if (p.ptsVMA !== undefined) { membre.details.courses.push(p.ptsVMA); membre.scoreIndiv += p.ptsVMA; }
-                        if (p.ptsTir !== undefined) { membre.details.tirs.push(p.ptsTir); membre.scoreIndiv += p.ptsTir; }
+                        if (p.ptsVMA !== undefined) { membre.details.courses.push(p.ptsVMA);
+                            membre.scoreIndiv += p.ptsVMA; }
+                        if (p.ptsTir !== undefined) { membre.details.tirs.push(p.ptsTir);
+                            membre.scoreIndiv += p.ptsTir; }
                         eq.score += (p.ptsVMA || 0) + (p.ptsTir || 0);
                     }
                 }
@@ -605,7 +833,7 @@
                 entries.map(([key, p]) => {
                     const type = p.ptsVMA !== undefined ? "Course" : "Tir";
                     const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                    const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                     const alerte = p.alerteTriche ? '<span class="alerte-triche ml-2">⚠️ Triche</span>' : '';
                     return `
                     <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-2 shadow">
@@ -626,7 +854,8 @@
             if (newPts === null) return;
             const pts = parseInt(newPts);
             if (isNaN(pts) || pts < 0 || (type === 'Course' && pts > 3) || (type === 'Tir' && pts > 30)) { alert("Valeur invalide."); return; }
-            const update = {}; update[type === 'Course' ? 'ptsVMA' : 'ptsTir'] = pts;
+            const update = {};
+            update[type === 'Course' ? 'ptsVMA' : 'ptsTir'] = pts;
             db.ref('arcathlon/live/passages').child(key).update(update);
         };
 
@@ -634,7 +863,9 @@
             if (confirm("Supprimer ce passage ?")) db.ref('arcathlon/live/passages').child(key).remove();
         };
 
-        // Export avec noms et prénoms
+        // ------------------------------------------------------------------
+        // EXPORT DES RÉSULTATS (CSV avec noms et prénoms)
+        // ------------------------------------------------------------------
         window.exportResults = function() {
             const seanceId = document.getElementById('selectSeance').value;
             if (!seanceId) return alert("Sélectionnez une séance.");
@@ -646,7 +877,6 @@
                 Object.values(passages).forEach(p => {
                     const type = p.ptsVMA !== undefined ? "Course" : "Tir";
                     const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    // Récupérer prénom et nom depuis la config de la séance
                     const membres = seance.equipes[p.equipe]?.membres || [];
                     const membre = membres.find(m => m.maillot === p.maillot);
                     const prenom = membre ? membre.prenom : '';
@@ -687,81 +917,54 @@
             db.ref('arcathlon/live').remove().then(() => alert("Direct purgé !"));
         };
 
-        window.loadHistorique = function() {
-            const seanceId = document.getElementById('selectSeance').value;
-            if (!seanceId) return;
-            const seance = state.seances[seanceId];
-            if (!seance) return alert("Séance introuvable.");
-            const filterEquipe = document.getElementById('filterEquipe').value;
-            const container = document.getElementById('historiqueContainer');
-            db.ref('arcathlon/historique').child(seanceId).once('value', snap => {
-                const passages = snap.val() || {};
-                let html = `<div class="bg-slate-800 p-4 rounded-xl mb-4">
-                    <h3 class="font-black text-blue-400 text-lg mb-2">Séance du ${new Date(seance.date).toLocaleString()}</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Piste</span><div class="font-bold text-emerald-400">${seance.longueurPiste} m</div></div>
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Tours</span><div class="font-bold text-emerald-400">${seance.nbTours}</div></div>
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Séries</span><div class="font-bold text-emerald-400">${seance.nbSeries}</div></div>
-                        <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Flèches</span><div class="font-bold text-emerald-400">${seance.nbFleches}</div></div>
-                    </div>
-                </div>`;
-
-                // Filtrer les passages selon l'équipe sélectionnée
-                const passagesFiltres = {};
-                Object.entries(passages).forEach(([key, p]) => {
-                    if (filterEquipe === 'all' || p.equipe === filterEquipe) {
-                        passagesFiltres[key] = p;
-                    }
-                });
-
-                const scoresEquipes = {};
-                Object.values(seance.equipes).forEach(eq => {
-                    if (filterEquipe === 'all' || eq.id === filterEquipe) {
-                        scoresEquipes[eq.id] = { total: 0, coureurs: {} };
-                        eq.membres.forEach(m => { scoresEquipes[eq.id].coureurs[m.maillot] = { course: 0, tir: 0 }; });
-                    }
-                });
-                Object.values(passagesFiltres).forEach(p => {
-                    if (scoresEquipes[p.equipe] && scoresEquipes[p.equipe].coureurs[p.maillot]) {
-                        if (p.ptsVMA !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].course += p.ptsVMA;
-                        if (p.ptsTir !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].tir += p.ptsTir;
-                        scoresEquipes[p.equipe].total += (p.ptsVMA || 0) + (p.ptsTir || 0);
-                    }
-                });
-                const equipesTriees = Object.entries(scoresEquipes).sort((a, b) => b[1].total - a[1].total);
-                html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">`;
-                equipesTriees.forEach(([eqId, data]) => {
-                    html += `<div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
-                        <div class="flex justify-between items-center mb-2"><h4 class="font-black text-xl text-slate-200">Équipe ${eqId}</h4><span class="text-emerald-400 font-black text-lg">${data.total} pts</span></div>
-                        <div class="space-y-2">`;
-                    Object.entries(data.coureurs).forEach(([maillot, scores]) => {
-                        html += `<div class="flex justify-between text-sm"><span class="font-bold text-slate-300">${maillot}</span><span class="text-emerald-400 font-bold">${scores.course + scores.tir} pts</span></div>
-                                <div class="flex justify-between text-xs text-slate-400"><span>Course: ${scores.course} | Tir: ${scores.tir}</span></div>`;
-                    });
-                    html += `</div></div>`;
-                });
-                html += `</div>`;
-                html += `<div class="mt-6"><h4 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Détails des Passages</h4>
-                    <div class="flex flex-col gap-2 max-h-96 overflow-y-auto">`;
-                Object.entries(passagesFiltres).sort((a, b) => a[1].timestamp - b[1].timestamp).forEach(([key, p]) => {
-                    const type = p.ptsVMA !== undefined ? "Course" : "Tir";
-                    const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    const h = new Date(p.timestamp).toLocaleTimeString('fr-FR');
-                    const alerte = p.alerteTriche ? ' ⚠️' : '';
-                    html += `<div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
-                        <span class="text-slate-400">${h}</span>
-                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
-                        <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}${alerte}</span>
-                        <span class="text-slate-400">Série ${p.serie || 1}</span>
-                    </div>`;
-                });
-                html += `</div></div>`;
-                container.innerHTML = html;
-            });
+        // ------------------------------------------------------------------
+        // EXPORT / IMPORT DES DONNÉES (persistance manuelle)
+        // ------------------------------------------------------------------
+        window.exportData = function() {
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Arcathlon_Data_${new Date().toISOString()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         };
 
-        // Mettre à jour le filtre équipe quand la séance change
-        document.getElementById('selectSeance').addEventListener('change', updateFilterEquipes);
+        document.getElementById('importDataInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.classes && data.equipes && data.seances) {
+                        state = data;
+                        saveToLocal();
+                        updateClSelect();
+                        renderEleves();
+                        renderTeams();
+                        updateSeancesList();
+                        alert("Données importées avec succès !");
+                    } else {
+                        alert("Fichier invalide.");
+                    }
+                } catch (err) {
+                    alert("Erreur de lecture : " + err.message);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        // ------------------------------------------------------------------
+        // LANCEMENT DE L'APPLICATION
+        // ------------------------------------------------------------------
+        // La fonction initUI est appelée après l'ouverture de la base IndexedDB (request.onsuccess)
+        // On lance également initUI si IndexedDB n'est pas disponible (fallback)
+        if (!window.indexedDB) {
+            // Fallback : lancer directement
+            initUI();
+        }
     </script>
 </body>
 </html>
