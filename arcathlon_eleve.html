@@ -66,7 +66,52 @@
             </div>
         </div>
 
-        <!-- ECRAN 3 : SAISIE TIR & VMA -->
+        <!-- ECRAN 3 : CHRONOMÉTRAGE -->
+        <div id="ecranChrono" class="hidden flex-col h-full">
+            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour aux coureurs</button>
+            <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0">
+                Chronométrage - <span id="coureurLabel" class="text-blue-400">Coureur : Maillot Rouge</span>
+            </div>
+
+            <div class="flex-1 flex flex-col items-center justify-center gap-6">
+                <div class="text-6xl font-mono font-bold tabular-nums" id="chronoDisplay">00:00.00</div>
+                <div class="flex gap-4">
+                    <button id="btnDepart" onclick="demarrerChrono()" class="bg-green-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-green-700">Départ</button>
+                    <button id="btnArrivee" onclick="arreterChrono()" class="bg-red-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-red-700" disabled>Arrivée</button>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-2xl border-2 border-slate-700 w-full">
+                    <div class="flex justify-between mb-2">
+                        <span class="font-bold text-slate-400">Distance :</span>
+                        <span id="distanceAffiche" class="font-bold text-emerald-400">400 m</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="font-bold text-slate-400">Temps :</span>
+                        <span id="tempsAffiche" class="font-bold text-emerald-400">00:00.00</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span class="font-bold text-slate-400">Vitesse :</span>
+                        <span id="vitesseAffiche" class="font-bold text-emerald-400">0 km/h</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-bold text-slate-400">Points VMA :</span>
+                        <span id="pointsVMA" class="font-bold text-emerald-400">0</span>
+                    </div>
+                </div>
+                <div class="w-full mt-4">
+                    <label class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-slate-400">Nombre de tours :</span>
+                        <select id="selTours" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-center">
+                            <option value="1">1 tour</option>
+                            <option value="2">2 tours</option>
+                            <option value="3">3 tours</option>
+                        </select>
+                    </label>
+                    <button id="btnValiderChrono" onclick="validerChrono()" class="bg-blue-600 text-white w-full py-3 rounded-xl font-black text-xl uppercase tracking-widest shadow-xl active:bg-blue-700 opacity-50" disabled>Valider et passer au tir</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECRAN 4 : SAISIE TIR & VMA -->
         <div id="ecranSaisie" class="hidden flex-col h-full">
             <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour aux coureurs</button>
             <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0" id="labelCoureur"></div>
@@ -136,9 +181,15 @@
         let configMode = "sprint";
         let currentEq = "", currentPin = "", currentMaillot = "";
         let inputPin = "";
+        let distanceBoucle = 400; // Distance par défaut
 
         let tirs = []; // Stocke les scores des flèches
         let myHistory = []; // Stocke les clés Firebase des passages envoyés par cet iPad
+
+        // Variables pour le chronomètre
+        let chronoInterval = null;
+        let tempsDepart = 0;
+        let tempsEcoule = 0;
 
         // --- ECOUTE FIREBASE ---
         db.ref('.info/connected').on('value', snap => {
@@ -151,6 +202,8 @@
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
             configMode = config.mode || "sprint";
+            distanceBoucle = config.distanceBoucle || 400;
+            document.getElementById('distanceAffiche').textContent = `${distanceBoucle} m`;
 
             document.getElementById('modeBadge').textContent = "Mode : " + (configMode === 'relais' ? "RELAIS" : configMode === 'poursuite' ? "POURSUITE" : "CLASSIQUE");
 
@@ -209,6 +262,7 @@
             document.getElementById('selEquipe').value = "";
             document.getElementById('numpad').classList.add('hidden'); document.getElementById('numpad').classList.remove('flex');
             document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranChrono').classList.add('hidden'); document.getElementById('ecranChrono').classList.remove('flex');
             document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex');
         }
 
@@ -224,7 +278,7 @@
                 let cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
 
                 html += `
-                <button onclick="openSaisie('${m.maillot}', '${labelRole}')" class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg active:bg-slate-900">
+                <button onclick="openChrono('${m.maillot}', '${labelRole}')" class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg active:bg-slate-900">
                     <span class="font-black text-2xl uppercase tracking-widest">${labelRole}</span>
                     <span class="text-sm font-bold mt-1 text-slate-300">VMA: ${m.vma}</span>
                 </button>`;
@@ -232,21 +286,102 @@
             grid.innerHTML = html;
         }
 
-        window.openSaisie = function(maillot, label) {
+        // Fonction pour ouvrir l'écran de chronométrage
+        window.openChrono = function(maillot, label) {
             currentMaillot = maillot;
-            document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('flex');
-            document.getElementById('ecranSaisie').classList.remove('hidden'); document.getElementById('ecranSaisie').classList.add('flex');
+            document.getElementById('ecranCoureurs').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranChrono').classList.remove('hidden');
+            document.getElementById('ecranChrono').classList.add('flex');
 
             const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
-            document.getElementById('labelCoureur').innerHTML = `<span class="${colorTexte}">Coureur : ${label}</span>`;
+            document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">Coureur : ${label}</span>`;
 
-            document.getElementById('selVMA').value = "2";
-            resetTir();
+            resetChrono();
         }
 
         window.retourCoureurs = function() {
-            document.getElementById('ecranSaisie').classList.add('hidden'); document.getElementById('ecranSaisie').classList.remove('flex');
-            document.getElementById('ecranCoureurs').classList.remove('hidden'); document.getElementById('ecranCoureurs').classList.add('flex');
+            document.getElementById('ecranChrono').classList.add('hidden');
+            document.getElementById('ecranChrono').classList.remove('flex');
+            document.getElementById('ecranSaisie').classList.add('hidden');
+            document.getElementById('ecranSaisie').classList.remove('flex');
+            document.getElementById('ecranCoureurs').classList.remove('hidden');
+            document.getElementById('ecranCoureurs').classList.add('flex');
+        }
+
+        // Fonction pour démarrer le chronomètre
+        function demarrerChrono() {
+            tempsDepart = Date.now() - tempsEcoule;
+            chronoInterval = setInterval(mettreAJourChrono, 10); // Rafraîchissement toutes les 10ms
+            document.getElementById('btnDepart').disabled = true;
+            document.getElementById('btnArrivee').disabled = false;
+        }
+
+        // Fonction pour mettre à jour l'affichage du chronomètre
+        function mettreAJourChrono() {
+            tempsEcoule = Date.now() - tempsDepart;
+            const temps = new Date(tempsEcoule);
+            const minutes = temps.getUTCMinutes().toString().padStart(2, '0');
+            const secondes = temps.getUTCSeconds().toString().padStart(2, '0');
+            const centiemes = Math.floor(temps.getUTCMilliseconds() / 10).toString().padStart(2, '0');
+            document.getElementById('chronoDisplay').textContent = `${minutes}:${secondes}.${centiemes}`;
+        }
+
+        // Fonction pour arrêter le chronomètre
+        function arreterChrono() {
+            clearInterval(chronoInterval);
+            const temps = new Date(tempsEcoule);
+            const secondesTotales = temps.getUTCMinutes() * 60 + temps.getUTCSeconds() + temps.getUTCMilliseconds() / 1000;
+
+            // Calcul de la vitesse (en km/h)
+            const distanceTotale = distanceBoucle * parseInt(document.getElementById('selTours').value);
+            const vitesse = (distanceTotale / 1000) / (secondesTotales / 3600); // Conversion en km/h
+
+            // Affichage des résultats
+            document.getElementById('tempsAffiche').textContent = document.getElementById('chronoDisplay').textContent;
+            document.getElementById('vitesseAffiche').textContent = `${vitesse.toFixed(1)} km/h`;
+
+            // Calcul des points VMA
+            let pointsVMA = 0;
+            const vmaEleve = equipesConfig[currentEq].membres.find(m => m.maillot === currentMaillot).vma;
+            if (vitesse >= vmaEleve + 1) pointsVMA = 3; // Plus rapide que VMA
+            else if (vitesse >= vmaEleve - 0.5) pointsVMA = 2; // Contrat VMA rempli
+            else if (vitesse >= vmaEleve - 1) pointsVMA = 1; // Proche de la VMA
+            document.getElementById('pointsVMA').textContent = pointsVMA;
+
+            document.getElementById('btnArrivee').disabled = true;
+            document.getElementById('btnValiderChrono').classList.remove('opacity-50');
+            document.getElementById('btnValiderChrono').disabled = false;
+        }
+
+        // Fonction pour valider et passer à l'écran de tir
+        function validerChrono() {
+            const pointsVMA = parseInt(document.getElementById('pointsVMA').textContent);
+            document.getElementById('selVMA').value = pointsVMA; // Préremplir les points VMA
+            document.getElementById('ecranChrono').classList.add('hidden');
+            document.getElementById('ecranChrono').classList.remove('flex');
+            document.getElementById('ecranSaisie').classList.remove('hidden');
+            document.getElementById('ecranSaisie').classList.add('flex');
+
+            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[currentMaillot];
+            document.getElementById('labelCoureur').innerHTML = `<span class="${colorTexte}">Coureur : ${currentMaillot}</span>`;
+
+            resetChrono();
+        }
+
+        // Fonction pour réinitialiser le chronomètre
+        function resetChrono() {
+            clearInterval(chronoInterval);
+            tempsEcoule = 0;
+            document.getElementById('chronoDisplay').textContent = "00:00.00";
+            document.getElementById('btnDepart').disabled = false;
+            document.getElementById('btnArrivee').disabled = true;
+            document.getElementById('btnValiderChrono').disabled = true;
+            document.getElementById('btnValiderChrono').classList.add('opacity-50');
+            document.getElementById('tempsAffiche').textContent = "00:00.00";
+            document.getElementById('vitesseAffiche').textContent = "0 km/h";
+            document.getElementById('pointsVMA').textContent = "0";
+            document.getElementById('selTours').value = "1";
         }
 
         // --- GESTION DU TIR (CIBLE SVG) ---

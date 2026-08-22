@@ -73,6 +73,12 @@
                     </select>
                 </div>
 
+                <!-- Ajout de la distance de boucle -->
+                <div class="flex items-center gap-4 bg-slate-800 p-3 rounded-2xl border-2 border-slate-700">
+                    <span class="font-black text-slate-300 uppercase text-xs">📏 Distance boucle (m) :</span>
+                    <input type="number" id="distanceBoucle" value="400" min="50" class="w-20 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center">
+                </div>
+
                 <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-sm shadow-xl text-white border-2 border-blue-400">🚀 Envoyer aux iPads</button>
             </div>
             <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6 pr-2 content-start"></div>
@@ -327,11 +333,15 @@
 
         window.pushConfig = function() {
             if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0) return alert("Aucune équipe.");
-            let configObj = { equipes: {}, mode: document.getElementById('modeEpreuve').value };
+            let configObj = {
+                equipes: {},
+                mode: document.getElementById('modeEpreuve').value,
+                distanceBoucle: parseInt(document.getElementById('distanceBoucle').value) || 400
+            };
             state.equipes[state.activeCl].forEach(eq => {
                 configObj.equipes[eq.id] = { pin: eq.pin, membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma })) };
             });
-            db.ref('arcathlon/config').set(configObj).then(() => alert(`🚀 Configuration (${configObj.mode}) envoyée aux iPads !`));
+            db.ref('arcathlon/config').set(configObj).then(() => alert(`🚀 Configuration envoyée aux iPads !`));
         }
 
         function updateLiveScores(passages) {
