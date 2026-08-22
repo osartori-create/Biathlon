@@ -2,455 +2,333 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Arcathlon | Maître</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        img.team-photo { width: 40px; height: 40px; object-fit: cover; border-radius: 50%; }
-        .team-container { min-height: 100px; border: 2px dashed #4b5563; border-radius: 10px; padding: 10px; }
-        .hidden { display: none !important; }
-        .step-badge { width: 28px; height: 28px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; flex-shrink: 0; }
-        .pulse-dot { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        body { user-select: none; -webkit-user-select: none; background-color: #0f172a; color: white; }
+        .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
+        .ghost-item { opacity: 0.4; background-color: #3b82f6; }
     </style>
 </head>
-<body class="bg-slate-900 text-white p-4 font-sans h-screen flex flex-col">
+<body class="p-4 h-screen flex flex-col font-sans">
+
+    <!-- Header & Statut -->
     <header class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4 shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest">Arcathlon <span class="text-slate-400 text-sm">| Professeur</span></h1>
-            <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-                <span id="connDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+            <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest italic">Arcathlon <span class="text-slate-400 text-sm">| Professeur</span></h1>
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
                 <span id="connLabel">Connexion...</span>
             </div>
         </div>
-        <button id="purgeLiveBtn" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-800">⚠️ Purger Live</button>
     </header>
 
-    <!-- Fil du workflow -->
-    <div class="flex items-center gap-2 mb-6 shrink-0 flex-wrap text-xs">
-        <span class="step-badge bg-emerald-600 text-white">1</span>
-        <label class="bg-emerald-600 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-emerald-500 border border-emerald-500">
-            📥 Import CSV (iDoceo)
-            <input type="file" id="csvFile" accept=".csv" class="hidden">
-        </label>
-        <label class="bg-indigo-600 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-indigo-500 border border-indigo-500">
-            📸 Importer photos (ZIP iDoceo)
-            <input type="file" id="zipFile" accept=".zip" class="hidden">
-        </label>
-        <button id="toggleImportMode" class="bg-purple-600 px-4 py-2 rounded-lg font-bold hover:bg-purple-500 border border-purple-500">
-            🔄 Saisie manuelle
-        </button>
+    <!-- Navigation par Onglets -->
+    <nav class="flex border-b border-slate-700 mb-6 font-bold text-xs uppercase tracking-widest overflow-x-auto shrink-0">
+        <button id="btnTab1" onclick="switchTab('import')" class="px-6 py-4 tab-active whitespace-nowrap">📥 Import & Élèves</button>
+        <button id="btnTab2" onclick="switchTab('equipes')" class="px-6 py-4 text-slate-500 whitespace-nowrap">👥 Équipes & Config</button>
+        <button id="btnTab3" onclick="switchTab('live')" class="px-6 py-4 text-slate-500 whitespace-nowrap">📊 Résultats Live</button>
+    </nav>
 
-        <span class="step-badge bg-orange-600 text-white ml-3">2</span>
-        <button id="generateTeamsBtn" class="bg-orange-600 px-4 py-2 rounded-lg font-bold hover:bg-orange-500 border border-orange-500">
-            🔄 Générer les équipes
-        </button>
-        <label class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg font-bold text-slate-300 cursor-pointer">
-            <input type="checkbox" id="mixiteCheckbox" class="w-4 h-4">
-            ⚥ Équilibrer la mixité (si sexe importé)
-        </label>
+    <div class="flex-1 overflow-hidden">
+        <!-- ONGLET 1 : IMPORT & ELEVES -->
+        <div id="viewImport" class="h-full flex flex-col">
+            <div class="flex flex-wrap items-center gap-4 mb-4 shrink-0 bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
+                <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-6 py-3 rounded-xl font-black text-sm uppercase shadow-lg border border-emerald-400 active:scale-95 transition-transform">📄 1. Import CSV iDoceo</button>
+                <input type="file" id="csvFile" accept=".csv" class="hidden">
+                
+                <button onclick="document.getElementById('zipFile').click()" class="bg-indigo-600 px-6 py-3 rounded-xl font-black text-sm uppercase shadow-lg border border-indigo-400 active:scale-95 transition-transform">📸 2. Import ZIP Photos</button>
+                <input type="file" id="zipFile" accept=".zip" class="hidden">
 
-        <span class="step-badge bg-blue-600 text-white ml-3">3</span>
-        <button id="pushConfigBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-500 border border-blue-500">🚀 Envoyer aux iPads</button>
-
-        <span class="step-badge bg-amber-500 text-black ml-3">4</span>
-        <span class="text-slate-400 font-bold self-center">Suivre le direct plus bas ⬇</span>
-    </div>
-
-    <!-- Barème de tir -->
-    <div class="bg-slate-800 p-4 rounded-2xl border-2 border-slate-700 mb-6 flex items-center gap-4 flex-wrap shrink-0">
-        <span class="font-black text-slate-300 uppercase text-sm">🎯 Barème stand de tir :</span>
-        <label class="flex items-center gap-2 text-sm text-slate-300 font-bold">Flèche 1
-            <input type="number" id="baremeF1" value="7" min="0" class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center">pts
-        </label>
-        <label class="flex items-center gap-2 text-sm text-slate-300 font-bold">Flèche 2
-            <input type="number" id="baremeF2" value="8" min="0" class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center">pts
-        </label>
-        <button id="saveBaremeBtn" class="bg-teal-600 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-teal-500 border border-teal-500">✓ Appliquer le barème</button>
-        <span id="baremeStatus" class="text-xs text-slate-500"></span>
-    </div>
-
-    <div class="grid grid-cols-1 gap-6 flex-1 overflow-hidden">
-        <!-- Panneau de saisie manuelle -->
-        <div id="manualInputPanel" class="bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden hidden">
-            <h2 class="font-black text-purple-400 mb-4 uppercase shrink-0">Saisie Manuelle des Élèves</h2>
-            <div class="flex flex-col gap-3 overflow-y-auto pr-2 pb-4">
-                <table id="manualVmaTable" class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-700">
-                            <th class="p-2 text-left font-bold text-slate-300">Prénom</th>
-                            <th class="p-2 text-left font-bold text-slate-300">Nom</th>
-                            <th class="p-2 text-left font-bold text-slate-300">VMA (km/h)</th>
-                            <th class="p-2 text-left font-bold text-slate-300">Sexe</th>
-                            <th class="p-2 text-left font-bold text-slate-300">Photo</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+                <div class="ml-auto flex gap-2">
+                    <button onclick="addManualEleve()" class="bg-slate-700 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-slate-500 active:bg-slate-600">+ Ajouter Manuellement</button>
+                    <button onclick="purgeEleves()" class="bg-red-900/50 text-red-400 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-red-800 active:bg-red-800">🗑 Vider la classe</button>
+                </div>
             </div>
-            <div class="mt-4 flex gap-2">
-                <button id="addStudentBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 border border-blue-500">✚ Ajouter un élève</button>
-                <button id="saveManualVmaBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500">✓ Enregistrer les élèves</button>
+            
+            <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 overflow-y-auto pb-6 pr-2 content-start">
+                <!-- Les cartes élèves s'affichent ici -->
             </div>
         </div>
 
-        <!-- Équipes -->
-        <div id="teamsPanel" class="bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden">
-            <div class="flex justify-between items-center mb-4 shrink-0">
-                <h2 class="font-black text-emerald-400 uppercase">Équipes</h2>
-                <span id="reliquatWarning" class="hidden text-xs font-bold text-amber-400 bg-amber-950 border border-amber-700 px-3 py-1 rounded-full"></span>
+        <!-- ONGLET 2 : EQUIPES & CONFIG -->
+        <div id="viewEquipes" class="h-full flex flex-col hidden">
+            <div class="flex flex-wrap items-center justify-between mb-6 gap-4 border-b border-slate-700 pb-4 shrink-0">
+                <div class="flex items-center gap-4">
+                    <button onclick="generateTeams()" class="bg-orange-600 px-6 py-3 rounded-xl font-black uppercase text-sm shadow-lg active:scale-95 transition-transform border border-orange-400">🔄 Générer les équipes</button>
+                    <label class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-3 rounded-xl font-bold text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="mixiteCheckbox" class="w-5 h-5 accent-orange-500">
+                        ⚥ Équilibrer la mixité
+                    </label>
+                </div>
+                
+                <div class="flex items-center gap-4 bg-slate-800 p-3 rounded-2xl border-2 border-slate-700">
+                    <span class="font-black text-slate-300 uppercase text-xs">🎯 Barème :</span>
+                    <label class="text-xs font-bold text-slate-300">F1 <input type="number" id="baremeF1" class="w-12 bg-slate-900 border border-slate-600 rounded text-center ml-1 py-1"></label>
+                    <label class="text-xs font-bold text-slate-300">F2 <input type="number" id="baremeF2" class="w-12 bg-slate-900 border border-slate-600 rounded text-center ml-1 py-1"></label>
+                </div>
+
+                <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-sm shadow-xl active:scale-95 transition-transform text-white border-2 border-blue-400">🚀 Envoyer aux iPads</button>
             </div>
-            <div id="teamsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 pb-4"></div>
-            <div class="mt-4 flex gap-2">
-                <button id="editTeamsBtn" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 border border-yellow-500 hidden">✏️ Modifier les équipes</button>
-                <button id="saveTeamsBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500 hidden">✓ Sauvegarder les équipes</button>
+            
+            <div class="text-xs text-slate-500 font-bold mb-4 uppercase tracking-widest shrink-0">👆 Glissez et déposez les élèves pour ajuster les équipes manuellement.</div>
+            
+            <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6 pr-2 content-start">
+                <!-- Les équipes s'affichent ici -->
             </div>
         </div>
-    </div>
 
-    <!-- Live & Globes -->
-    <div class="bg-slate-800 p-6 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden mt-6">
-        <h2 class="font-black text-amber-400 mb-6 uppercase shrink-0 text-xl">🏆 Live Score & Classements</h2>
-        <div class="flex-1 overflow-y-auto pr-2 pb-4">
-            <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Gros Globe (Par Équipe)</h3>
-            <div id="grosGlobe" class="grid grid-cols-2 gap-3 mb-8"></div>
-            <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Petits Globes (Individuel par Maillot)</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div id="globeVert" class="bg-green-900/30 p-3 rounded-2xl border-2 border-green-800/50"></div>
-                <div id="globeBleu" class="bg-blue-900/30 p-3 rounded-2xl border-2 border-blue-800/50"></div>
-                <div id="globeJaune" class="bg-yellow-900/30 p-3 rounded-2xl border-2 border-yellow-800/50"></div>
-                <div id="globeRouge" class="bg-red-900/30 p-3 rounded-2xl border-2 border-red-800/50"></div>
+        <!-- ONGLET 3 : RÉSULTATS LIVE -->
+        <div id="viewLive" class="h-full flex flex-col hidden">
+            <div class="flex justify-end mb-4 shrink-0">
+                <button onclick="purgeLive()" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-800 transition-colors">⚠️ Purger le Direct</button>
             </div>
-            <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Derniers passages (correction possible)</h3>
-            <div id="journalPassages" class="flex flex-col gap-1"></div>
+            
+            <div class="flex-1 overflow-y-auto pr-2 pb-6 space-y-8">
+                <div>
+                    <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Gros Globe (Par Équipe)</h3>
+                    <div id="grosGlobe" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                </div>
+                
+                <div>
+                    <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Petits Globes (Individuel)</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div id="globeVert" class="bg-green-900/30 p-4 rounded-2xl border-2 border-green-800/50"></div>
+                        <div id="globeBleu" class="bg-blue-900/30 p-4 rounded-2xl border-2 border-blue-800/50"></div>
+                        <div id="globeJaune" class="bg-yellow-900/30 p-4 rounded-2xl border-2 border-yellow-800/50"></div>
+                        <div id="globeRouge" class="bg-red-900/30 p-4 rounded-2xl border-2 border-red-800/50"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Derniers passages enregistrés</h3>
+                    <div id="journalPassages" class="flex flex-col gap-2"></div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        // Configuration Firebase
-        const firebaseConfig = {
-            databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
+        // CONFIGURATION FIREBASE
+        const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // GESTION DE L'ÉTAT LOCAL
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_master')) || {
+            eleves: [],
+            equipes: [],
+            bareme: { f1: 7, f2: 8 }
         };
 
-        // Variables globales
-        let equipes = [];
-        let configAnonyme = {};
-        let eleves = [];
-        let photosEleve = {};
-        let sexeEleve = {};
-        let isEditingTeams = false;
-        let db = null;
-
-        // Initialisation de Firebase
-        function initFirebase() {
-            try {
-                if (typeof firebase === 'undefined') throw new Error("SDK Firebase non chargé");
-
-                console.log("Initialisation de Firebase...");
-                firebase.initializeApp(firebaseConfig);
-                const db = firebase.database();
-
-                // Vérification de la connexion
-                db.ref('.info/connected').on('value', (snap) => {
-                    const connected = snap.val() === true;
-                    const dot = document.getElementById('connDot');
-                    const label = document.getElementById('connLabel');
-
-                    if (connected) {
-                        console.log("Connecté à Firebase avec succès");
-                        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
-                        label.textContent = "En ligne";
-                    } else {
-                        console.log("Non connecté à Firebase");
-                        dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
-                        label.textContent = "Hors ligne";
-                    }
-                });
-
-                return db;
-            } catch (err) {
-                console.error("Erreur lors de l'initialisation de Firebase :", err);
-                afficherBanniereHorsLigne();
-                return null;
-            }
+        function saveToLocal() {
+            localStorage.setItem('arcathlon_state_master', JSON.stringify(state));
         }
 
-        // Affichage d'une bannière hors ligne
-        function afficherBanniereHorsLigne() {
-            const dot = document.getElementById('connDot');
-            const label = document.getElementById('connLabel');
-            dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
-            label.textContent = "Firebase indisponible";
+        // BASE DE DONNEES INDEXED DB POUR LES PHOTOS (Évite de faire crasher le localStorage)
+        let dbPhotos;
+        const request = indexedDB.open("Arcathlon_DB", 1);
+        request.onupgradeneeded = e => { dbPhotos = e.target.result; dbPhotos.createObjectStore("eleves", { keyPath: "id" }); };
+        request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
 
-            const banniere = document.createElement('div');
-            banniere.className = "bg-red-950 border-2 border-red-700 text-red-300 text-xs font-bold rounded-xl px-4 py-2 mb-4 shrink-0";
-            banniere.innerHTML = `
-                ⚠️ Connexion à Firebase impossible.
-                <ul class="list-disc pl-5 mt-1">
-                    <li>Vérifiez votre connexion Internet.</li>
-                    <li>Assurez-vous que Firebase n'est pas bloqué par le réseau.</li>
-                    <li>Les données seront sauvegardées localement en attendant une reconnexion.</li>
-                </ul>
-            `;
-            document.querySelector('header').after(banniere);
+        function savePhoto(id, blob) {
+            const tx = dbPhotos.transaction("eleves", "readwrite");
+            tx.objectStore("eleves").put({ id, blob });
+        }
 
-            // Désactiver les boutons nécessitant Firebase
-            ['pushConfigBtn', 'saveBaremeBtn', 'purgeLiveBtn'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) {
-                    btn.disabled = true;
-                    btn.classList.add('opacity-40', 'cursor-not-allowed');
-                }
+        async function getPhotoUrl(id) {
+            return new Promise(resolve => {
+                if(!dbPhotos) resolve(null);
+                const tx = dbPhotos.transaction("eleves", "readonly");
+                const req = tx.objectStore("eleves").get(id);
+                req.onsuccess = () => req.result ? resolve(URL.createObjectURL(req.result.blob)) : resolve(null);
             });
         }
 
-        // Clé de correspondance nom+prénom
         function clePhoto(nom, prenom) {
             return (nom + "_" + prenom).toUpperCase().replace(/\s+/g, "");
         }
 
-        // Basculer entre les modes
-        document.getElementById('toggleImportMode').addEventListener('click', function() {
-            const manualPanel = document.getElementById('manualInputPanel');
-            const teamsPanel = document.getElementById('teamsPanel');
-            if (manualPanel.classList.contains('hidden')) {
-                manualPanel.classList.remove('hidden');
-                teamsPanel.classList.add('hidden');
-                this.textContent = "📥 Basculer en mode import";
-                renderManualVmaTable();
-            } else {
-                manualPanel.classList.add('hidden');
-                teamsPanel.classList.remove('hidden');
-                this.textContent = "🔄 Saisie manuelle";
-            }
-        });
+        // INITIALISATION DE L'INTERFACE
+        function initUI() {
+            document.getElementById('baremeF1').value = state.bareme.f1;
+            document.getElementById('baremeF2').value = state.bareme.f2;
+            renderEleves();
+            renderTeams();
+            
+            // Écoute de la connexion Firebase
+            db.ref('.info/connected').on('value', snap => {
+                const connecte = snap.val() === true;
+                document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (connecte ? "bg-emerald-500" : "bg-red-500 animate-pulse");
+                document.getElementById('connLabel').textContent = connecte ? "En Ligne" : "Hors Ligne";
+            });
 
-        // Ajouter un élève manuellement
-        document.getElementById('addStudentBtn').addEventListener('click', function() {
-            const tbody = document.querySelector('#manualVmaTable tbody');
-            const newRow = document.createElement('tr');
-            newRow.className = 'border-b border-slate-800';
-            newRow.innerHTML = `
-                <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Prénom"></td>
-                <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Nom"></td>
-                <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="VMA" step="0.1"></td>
-                <td class="p-2">
-                    <select class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full">
-                        <option value="">-</option><option value="F">F</option><option value="M">M</option>
-                    </select>
-                </td>
-                <td class="p-2"><input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)"></td>
-            `;
-            tbody.appendChild(newRow);
-        });
-
-        // Gérer les photos manuelles
-        window.handleManualPhoto = function(input) {
-            const row = input.closest('tr');
-            const file = input.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.className = "w-10 h-10 rounded-full object-cover mt-1";
-                    row.querySelector('td:last-child').innerHTML = '';
-                    row.querySelector('td:last-child').appendChild(img);
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-
-        // Afficher le tableau de saisie manuelle
-        function renderManualVmaTable() {
-            const tbody = document.querySelector('#manualVmaTable tbody');
-            tbody.innerHTML = '';
-            const source = eleves.length > 0 ? eleves : [{}];
-            source.forEach(eleve => {
-                const newRow = document.createElement('tr');
-                newRow.className = 'border-b border-slate-800';
-                newRow.innerHTML = `
-                    <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Prenom || ''}" placeholder="Prénom"></td>
-                    <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Nom || ''}" placeholder="Nom"></td>
-                    <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.VMA || ''}" placeholder="VMA" step="0.1"></td>
-                    <td class="p-2">
-                        <select class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full">
-                            <option value="" ${!eleve.Sexe ? 'selected' : ''}>-</option>
-                            <option value="F" ${eleve.Sexe === 'F' ? 'selected' : ''}>F</option>
-                            <option value="M" ${eleve.Sexe === 'M' ? 'selected' : ''}>M</option>
-                        </select>
-                    </td>
-                    <td class="p-2">
-                        ${eleve.photo ? `<img src="${eleve.photo}" class="w-10 h-10 rounded-full object-cover">` : '<input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)">'}
-                    </td>
-                `;
-                tbody.appendChild(newRow);
+            // Écoute des scores en direct
+            db.ref('arcathlon/live/passages').on('value', snap => {
+                updateLiveScores(snap.val() || {});
             });
         }
 
-        // Enregistrer les élèves saisis manuellement
-        document.getElementById('saveManualVmaBtn').addEventListener('click', function() {
-            eleves = [];
-            const rows = document.querySelectorAll('#manualVmaTable tbody tr');
-            rows.forEach(row => {
-                const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
-                const select = row.querySelector('select');
-                const fileInput = row.querySelector('input[type="file"]');
-                const existingImg = row.querySelector('img');
-                const prenom = inputs[0].value.trim();
-                const nom = inputs[1].value.trim().toUpperCase();
-                const vma = parseFloat(inputs[2].value);
-                const sexe = select ? select.value : "";
+        // ONGLETS
+        window.switchTab = function(t) { 
+            ['viewImport','viewEquipes','viewLive'].forEach(v => document.getElementById(v).classList.add('hidden')); 
+            ['btnTab1','btnTab2','btnTab3'].forEach(b => {
+                document.getElementById(b).classList.remove('tab-active','text-blue-500');
+                document.getElementById(b).classList.add('text-slate-500');
+            }); 
+            
+            let tMap = {'import':'1', 'equipes':'2', 'live':'3'};
+            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden'); 
+            document.getElementById('btnTab' + tMap[t]).classList.add('tab-active', 'text-blue-500');
+            document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
+        };
 
-                if (prenom && nom && !isNaN(vma)) {
-                    const eleve = { Prenom: prenom, Nom: nom, VMA: vma, Sexe: sexe };
-                    const cle = clePhoto(nom, prenom);
-                    if (photosEleve[cle]) eleve.photo = photosEleve[cle];
-                    else if (existingImg) eleve.photo = existingImg.src;
-                    else if (fileInput && fileInput.files.length > 0) {
-                        const reader = new FileReader();
-                        reader.onload = e => { eleve.photo = e.target.result; };
-                        reader.readAsDataURL(fileInput.files[0]);
-                    }
-                    eleves.push(eleve);
-                }
-            });
-
-            if (eleves.length > 0) {
-                alert(`Données enregistrées pour ${eleves.length} élèves.`);
-                generateTeams();
-            } else {
-                alert("Aucun élève valide saisi. Vérifiez les données (prénom, nom et VMA numérique requis).");
-            }
-        });
-
-        // Import CSV
-        document.getElementById('csvFile').addEventListener('change', handleCSV);
-
-        function handleCSV(e) {
+        // --- ONGLET 1 : IMPORT & ELEVES ---
+        document.getElementById('csvFile').addEventListener('change', function(e) {
             Papa.parse(e.target.files[0], {
-                delimiter: ";",
-                header: false,
-                skipEmptyLines: true,
+                delimiter: ";", header: false, skipEmptyLines: true,
                 complete: function(results) {
-                    let brut = results.data.slice(1);
-                    let importes = [];
-                    let ignores = [];
+                    let brut = results.data;
+                    let importes = 0;
 
-                    brut.forEach((row, i) => {
-                        if (!row[0] || row[0].trim() === "") { ignores.push(`Ligne ${i + 2} : nom vide`); return; }
-                        const vmaRaw = row[1] ? row[1].trim().replace(",", ".") : "";
-                        const vma = parseFloat(vmaRaw);
-                        if (isNaN(vma)) { ignores.push(`Ligne ${i + 2} (${row[0]}) : VMA invalide "${row[1] || ''}"`); return; }
-
+                    brut.forEach(row => {
+                        if (!row[0] || row[0].trim() === "") return;
+                        if (row[0].toLowerCase().includes("luc léger") || row[0].toLowerCase().includes("vma")) return;
+                        
                         const nomComplet = row[0].trim().split(" ");
                         const prenom = nomComplet[0];
                         const nom = nomComplet.slice(1).join(" ").toUpperCase();
+                        
+                        const vmaRaw = row[1] ? String(row[1]).trim().replace(",", ".") : "";
+                        const vma = parseFloat(vmaRaw);
+                        if (isNaN(vma)) return;
+
                         const cle = clePhoto(nom, prenom);
-                        const photo = photosEleve[cle] || photosEleve[nom] || "";
-                        let sexe = row[2] ? row[2].trim().toUpperCase() : "";
-                        if (sexe !== 'F' && sexe !== 'M') sexe = sexeEleve[cle] || sexeEleve[nom] || "";
-
-                        importes.push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: sexe, photo });
+                        let existing = state.eleves.find(e => clePhoto(e.Nom, e.Prenom) === cle);
+                        
+                        if (existing) existing.VMA = vma;
+                        else state.eleves.push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: "", idPhoto: cle });
+                        
+                        importes++;
                     });
-
-                    eleves = importes;
-                    let msg = `${importes.length} élève(s) importé(s).`;
-                    if (ignores.length > 0) msg += `\n\n${ignores.length} ligne(s) ignorée(s) :\n` + ignores.slice(0, 15).join("\n") + (ignores.length > 15 ? `\n... (+${ignores.length - 15} autres)` : "");
-                    alert(msg);
-
-                    if (importes.length > 0) generateTeams();
+                    
+                    alert(`${importes} élèves importés avec succès.`);
+                    saveToLocal(); renderEleves(); e.target.value = '';
                 }
             });
-        }
+        });
 
-        // Import ZIP de photos
-        document.getElementById('zipFile').addEventListener('change', function(e) { handleZIP(e); });
-
-        window.handleZIP = async function(e) {
+        document.getElementById('zipFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (!file) { alert("Aucun fichier sélectionné."); return; }
+            if (!file) return;
+            if (!dbPhotos) return alert("Base de données photos non prête.");
 
-            try {
-                const zip = await JSZip.loadAsync(file);
-                const files = Object.keys(zip.files);
+            JSZip.loadAsync(file).then(async function(zip) {
                 let photosCount = 0;
-                let nonReconnus = [];
-
-                for (const filename of files) {
-                    if (!filename.endsWith('/')) {
-                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.jpg$/i);
+                for (const path in zip.files) {
+                    const entry = zip.files[path];
+                    if (!entry.dir && entry.name.match(/\.(jpe?g|png)$/i)) {
+                        const filename = entry.name.split('/').pop().normalize("NFC");
+                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.(jpe?g|png)$/i);
+                        
+                        let nom, prenom, sexe, cle;
                         if (match) {
-                            const nom = match[1].trim().toUpperCase();
-                            const prenom = match[2].trim();
-                            const sexe = match[3].trim().toUpperCase();
-                            const fileData = await zip.files[filename].async('base64');
-                            const photoBase64 = `data:image/jpeg;base64,${fileData}`;
-                            photosEleve[clePhoto(nom, prenom)] = photoBase64;
-                            photosEleve[nom] = photoBase64;
-                            sexeEleve[clePhoto(nom, prenom)] = sexe;
-                            sexeEleve[nom] = sexe;
-                            photosCount++;
+                            nom = match[1].trim().toUpperCase(); prenom = match[2].trim(); sexe = match[3].trim().toUpperCase();
                         } else {
-                            nonReconnus.push(filename);
+                            const match2 = filename.match(/^_([^,]+),_([^_]+)\.(jpe?g|png)$/i);
+                            if (match2) { nom = match2[1].trim().toUpperCase(); prenom = match2[2].trim(); sexe = ""; }
+                        }
+
+                        if (nom && prenom) {
+                            cle = clePhoto(nom, prenom);
+                            const blob = await entry.async("blob");
+                            savePhoto(cle, blob);
+                            
+                            let eleve = state.eleves.find(e => clePhoto(e.Nom, e.Prenom) === cle);
+                            if (eleve) {
+                                eleve.idPhoto = cle;
+                                if (!eleve.Sexe && sexe) eleve.Sexe = sexe;
+                            } else {
+                                state.eleves.push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle });
+                            }
+                            photosCount++;
                         }
                     }
                 }
+                alert(`${photosCount} photos iDoceo associées !`);
+                saveToLocal(); renderEleves(); renderTeams(); e.target.value = '';
+            });
+        });
 
-                let msg = `Photos importées avec succès pour ${photosCount} élève(s) (sexe extrait du nom de fichier pour la mixité).`;
-                if (nonReconnus.length > 0) msg += `\n${nonReconnus.length} fichier(s) au format non reconnu (à associer manuellement si besoin).`;
-                alert(msg);
+        window.addManualEleve = function() {
+            const prenom = prompt("Prénom de l'élève :"); if (!prenom) return;
+            const nom = prompt("Nom de l'élève :"); if (!nom) return;
+            const vmaRaw = prompt("VMA de l'élève (ex: 12.5) :");
+            const vma = parseFloat(vmaRaw.replace(',', '.'));
+            const sexe = prompt("Sexe (F ou M) :") || "";
 
-                if (eleves.length > 0) {
-                    eleves.forEach(eleve => {
-                        const cle = clePhoto(eleve.Nom, eleve.Prenom);
-                        if (photosEleve[cle]) eleve.photo = photosEleve[cle];
-                        else if (photosEleve[eleve.Nom.toUpperCase()]) eleve.photo = photosEleve[eleve.Nom.toUpperCase()];
-                        if (!eleve.Sexe) {
-                            if (sexeEleve[cle]) eleve.Sexe = sexeEleve[cle];
-                            else if (sexeEleve[eleve.Nom.toUpperCase()]) eleve.Sexe = sexeEleve[eleve.Nom.toUpperCase()];
-                        }
-                    });
-                    if (!document.getElementById('manualInputPanel').classList.contains('hidden')) renderManualVmaTable();
-                    else generateTeams();
-                }
-            } catch (error) {
-                alert(`Erreur : ${error.message}. Vérifiez le fichier ZIP.`);
+            if (!isNaN(vma)) {
+                state.eleves.push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: sexe.toUpperCase(), idPhoto: clePhoto(nom, prenom) });
+                saveToLocal(); renderEleves();
+            } else alert("VMA invalide.");
+        }
+
+        window.purgeEleves = function() {
+            if(confirm("Êtes-vous sûr de vouloir effacer tous les élèves ?")) {
+                state.eleves = []; state.equipes = [];
+                saveToLocal(); renderEleves(); renderTeams();
             }
-        };
+        }
 
-        // Génération des équipes
+        async function renderEleves() { 
+            const list = document.getElementById('elevesGrid');
+            if(!list) return;
+
+            let html = "";
+            for(let i = 0; i < state.eleves.length; i++) {
+                const e = state.eleves[i];
+                const url = e.idPhoto ? await getPhotoUrl(e.idPhoto) : null;
+                const photo = url ? `<img src="${url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-4xl bg-slate-700">👤</div>`;
+                
+                html += `
+                <div class="bg-slate-800 rounded-2xl border-2 border-slate-700 flex flex-col overflow-hidden relative shadow-lg">
+                    <button onclick="state.eleves.splice(${i}, 1); saveToLocal(); renderEleves(); renderTeams();" class="absolute top-2 right-2 bg-red-600 text-white w-6 h-6 rounded-full font-bold leading-none">&times;</button>
+                    <div class="h-32 w-full bg-slate-900 overflow-hidden shrink-0">${photo}</div>
+                    <div class="p-3 text-center flex flex-col items-center flex-1 justify-center">
+                        <p class="text-lg font-black leading-tight">${e.Prenom}</p>
+                        <p class="text-[10px] uppercase text-slate-400 font-bold">${e.Nom}</p>
+                        <div class="mt-2 flex gap-2">
+                            <span class="bg-slate-950 px-2 py-1 rounded border border-slate-700 text-xs font-bold text-emerald-400">VMA: ${e.VMA || '-'}</span>
+                            <span class="bg-slate-950 px-2 py-1 rounded border border-slate-700 text-xs font-bold text-blue-400">${e.Sexe || '?'}</span>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            list.innerHTML = html;
+        }
+
+        // --- ONGLET 2 : EQUIPES & CONFIG ---
         window.generateTeams = function() {
-            if (eleves.length === 0) { alert("Aucun élève importé ou saisi."); return; }
+            let elevesVMA = state.eleves.filter(e => e.VMA && !isNaN(e.VMA));
+            if (elevesVMA.length === 0) return alert("Aucun élève avec VMA valide.");
 
-            eleves = eleves.filter(eleve => !isNaN(eleve.VMA));
-            if (eleves.length === 0) { alert("Aucun élève avec une VMA valide."); return; }
+            const nbEquipes = Math.floor(elevesVMA.length / 4);
+            if (nbEquipes === 0) return alert("Pas assez d'élèves pour faire une équipe de 4.");
 
-            const nbEquipes = Math.floor(eleves.length / 4);
-            if (nbEquipes === 0) { alert("Pas assez d'élèves pour former une équipe de 4 (minimum requis)."); return; }
-
-            const reste = eleves.length - nbEquipes * 4;
             const mixiteVoulue = document.getElementById('mixiteCheckbox').checked;
-            const aDesSexes = eleves.some(e => e.Sexe === 'F' || e.Sexe === 'M');
-
-            equipes = Array.from({ length: nbEquipes }, (_, i) => ({
-                id: `EQ${i + 1}`, membres: [], score: 0, sumVMA: 0
-            }));
-
-            let ordreRepartition;
-            if (mixiteVoulue && aDesSexes) {
-                const filles = eleves.filter(e => e.Sexe === 'F').sort((a, b) => b.VMA - a.VMA);
-                const garcons = eleves.filter(e => e.Sexe === 'M').sort((a, b) => b.VMA - a.VMA);
-                const autres = eleves.filter(e => e.Sexe !== 'F' && e.Sexe !== 'M').sort((a, b) => b.VMA - a.VMA);
-                ordreRepartition = [];
+            let ordreRepartition = [];
+            
+            if (mixiteVoulue) {
+                const filles = elevesVMA.filter(e => e.Sexe === 'F').sort((a, b) => b.VMA - a.VMA);
+                const garcons = elevesVMA.filter(e => e.Sexe === 'M').sort((a, b) => b.VMA - a.VMA);
+                const autres = elevesVMA.filter(e => e.Sexe !== 'F' && e.Sexe !== 'M').sort((a, b) => b.VMA - a.VMA);
+                
                 const maxLen = Math.max(filles.length, garcons.length, autres.length);
                 for (let i = 0; i < maxLen; i++) {
                     if (filles[i]) ordreRepartition.push(filles[i]);
@@ -458,296 +336,136 @@
                     if (autres[i]) ordreRepartition.push(autres[i]);
                 }
             } else {
-                ordreRepartition = [...eleves].sort((a, b) => b.VMA - a.VMA);
+                ordreRepartition = [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
             }
 
-            // Distribution en serpentin
+            let newEquipes = Array.from({ length: nbEquipes }, (_, i) => ({ id: `EQ${i + 1}`, membres: [], sumVMA: 0, score: 0 }));
+
             let eqIdx = 0, sens = 1;
             ordreRepartition.forEach(eleve => {
-                equipes[eqIdx].membres.push({
-                    prenom: eleve.Prenom,
-                    nom: eleve.Nom.charAt(0) + ".",
-                    vma: eleve.VMA,
-                    sexe: eleve.Sexe || "",
-                    maillot: "",
-                    style: "",
-                    scoreIndiv: 0,
-                    photo: eleve.photo
+                const couleurs = [
+                    { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' }, { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
+                    { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' }, { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
+                ];
+                let index = newEquipes[eqIdx].membres.length;
+                let c = couleurs[index % 4];
+                
+                newEquipes[eqIdx].membres.push({
+                    prenom: eleve.Prenom, nom: eleve.Nom.charAt(0) + ".", cle: clePhoto(eleve.Nom, eleve.Prenom),
+                    vma: eleve.VMA, sexe: eleve.Sexe || "", maillot: c.nom, style: c.style + (index >= 4 ? ' ring-2 ring-amber-500' : ''),
+                    scoreIndiv: 0, idPhoto: clePhoto(eleve.Nom, eleve.Prenom)
                 });
-                equipes[eqIdx].sumVMA += eleve.VMA;
+                newEquipes[eqIdx].sumVMA += eleve.VMA;
                 eqIdx += sens;
-                if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; }
-                else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
+                if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; } else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
             });
 
-            // Attribution des couleurs de maillot
-            const couleurs = [
-                { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
-                { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
-                { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-            ];
-            equipes.forEach((eq) => {
-                eq.membres.forEach((m, j) => {
-                    const c = couleurs[j % 4];
-                    m.maillot = c.nom;
-                    m.style = c.style;
-                    if (j >= 4) m.style += ' ring-2 ring-amber-500';
-                });
-            });
+            state.equipes = newEquipes; saveToLocal(); renderTeams();
+        }
 
-            configAnonyme = {};
-            equipes.forEach(eq => {
-                configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma }));
-            });
-
-            const warningEl = document.getElementById('reliquatWarning');
-            if (reste > 0) {
-                warningEl.textContent = `⚠️ ${reste} élève(s) en surnombre réparti(s) dans des équipes à 5 (2 élèves partagent alors un maillot lors de la rotation).`;
-                warningEl.classList.remove('hidden');
-            } else {
-                warningEl.classList.add('hidden');
-            }
-
-            renderTeams();
-        };
-
-        // Affichage des équipes
-        function renderTeams() {
-            const teamsContainer = document.getElementById('teamsContainer');
-            teamsContainer.innerHTML = '';
-
-            if (isEditingTeams) {
-                document.getElementById('editTeamsBtn').classList.add('hidden');
-                document.getElementById('saveTeamsBtn').classList.remove('hidden');
-            } else {
-                document.getElementById('editTeamsBtn').classList.remove('hidden');
-                document.getElementById('saveTeamsBtn').classList.add('hidden');
-            }
-
-            if (equipes.length === 0) {
-                teamsContainer.innerHTML = '<p class="text-slate-500 text-center py-8">Aucune équipe générée. Importez d\'abord un fichier CSV ou ajoutez des élèves manuellement.</p>';
-                return;
-            }
-
-            equipes.forEach(eq => {
-                const teamDiv = document.createElement('div');
-                const hasReliquat = eq.membres.length > 4;
-                teamDiv.className = `bg-slate-900 p-4 rounded-2xl border-2 ${hasReliquat ? 'border-amber-500 bg-amber-950/20' : 'border-slate-700'} shadow-lg`;
-                teamDiv.id = `team-${eq.id}`;
-
-                const teamHeader = document.createElement('div');
-                teamHeader.className = 'font-black text-xl mb-3 text-slate-300 flex justify-between items-center';
-                teamHeader.innerHTML = `
-                    <span>ÉQUIPE ${eq.id} ${hasReliquat ? '<span class="text-amber-400 ml-2" title="Équipe avec reliquat">⚠️</span>' : ''}</span>
-                    <span class="text-emerald-400 font-black">${eq.sumVMA.toFixed(1)} <span class="text-xs text-slate-500">VMA</span></span>
+        async function renderTeams() {
+            const container = document.getElementById('teamsGrid');
+            if(!container) return;
+            
+            container.innerHTML = "";
+            for(let eq of state.equipes) {
+                const reliquat = eq.membres.length > 4;
+                let html = `
+                <div class="bg-slate-900 rounded-3xl border-2 ${reliquat ? 'border-amber-500 bg-amber-950/20' : 'border-slate-700'} p-4 flex flex-col shadow-lg" data-team-id="${eq.id}">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-black text-xl text-slate-200">ÉQUIPE ${eq.id} ${reliquat ? '⚠️' : ''}</h3>
+                        <span class="text-emerald-400 font-black text-lg">${eq.sumVMA.toFixed(1)} <span class="text-[10px] text-slate-500">VMA</span></span>
+                    </div>
+                    <div class="team-list flex-1 space-y-2 min-h-[100px] border-2 border-dashed border-slate-700 rounded-xl p-2 bg-black/20" data-team-id="${eq.id}">
                 `;
-                teamDiv.appendChild(teamHeader);
 
-                const membersDiv = document.createElement('div');
-                membersDiv.className = 'space-y-2';
-
-                eq.membres.forEach((m, index) => {
-                    const memberDiv = document.createElement('div');
-                    memberDiv.className = `text-sm flex items-center gap-2 border border-slate-800 p-2 rounded-lg ${m.style} ${isEditingTeams ? 'draggable' : ''}`;
-                    memberDiv.draggable = isEditingTeams;
-                    memberDiv.dataset.teamId = eq.id;
-                    memberDiv.dataset.memberIndex = index;
-                    if (isEditingTeams) memberDiv.addEventListener('dragstart', handleDragStart);
-
-                    const sexeTag = m.sexe ? `<span class="text-[10px] text-slate-500">${m.sexe}</span>` : '';
-                    const maillotSharedTag = index >= 4 ? '<span class="text-[10px] text-amber-400 ml-1" title="Maillot partagé">🔄</span>' : '';
-                    memberDiv.innerHTML = `
-                        ${m.photo ? `<img src="${m.photo}" class="team-photo">` : '<div class="team-photo bg-slate-700"></div>'}
-                        <span class="font-black uppercase">${m.maillot}${maillotSharedTag}</span>
-                        <span class="font-bold text-white">${m.prenom} ${m.nom} ${sexeTag} <span class="text-xs text-slate-400 ml-1">(VMA: ${m.vma})</span></span>
+                for(let m of eq.membres) {
+                    const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
+                    const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs">👤</div>`;
+                    
+                    html += `
+                        <div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab active:cursor-grabbing bg-slate-900 shadow-md" data-cle="${m.cle}">
+                            ${photo}
+                            <span class="font-black uppercase text-[10px] w-12 tracking-widest">${m.maillot}</span>
+                            <div class="flex flex-col leading-tight overflow-hidden">
+                                <span class="font-bold text-white text-sm truncate">${m.prenom} ${m.nom}</span>
+                                <span class="text-[10px] text-slate-400">VMA: ${m.vma} ${m.sexe ? `(${m.sexe})` : ''}</span>
+                            </div>
+                        </div>
                     `;
-                    membersDiv.appendChild(memberDiv);
-                });
-
-                if (isEditingTeams) {
-                    const dropZone = document.createElement('div');
-                    dropZone.className = 'border-2 border-dashed border-slate-700 p-2 mt-2 rounded-lg text-center text-slate-500';
-                    dropZone.textContent = 'Déposer ici';
-                    dropZone.dataset.teamId = eq.id;
-                    dropZone.addEventListener('dragover', handleDragOver);
-                    dropZone.addEventListener('drop', handleDrop);
-                    membersDiv.appendChild(dropZone);
                 }
-
-                teamDiv.appendChild(membersDiv);
-                teamsContainer.appendChild(teamDiv);
-            });
-
-            if (equipes.length > 0) document.getElementById('editTeamsBtn').classList.remove('hidden');
-        }
-
-        // Édition des équipes
-        document.getElementById('editTeamsBtn').addEventListener('click', function() {
-            isEditingTeams = true;
-            renderTeams();
-        });
-
-        document.getElementById('saveTeamsBtn').addEventListener('click', function() {
-            isEditingTeams = false;
-            configAnonyme = {};
-            equipes.forEach(eq => {
-                configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma }));
-            });
-            renderTeams();
-            alert("Modifications sauvegardées. Pensez à ré-envoyer la configuration aux iPads (étape 3).");
-        });
-
-        // Drag and drop pour réorganiser les équipes
-        let draggedMember = null, draggedFromTeam = null, draggedMemberIndex = null;
-
-        function handleDragStart(e) {
-            const teamId = this.dataset.teamId;
-            const memberIndex = this.dataset.memberIndex;
-            draggedMember = equipes.find(eq => eq.id === teamId).membres[memberIndex];
-            draggedFromTeam = teamId;
-            draggedMemberIndex = memberIndex;
-            e.dataTransfer.setData('text/plain', 'drag-member');
-        }
-
-        function handleDragOver(e) { e.preventDefault(); }
-
-        function handleDrop(e) {
-            e.preventDefault();
-            const targetTeamId = this.dataset.teamId;
-            if (draggedMember && targetTeamId) {
-                const fromTeam = equipes.find(eq => eq.id === draggedFromTeam);
-                fromTeam.membres.splice(draggedMemberIndex, 1);
-                fromTeam.sumVMA -= draggedMember.vma;
-                const toTeam = equipes.find(eq => eq.id === targetTeamId);
-                toTeam.membres.push(draggedMember);
-                toTeam.sumVMA += draggedMember.vma;
-                reassignColors();
-                renderTeams();
+                html += `</div></div>`; container.innerHTML += html;
             }
+            initSortable();
         }
 
-        function reassignColors() {
-            const couleurs = [
-                { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
-                { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
-                { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-            ];
-            equipes.forEach((eq) => {
-                eq.membres.forEach((membre, j) => {
-                    const c = couleurs[j % 4];
-                    membre.maillot = c.nom;
-                    membre.style = c.style + (j >= 4 ? ' ring-2 ring-amber-500' : '');
+        // Réparation du Drag & Drop pour iPad
+        function initSortable() {
+            document.querySelectorAll('.team-list').forEach(el => {
+                if (el.sortableInstance) el.sortableInstance.destroy();
+                el.sortableInstance = Sortable.create(el, {
+                    group: 'teams', animation: 150, ghostClass: 'ghost-item',
+                    onEnd: function () { rebuildTeamsFromDOM(); }
                 });
             });
         }
 
-        document.getElementById('generateTeamsBtn').addEventListener('click', generateTeams);
-
-        // Sauvegarder les données localement
-        function sauvegarderLocalement() {
-            localStorage.setItem('equipes', JSON.stringify(equipes));
-            localStorage.setItem('configAnonyme', JSON.stringify(configAnonyme));
-            localStorage.setItem('bareme', JSON.stringify({
-                f1: document.getElementById('baremeF1').value,
-                f2: document.getElementById('baremeF2').value
-            }));
-            console.log("Données sauvegardées localement");
-        }
-
-        // Charger les données depuis le stockage local
-        function chargerDepuisLocal() {
-            const equipesSauvegardees = localStorage.getItem('equipes');
-            const configSauvegardee = localStorage.getItem('configAnonyme');
-            const baremeSauvegarde = localStorage.getItem('bareme');
-
-            if (equipesSauvegardees) equipes = JSON.parse(equipesSauvegardees);
-            if (configSauvegardee) configAnonyme = JSON.parse(configSauvegardee);
-            if (baremeSauvegarde) {
-                const bareme = JSON.parse(baremeSauvegarde);
-                document.getElementById('baremeF1').value = bareme.f1;
-                document.getElementById('baremeF2').value = bareme.f2;
-            }
-
-            console.log("Données chargées depuis le stockage local");
-        }
-
-        // Synchroniser avec Firebase
-        function synchroniserAvecFirebase() {
-            if (!db) {
-                console.error("Firebase n'est pas initialisé");
-                return;
-            }
-
-            const bareme = {
-                f1: parseInt(document.getElementById('baremeF1').value) || 0,
-                f2: parseInt(document.getElementById('baremeF2').value) || 0
-            };
-
-            // Synchronisation du barème
-            db.ref('arcathlon/config/bareme').set(bareme)
-                .then(() => {
-                    console.log("Barème synchronisé avec Firebase");
-                })
-                .catch(err => {
-                    console.error("Erreur de synchronisation du barème :", err);
+        function rebuildTeamsFromDOM() {
+            const newEquipes = [];
+            document.querySelectorAll('#teamsGrid > div').forEach(teamDiv => {
+                const teamId = teamDiv.dataset.teamId;
+                const membersList = Array.from(teamDiv.querySelectorAll('.member-item')).map(m => m.dataset.cle);
+                newEquipes.push({ id: teamId, membersList: membersList });
+            });
+            
+            state.equipes = newEquipes.map(eq => {
+                let sumVMA = 0;
+                let membres = eq.membersList.map((cle, index) => {
+                    let eleve = state.eleves.find(e => clePhoto(e.Nom, e.Prenom) === cle);
+                    sumVMA += eleve.VMA;
+                    const couleurs = [{ nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' }, { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
+                                      { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' }, { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }];
+                    let c = couleurs[index % 4];
+                    return {
+                        prenom: eleve.Prenom, nom: eleve.Nom.charAt(0) + ".", cle: cle, vma: eleve.VMA, sexe: eleve.Sexe || "",
+                        maillot: c.nom, style: c.style + (index >= 4 ? ' ring-2 ring-amber-500' : ''), scoreIndiv: 0, idPhoto: eleve.idPhoto
+                    };
                 });
-
-            // Synchronisation des équipes
-            if (Object.keys(configAnonyme).length > 0) {
-                db.ref('arcathlon/config/equipes').set(configAnonyme)
-                    .then(() => {
-                        console.log("Équipes synchronisées avec Firebase");
-                        alert("Configuration envoyée avec succès aux iPads élèves !");
-                    })
-                    .catch(err => {
-                        console.error("Erreur de synchronisation des équipes :", err);
-                        alert("Erreur de synchronisation : " + err.message);
-                    });
-            }
+                return { id: eq.id, membres: membres, sumVMA: sumVMA, score: 0 };
+            });
+            
+            saveToLocal(); renderTeams(); // Applique les bonnes couleurs suite au glisser-déposer
         }
 
-        // Chargement initial des données
-        document.addEventListener('DOMContentLoaded', function() {
-            db = initFirebase();
-            chargerDepuisLocal();
+        window.pushConfig = function() {
+            if (state.equipes.length === 0) return alert("Aucune équipe à envoyer.");
+            let configAnonyme = {};
+            state.equipes.forEach(eq => { configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma })); });
 
-            if (db) {
-                // Charger le barème depuis Firebase
-                db.ref('arcathlon/config/bareme').once('value', snap => {
-                    const val = snap.val();
-                    if (val) {
-                        document.getElementById('baremeF1').value = val.f1;
-                        document.getElementById('baremeF2').value = val.f2;
+            state.bareme = { f1: parseInt(document.getElementById('baremeF1').value) || 7, f2: parseInt(document.getElementById('baremeF2').value) || 8 };
+            saveToLocal();
+
+            db.ref('arcathlon/config').set({ equipes: configAnonyme, bareme: state.bareme })
+                .then(() => alert("🚀 Configuration envoyée aux iPads avec succès !"))
+                .catch(err => alert("Erreur : " + err.message));
+        }
+
+        // --- ONGLET 3 : RÉSULTATS LIVE ---
+        function updateLiveScores(passages) {
+            state.equipes.forEach(eq => { eq.score = 0; eq.membres.forEach(m => m.scoreIndiv = 0); });
+
+            Object.values(passages).forEach(p => {
+                let eq = state.equipes.find(e => e.id === p.equipe);
+                if (eq) {
+                    let membres = eq.membres.filter(m => m.maillot === p.maillot);
+                    if (membres.length > 0) {
+                        let pts = (p.ptsVMA || 0) + (p.ptsTir || 0);
+                        membres[0].scoreIndiv += pts; eq.score += pts;
                     }
-                });
-            }
+                }
+            });
 
-            if (equipes.length > 0) {
-                renderTeams();
-            }
-        });
-
-        // Sauvegarde locale après génération des équipes
-        document.getElementById('generateTeamsBtn').addEventListener('click', function() {
-            generateTeams();
-            sauvegarderLocalement();
-        });
-
-        // Synchronisation avec Firebase
-        document.getElementById('pushConfigBtn').addEventListener('click', function() {
-            if (db) {
-                synchroniserAvecFirebase();
-            } else {
-                sauvegarderLocalement();
-                alert("Firebase n'est pas disponible. Les données sont sauvegardées localement et seront synchronisées dès que la connexion sera rétablie.");
-            }
-        });
-
-        // Mise à jour des scores
-        function updateScoresLocally() {
-            let eqTriees = [...equipes].sort((a, b) => b.score - a.score);
+            let eqTriees = [...state.equipes].sort((a, b) => b.score - a.score);
             document.getElementById('grosGlobe').innerHTML = eqTriees.map((eq, idx) => `
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
                     <span class="font-black text-lg text-slate-300">${idx + 1}. ${eq.id}</span>
@@ -757,123 +475,37 @@
 
             ['Vert', 'Bleu', 'Jaune', 'Rouge'].forEach(c => {
                 let joueurs = [];
-                equipes.forEach(eq => {
-                    eq.membres.filter(m => m.maillot === c).forEach(j => joueurs.push({ prenom: j.prenom, nom: j.nom, eq: eq.id, score: j.scoreIndiv }));
-                });
+                state.equipes.forEach(eq => { eq.membres.filter(m => m.maillot === c).forEach(j => joueurs.push({ prenom: j.prenom, eq: eq.id, score: j.scoreIndiv })); });
                 joueurs.sort((a, b) => b.score - a.score);
+                
                 let textColor = c === 'Vert' ? 'text-green-400' : c === 'Bleu' ? 'text-blue-400' : c === 'Jaune' ? 'text-yellow-400' : 'text-red-400';
                 document.getElementById('globe' + c).innerHTML = `<h4 class="font-black text-center mb-4 uppercase ${textColor} tracking-widest text-lg">${c}</h4>` +
                     joueurs.map((j, idx) => `
                         <div class="text-sm flex justify-between items-center border-b border-black/30 py-2">
-                            <span class="font-bold text-slate-300">${idx + 1}. ${j.prenom} <span class="text-[10px] text-slate-500 ml-1">(${j.eq})</span></span>
+                            <span class="font-bold text-slate-300 truncate w-32">${idx + 1}. ${j.prenom} <span class="text-[10px] text-slate-500 ml-1">(${j.eq})</span></span>
                             <span class="font-black ${textColor}">${j.score}</span>
                         </div>
                     `).join('');
             });
-        }
 
-        // Journal des passages
-        function renderJournal(passagesActuels, dbRef) {
+            // Journal
+            const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 20);
             const journal = document.getElementById('journalPassages');
-            const entries = Object.entries(passagesActuels).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 20);
-            if (entries.length === 0) {
-                journal.innerHTML = '<p class="text-slate-600 text-sm text-center py-2">Aucun passage enregistré.</p>';
-                return;
-            }
-            journal.innerHTML = entries.map(([key, p]) => {
-                const heure = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                const total = (p.ptsTir || 0) + (p.ptsVMA || 0);
-                return `
-                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
-                        <span class="text-slate-400">${heure}</span>
-                        <span class="font-bold text-slate-200">Équipe ${p.equipe} — ${p.maillot}</span>
-                        <span class="font-black text-emerald-400">${total} pts</span>
-                        <button data-key="${key}" class="btn-del-passage bg-red-900/50 text-red-400 border border-red-800 px-2 py-1 rounded font-bold hover:bg-red-800">🗑</button>
-                    </div>`;
+            if (entries.length === 0) journal.innerHTML = '<p class="text-slate-600 text-sm text-center py-2">Aucun passage enregistré.</p>';
+            else journal.innerHTML = entries.map(([key, p]) => {
+                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR');
+                return `<div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-2 shadow">
+                            <span class="text-slate-400">${h}</span><span class="font-bold text-slate-200">Équipe ${p.equipe} — ${p.maillot}</span>
+                            <span class="font-black text-emerald-400 text-sm">${(p.ptsTir || 0) + (p.ptsVMA || 0)} pts</span>
+                            <button onclick="db.ref('arcathlon/live/passages/${key}').remove()" class="bg-red-900/50 text-red-400 border border-red-800 px-3 py-1.5 rounded-lg font-bold">🗑</button>
+                        </div>`;
             }).join('');
-
-            if (!dbRef) return;
-            journal.querySelectorAll('.btn-del-passage').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    if (confirm("Supprimer ce passage ?")) {
-                        dbRef.ref('arcathlon/live/passages/' + this.dataset.key).remove();
-                    }
-                });
-            });
         }
 
-        // Envoi de la configuration aux iPads
-        window.pushConfig = function() {
-            if (Object.keys(configAnonyme).length === 0) return alert("Générez d'abord les équipes !");
-            const btn = document.getElementById('pushConfigBtn');
-            btn.disabled = true;
-            db.ref('arcathlon/config/equipes').set(configAnonyme)
-                .then(() => alert("Configuration envoyée avec succès aux iPads élèves !"))
-                .catch(err => alert("Erreur d'envoi : " + err.message))
-                .finally(() => btn.disabled = false);
-        };
-        document.getElementById('pushConfigBtn').addEventListener('click', pushConfig);
-
-        // Barème de tir
-        document.getElementById('saveBaremeBtn').addEventListener('click', function() {
-            const f1 = parseInt(document.getElementById('baremeF1').value) || 0;
-            const f2 = parseInt(document.getElementById('baremeF2').value) || 0;
-            db.ref('arcathlon/config/bareme').set({ f1, f2 })
-                .then(() => {
-                    const status = document.getElementById('baremeStatus');
-                    status.textContent = "✓ Barème envoyé aux iPads";
-                    setTimeout(() => status.textContent = "", 3000);
-                })
-                .catch(err => alert("Erreur d'envoi du barème : " + err.message));
-        });
-
-        // Purge des données live
         window.purgeLive = function() {
-            if (confirm("Effacer toutes les performances enregistrées ?")) {
-                db.ref('arcathlon/live').remove().catch(err => alert("Erreur lors de la purge : " + err.message));
-            }
-        };
-        document.getElementById('purgeLiveBtn').addEventListener('click', purgeLive);
-
-        // Écoute des scores en direct
-        if (db) {
-            db.ref('.info/connected').on('value', snap => {
-                const connecte = snap.val() === true;
-                const dot = document.getElementById('connDot');
-                const label = document.getElementById('connLabel');
-                if (connecte) {
-                    dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
-                    label.textContent = "En ligne";
-                } else {
-                    dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
-                    label.textContent = "Hors ligne";
-                }
-            });
-
-            let passagesActuels = {};
-            db.ref('arcathlon/live/passages').on('value', snap => {
-                passagesActuels = snap.val() || {};
-                equipes.forEach(eq => { eq.score = 0; eq.membres.forEach(m => m.scoreIndiv = 0); });
-                Object.values(passagesActuels).forEach(p => {
-                    let eq = equipes.find(e => e.id === p.equipe);
-                    if (eq) {
-                        let membres = eq.membres.filter(m => m.maillot === p.maillot);
-                        if (membres.length > 0) {
-                            let pts = (p.ptsVMA || 0) + (p.ptsTir || 0);
-                            membres[0].scoreIndiv += pts;
-                            eq.score += pts;
-                        }
-                    }
-                });
-                updateScoresLocally();
-                renderJournal(passagesActuels, db);
-            });
-        } else {
-            updateScoresLocally();
-            renderJournal({}, null);
+            if (prompt("Code de sécurité (RNE) :") !== "0680013V") return;
+            db.ref('arcathlon/live').remove().then(() => alert("Direct purgé avec succès !"));
         }
-
-        try { eruda.init(); } catch (e) { /* console de debug non chargée */ }
     </script>
 </body>
 </html>
