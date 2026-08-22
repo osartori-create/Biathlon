@@ -14,45 +14,69 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <style>
-        img.team-photo {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-        .team-container {
-            min-height: 100px;
-            border: 2px dashed #4b5563;
-            border-radius: 10px;
-            padding: 10px;
-        }
-        .hidden {
-            display: none !important;
-        }
+        img.team-photo { width: 40px; height: 40px; object-fit: cover; border-radius: 50%; }
+        .team-container { min-height: 100px; border: 2px dashed #4b5563; border-radius: 10px; padding: 10px; }
+        .hidden { display: none !important; }
+        .step-badge { width: 28px; height: 28px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.8rem; flex-shrink: 0; }
+        .pulse-dot { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
 <body class="bg-slate-900 text-white p-4 font-sans h-screen flex flex-col">
-    <header class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4 shrink-0">
-        <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest">Arcathlon | Maître</h1>
-        <div class="flex gap-2">
-            <button id="purgeLiveBtn" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-800">⚠️ Purger Live</button>
-            <label class="bg-emerald-600 px-4 py-2 rounded-lg font-bold text-xs cursor-pointer hover:bg-emerald-500 border border-emerald-500">
-                📥 Import CSV (iDoceo)
-                <input type="file" id="csvFile" accept=".csv" class="hidden">
-            </label>
-            <label class="bg-indigo-600 px-4 py-2 rounded-lg font-bold text-xs cursor-pointer hover:bg-indigo-500 border border-indigo-500">
-                📸 Importer photos (ZIP iDoceo)
-                <input type="file" id="zipFile" accept=".zip" class="hidden">
-            </label>
-            <button id="toggleImportMode" class="bg-purple-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-purple-500 border border-purple-500">
-                🔄 Basculer en mode saisie manuelle
-            </button>
-            <button id="generateTeamsBtn" class="bg-orange-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-orange-500 border border-orange-500">
-                🔄 Générer les équipes
-            </button>
-            <button id="pushConfigBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 border border-blue-500">🚀 Envoyer aux iPads</button>
+    <header class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4 shrink-0 flex-wrap gap-2">
+        <div class="flex items-center gap-4">
+            <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest">Arcathlon <span class="text-slate-400 text-sm">| Professeur</span></h1>
+            <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                <span id="connDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
+                <span id="connLabel">Connexion...</span>
+            </div>
         </div>
+        <button id="purgeLiveBtn" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-800">⚠️ Purger Live</button>
     </header>
+
+    <!-- Fil du workflow -->
+    <div class="flex items-center gap-2 mb-6 shrink-0 flex-wrap text-xs">
+        <span class="step-badge bg-emerald-600 text-white">1</span>
+        <label class="bg-emerald-600 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-emerald-500 border border-emerald-500">
+            📥 Import CSV (iDoceo)
+            <input type="file" id="csvFile" accept=".csv" class="hidden">
+        </label>
+        <label class="bg-indigo-600 px-4 py-2 rounded-lg font-bold cursor-pointer hover:bg-indigo-500 border border-indigo-500">
+            📸 Importer photos (ZIP iDoceo)
+            <input type="file" id="zipFile" accept=".zip" class="hidden">
+        </label>
+        <button id="toggleImportMode" class="bg-purple-600 px-4 py-2 rounded-lg font-bold hover:bg-purple-500 border border-purple-500">
+            🔄 Saisie manuelle
+        </button>
+
+        <span class="step-badge bg-orange-600 text-white ml-3">2</span>
+        <button id="generateTeamsBtn" class="bg-orange-600 px-4 py-2 rounded-lg font-bold hover:bg-orange-500 border border-orange-500">
+            🔄 Générer les équipes
+        </button>
+        <label class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-2 rounded-lg font-bold text-slate-300 cursor-pointer">
+            <input type="checkbox" id="mixiteCheckbox" class="w-4 h-4">
+            ⚥ Équilibrer la mixité (si sexe importé)
+        </label>
+
+        <span class="step-badge bg-blue-600 text-white ml-3">3</span>
+        <button id="pushConfigBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-500 border border-blue-500">🚀 Envoyer aux iPads</button>
+
+        <span class="step-badge bg-amber-500 text-black ml-3">4</span>
+        <span class="text-slate-400 font-bold self-center">Suivre le direct plus bas ⬇</span>
+    </div>
+
+    <!-- Barème de tir -->
+    <div class="bg-slate-800 p-4 rounded-2xl border-2 border-slate-700 mb-6 flex items-center gap-4 flex-wrap shrink-0">
+        <span class="font-black text-slate-300 uppercase text-sm">🎯 Barème stand de tir :</span>
+        <label class="flex items-center gap-2 text-sm text-slate-300 font-bold">Flèche 1
+            <input type="number" id="baremeF1" value="7" min="0" class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center">pts
+        </label>
+        <label class="flex items-center gap-2 text-sm text-slate-300 font-bold">Flèche 2
+            <input type="number" id="baremeF2" value="8" min="0" class="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-center">pts
+        </label>
+        <button id="saveBaremeBtn" class="bg-teal-600 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-teal-500 border border-teal-500">✓ Appliquer le barème</button>
+        <span id="baremeStatus" class="text-xs text-slate-500"></span>
+    </div>
 
     <div class="grid grid-cols-1 gap-6 flex-1 overflow-hidden">
         <!-- Panneau de saisie manuelle -->
@@ -65,35 +89,29 @@
                             <th class="p-2 text-left font-bold text-slate-300">Prénom</th>
                             <th class="p-2 text-left font-bold text-slate-300">Nom</th>
                             <th class="p-2 text-left font-bold text-slate-300">VMA (km/h)</th>
+                            <th class="p-2 text-left font-bold text-slate-300">Sexe</th>
                             <th class="p-2 text-left font-bold text-slate-300">Photo</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Les lignes seront ajoutées dynamiquement -->
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
             <div class="mt-4 flex gap-2">
-                <button id="addStudentBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 border border-blue-500">
-                    ✚ Ajouter un élève
-                </button>
-                <button id="saveManualVmaBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500">
-                    ✓ Enregistrer les élèves
-                </button>
+                <button id="addStudentBtn" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-blue-500 border border-blue-500">✚ Ajouter un élève</button>
+                <button id="saveManualVmaBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500">✓ Enregistrer les élèves</button>
             </div>
         </div>
 
         <!-- Équipes -->
         <div id="teamsPanel" class="bg-slate-800 p-4 rounded-3xl border-2 border-slate-700 flex flex-col h-full overflow-hidden">
-            <h2 class="font-black text-emerald-400 mb-4 uppercase shrink-0">Équipes</h2>
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <h2 class="font-black text-emerald-400 uppercase">Équipes</h2>
+                <span id="reliquatWarning" class="hidden text-xs font-bold text-amber-400 bg-amber-950 border border-amber-700 px-3 py-1 rounded-full"></span>
+            </div>
             <div id="teamsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto pr-2 pb-4"></div>
             <div class="mt-4 flex gap-2">
-                <button id="editTeamsBtn" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 border border-yellow-500 hidden">
-                    ✏️ Modifier les équipes
-                </button>
-                <button id="saveTeamsBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500 hidden">
-                    ✓ Sauvegarder les équipes
-                </button>
+                <button id="editTeamsBtn" class="bg-yellow-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-yellow-500 border border-yellow-500 hidden">✏️ Modifier les équipes</button>
+                <button id="saveTeamsBtn" class="bg-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-green-500 border border-green-500 hidden">✓ Sauvegarder les équipes</button>
             </div>
         </div>
     </div>
@@ -105,12 +123,14 @@
             <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Gros Globe (Par Équipe)</h3>
             <div id="grosGlobe" class="grid grid-cols-2 gap-3 mb-8"></div>
             <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Petits Globes (Individuel par Maillot)</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                 <div id="globeVert" class="bg-green-900/30 p-3 rounded-2xl border-2 border-green-800/50"></div>
                 <div id="globeBleu" class="bg-blue-900/30 p-3 rounded-2xl border-2 border-blue-800/50"></div>
                 <div id="globeJaune" class="bg-yellow-900/30 p-3 rounded-2xl border-2 border-yellow-800/50"></div>
                 <div id="globeRouge" class="bg-red-900/30 p-3 rounded-2xl border-2 border-red-800/50"></div>
             </div>
+            <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Derniers passages (correction possible)</h3>
+            <div id="journalPassages" class="flex flex-col gap-1"></div>
         </div>
     </div>
 
@@ -120,54 +140,127 @@
         let configAnonyme = {};
         let eleves = [];
         let photosEleve = {};
+        let sexeEleve = {}; // sexe déduit du nom de fichier photo (_NOM,_Prenom_M.jpg), utilisé pour la mixité
         let isEditingTeams = false;
-        let db; // Variable globale pour la base de données Firebase
+        let dernierReliquat = [];
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialisation Firebase
-            const firebaseConfig = {
-                databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
-            };
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
+            // --- Initialisation Firebase, protégée : si le SDK ou le réseau est indisponible
+            // (wifi coupé, pare-feu d'établissement, CDN bloqué...), les fonctions locales
+            // (import CSV/ZIP, saisie manuelle, génération des équipes, édition) doivent
+            // continuer à fonctionner normalement. Seuls l'envoi aux iPads et le suivi en
+            // direct nécessitent réellement une connexion.
+            let db = null;
+            try {
+                if (typeof firebase === 'undefined') throw new Error("SDK Firebase non chargé");
+                const firebaseConfig = {
+                    databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
+                };
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+            } catch (err) {
+                console.error("Firebase indisponible :", err.message);
+                afficherBanniereHorsLigne();
+            }
 
-            // Fonction pour purger les données Firebase
-            window.purgeLive = function() {
-                if (confirm("Effacer toutes les performances enregistrées ?")) {
-                    // Purge complète de la base de données
-                    db.ref('arcathlon').remove()
+            function afficherBanniereHorsLigne() {
+                const dot = document.getElementById('connDot');
+                const label = document.getElementById('connLabel');
+                dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
+                label.textContent = "Firebase indisponible";
+                const banniere = document.createElement('div');
+                banniere.className = "bg-red-950 border-2 border-red-700 text-red-300 text-xs font-bold rounded-xl px-4 py-2 mb-4 shrink-0";
+                banniere.textContent = "⚠️ Connexion à Firebase impossible (réseau ou pare-feu). L'import, la saisie manuelle et la génération des équipes restent utilisables hors-ligne ; l'envoi aux iPads et le suivi en direct seront indisponibles tant que la connexion n'est pas rétablie.";
+                document.querySelector('header').after(banniere);
+                ['pushConfigBtn', 'saveBaremeBtn', 'purgeLiveBtn'].forEach(id => {
+                    document.getElementById(id).disabled = true;
+                    document.getElementById(id).classList.add('opacity-40', 'cursor-not-allowed');
+                });
+            }
+
+            if (db) {
+                // Statut de connexion
+                db.ref('.info/connected').on('value', snap => {
+                    const connecte = snap.val() === true;
+                    const dot = document.getElementById('connDot');
+                    const label = document.getElementById('connLabel');
+                    if (connecte) {
+                        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                        label.textContent = "En ligne";
+                    } else {
+                        dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
+                        label.textContent = "Hors ligne";
+                    }
+                });
+
+                // --- Barème de tir ---
+                db.ref('arcathlon/config/bareme').once('value', snap => {
+                    const val = snap.val();
+                    if (val) {
+                        document.getElementById('baremeF1').value = val.f1;
+                        document.getElementById('baremeF2').value = val.f2;
+                    }
+                });
+                document.getElementById('saveBaremeBtn').addEventListener('click', function() {
+                    const f1 = parseInt(document.getElementById('baremeF1').value) || 0;
+                    const f2 = parseInt(document.getElementById('baremeF2').value) || 0;
+                    db.ref('arcathlon/config/bareme').set({ f1, f2 })
                         .then(() => {
-                            alert("Toutes les données Firebase ont été purgées avec succès.");
-                            // Réinitialisation des variables locales
-                            equipes = [];
-                            configAnonyme = {};
-                            eleves = [];
-                            photosEleve = {};
-                            isEditingTeams = false;
-                            document.getElementById('teamsContainer').innerHTML = '';
-                            document.getElementById('grosGlobe').innerHTML = '';
-                            document.querySelectorAll('[id^="globe"]').forEach(el => el.innerHTML = '');
+                            const status = document.getElementById('baremeStatus');
+                            status.textContent = "✓ Barème envoyé aux iPads";
+                            setTimeout(() => status.textContent = "", 3000);
                         })
-                        .catch(err => alert("Erreur lors de la purge : " + err.message));
-                }
-            };
+                        .catch(err => alert("Erreur d'envoi du barème : " + err.message));
+                });
 
-            // Fonction pour envoyer la configuration aux iPads
-            window.pushConfig = function() {
-                if (Object.keys(configAnonyme).length === 0) {
-                    alert("Générez d'abord les équipes !");
-                    return;
-                }
-                db.ref('arcathlon/config/equipes').set(configAnonyme)
-                    .then(() => alert("Configuration envoyée avec succès aux iPads élèves !"))
-                    .catch(err => alert("Erreur d'envoi : " + err.message));
-            };
+                window.purgeLive = function() {
+                    if (confirm("Effacer toutes les performances enregistrées ?")) {
+                        db.ref('arcathlon/live').remove().catch(err => alert("Erreur lors de la purge : " + err.message));
+                    }
+                };
+                document.getElementById('purgeLiveBtn').addEventListener('click', purgeLive);
+
+                window.pushConfig = function() {
+                    if (Object.keys(configAnonyme).length === 0) return alert("Générez d'abord les équipes !");
+                    const btn = document.getElementById('pushConfigBtn');
+                    btn.disabled = true;
+                    db.ref('arcathlon/config/equipes').set(configAnonyme)
+                        .then(() => alert("Configuration envoyée avec succès aux iPads élèves !"))
+                        .catch(err => alert("Erreur d'envoi : " + err.message))
+                        .finally(() => btn.disabled = false);
+                };
+                document.getElementById('pushConfigBtn').addEventListener('click', pushConfig);
+
+                // --- Écoute des scores en direct ---
+                let passagesActuels = {};
+                db.ref('arcathlon/live/passages').on('value', snap => {
+                    passagesActuels = snap.val() || {};
+                    equipes.forEach(eq => { eq.score = 0; eq.membres.forEach(m => m.scoreIndiv = 0); });
+                    Object.values(passagesActuels).forEach(p => {
+                        let eq = equipes.find(e => e.id === p.equipe);
+                        if (eq) {
+                            let membres = eq.membres.filter(m => m.maillot === p.maillot);
+                            if (membres.length > 0) {
+                                let pts = (p.ptsVMA || 0) + (p.ptsTir || 0);
+                                membres[0].scoreIndiv += pts;
+                                eq.score += pts;
+                            }
+                        }
+                    });
+                    updateScoresLocally();
+                    renderJournal(passagesActuels, db);
+                });
+            } else {
+                // Pas de Firebase : le bouton "Générer les équipes" doit quand même
+                // rafraîchir l'affichage local des scores (tous à 0) sans planter.
+                updateScoresLocally();
+                renderJournal({}, null);
+            }
 
             // Basculer entre les modes
             document.getElementById('toggleImportMode').addEventListener('click', function() {
                 const manualPanel = document.getElementById('manualInputPanel');
                 const teamsPanel = document.getElementById('teamsPanel');
-
                 if (manualPanel.classList.contains('hidden')) {
                     manualPanel.classList.remove('hidden');
                     teamsPanel.classList.add('hidden');
@@ -176,11 +269,10 @@
                 } else {
                     manualPanel.classList.add('hidden');
                     teamsPanel.classList.remove('hidden');
-                    this.textContent = "🔄 Basculer en mode saisie manuelle";
+                    this.textContent = "🔄 Saisie manuelle";
                 }
             });
 
-            // Ajouter un élève au tableau manuel
             document.getElementById('addStudentBtn').addEventListener('click', function() {
                 const tbody = document.querySelector('#manualVmaTable tbody');
                 const newRow = document.createElement('tr');
@@ -189,12 +281,16 @@
                     <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Prénom"></td>
                     <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Nom"></td>
                     <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="VMA" step="0.1"></td>
+                    <td class="p-2">
+                        <select class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full">
+                            <option value="">-</option><option value="F">F</option><option value="M">M</option>
+                        </select>
+                    </td>
                     <td class="p-2"><input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)"></td>
                 `;
                 tbody.appendChild(newRow);
             });
 
-            // Gérer les photos en saisie manuelle
             window.handleManualPhoto = function(input) {
                 const row = input.closest('tr');
                 const file = input.files[0];
@@ -211,70 +307,55 @@
                 }
             };
 
-            // Remplir le tableau manuel avec les élèves existants
             function renderManualVmaTable() {
                 const tbody = document.querySelector('#manualVmaTable tbody');
                 tbody.innerHTML = '';
-
-                if (eleves.length > 0) {
-                    eleves.forEach(eleve => {
-                        const newRow = document.createElement('tr');
-                        newRow.className = 'border-b border-slate-800';
-                        newRow.innerHTML = `
-                            <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Prenom}"></td>
-                            <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Nom}"></td>
-                            <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.VMA}" step="0.1"></td>
-                            <td class="p-2">
-                                ${eleve.photo ? `<img src="${eleve.photo}" class="w-10 h-10 rounded-full object-cover">` : '<input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)">'}
-                            </td>
-                        `;
-                        tbody.appendChild(newRow);
-                    });
-                } else {
-                    // Ajouter une ligne vide si aucun élève n'est présent
+                const source = eleves.length > 0 ? eleves : [{}];
+                source.forEach(eleve => {
                     const newRow = document.createElement('tr');
                     newRow.className = 'border-b border-slate-800';
                     newRow.innerHTML = `
-                        <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Prénom"></td>
-                        <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Nom"></td>
-                        <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" placeholder="VMA" step="0.1"></td>
-                        <td class="p-2"><input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)"></td>
+                        <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Prenom || ''}" placeholder="Prénom"></td>
+                        <td class="p-2"><input type="text" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.Nom || ''}" placeholder="Nom"></td>
+                        <td class="p-2"><input type="number" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full" value="${eleve.VMA || ''}" placeholder="VMA" step="0.1"></td>
+                        <td class="p-2">
+                            <select class="bg-slate-900 border border-slate-700 rounded px-2 py-1 w-full">
+                                <option value="" ${!eleve.Sexe ? 'selected' : ''}>-</option>
+                                <option value="F" ${eleve.Sexe === 'F' ? 'selected' : ''}>F</option>
+                                <option value="M" ${eleve.Sexe === 'M' ? 'selected' : ''}>M</option>
+                            </select>
+                        </td>
+                        <td class="p-2">
+                            ${eleve.photo ? `<img src="${eleve.photo}" class="w-10 h-10 rounded-full object-cover">` : '<input type="file" accept="image/*" class="w-full" onchange="handleManualPhoto(this)">'}
+                        </td>
                     `;
                     tbody.appendChild(newRow);
-                }
+                });
             }
 
-            // Enregistrer les élèves saisis manuellement
             document.getElementById('saveManualVmaBtn').addEventListener('click', function() {
                 eleves = [];
                 const rows = document.querySelectorAll('#manualVmaTable tbody tr');
                 rows.forEach(row => {
                     const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
+                    const select = row.querySelector('select');
                     const fileInput = row.querySelector('input[type="file"]');
+                    const existingImg = row.querySelector('img');
                     const prenom = inputs[0].value.trim();
                     const nom = inputs[1].value.trim().toUpperCase();
                     const vma = parseFloat(inputs[2].value);
+                    const sexe = select ? select.value : "";
 
                     if (prenom && nom && !isNaN(vma)) {
-                        const eleve = {
-                            Prenom: prenom,
-                            Nom: nom,
-                            VMA: vma
-                        };
-
-                        if (fileInput && fileInput.files.length > 0) {
+                        const eleve = { Prenom: prenom, Nom: nom, VMA: vma, Sexe: sexe };
+                        const cle = clePhoto(nom, prenom);
+                        if (photosEleve[cle]) eleve.photo = photosEleve[cle];
+                        else if (existingImg) eleve.photo = existingImg.src;
+                        else if (fileInput && fileInput.files.length > 0) {
                             const reader = new FileReader();
-                            reader.onload = function(e) {
-                                eleve.photo = e.target.result;
-                            };
+                            reader.onload = e => { eleve.photo = e.target.result; };
                             reader.readAsDataURL(fileInput.files[0]);
                         }
-
-                        const eleveKey = nom;
-                        if (photosEleve[eleveKey]) {
-                            eleve.photo = photosEleve[eleveKey];
-                        }
-
                         eleves.push(eleve);
                     }
                 });
@@ -283,11 +364,11 @@
                     alert(`Données enregistrées pour ${eleves.length} élèves.`);
                     generateTeams();
                 } else {
-                    alert("Aucun élève valide saisi. Vérifiez les données.");
+                    alert("Aucun élève valide saisi. Vérifiez les données (prénom, nom et VMA numérique requis).");
                 }
             });
 
-            // Importer un fichier CSV
+            // --- Import CSV (iDoceo) ---
             document.getElementById('csvFile').addEventListener('change', handleCSV);
 
             function handleCSV(e) {
@@ -296,169 +377,185 @@
                     header: false,
                     skipEmptyLines: true,
                     complete: function(results) {
-                        let data = results.data;
+                        let brut = results.data.slice(1); // on saute l'en-tête
+                        let importes = [];
+                        let ignores = [];
 
-                        // Filtrer les lignes vides ou invalides
-                        data = data.filter(row => {
-                            if (row.length < 2) return false;
-                            const nomComplet = row[0].trim();
-                            const vma = row[1].trim();
-                            return nomComplet !== "" && !isNaN(parseFloat(vma.replace(",", ".")));
-                        });
+                        brut.forEach((row, i) => {
+                            if (!row[0] || row[0].trim() === "") { ignores.push(`Ligne ${i + 2} : nom vide`); return; }
+                            const vmaRaw = row[1] ? row[1].trim().replace(",", ".") : "";
+                            const vma = parseFloat(vmaRaw);
+                            if (isNaN(vma)) { ignores.push(`Ligne ${i + 2} (${row[0]}) : VMA invalide "${row[1] || ''}"`); return; }
 
-                        // Ignorer la première ligne (en-têtes)
-                        data = data.slice(1);
-
-                        eleves = data.map(row => {
                             const nomComplet = row[0].trim().split(" ");
                             const prenom = nomComplet[0];
                             const nom = nomComplet.slice(1).join(" ").toUpperCase();
-                            const vma = parseFloat(row[1].trim().replace(",", "."));
+                            const cle = clePhoto(nom, prenom);
+                            const photo = photosEleve[cle] || photosEleve[nom] || "";
+                            // Sexe : colonne CSV optionnelle si présente, sinon déduite des photos déjà importées
+                            let sexe = row[2] ? row[2].trim().toUpperCase() : "";
+                            if (sexe !== 'F' && sexe !== 'M') sexe = sexeEleve[cle] || sexeEleve[nom] || "";
 
-                            const eleveKey = nom;
-                            const photo = photosEleve[eleveKey] || "";
-
-                            return { Nom: nom, Prenom: prenom, VMA: vma, photo: photo };
+                            importes.push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: sexe, photo });
                         });
 
-                        console.log("Élèves importés :", eleves);
-                        generateTeams();
+                        eleves = importes;
+                        let msg = `${importes.length} élève(s) importé(s).`;
+                        if (ignores.length > 0) msg += `\n\n${ignores.length} ligne(s) ignorée(s) :\n` + ignores.slice(0, 15).join("\n") + (ignores.length > 15 ? `\n... (+${ignores.length - 15} autres)` : "");
+                        alert(msg);
+
+                        if (importes.length > 0) generateTeams();
                     }
                 });
             }
 
-            // Importer un fichier ZIP de photos
-            document.getElementById('zipFile').addEventListener('change', handleZIP);
+            // Clé de correspondance nom+prénom (réduit les collisions entre homonymes)
+            function clePhoto(nom, prenom) {
+                return (nom + "_" + prenom).toUpperCase().replace(/\s+/g, "");
+            }
+
+            // --- Import ZIP de photos ---
+            // (la fonction est définie juste après ; on utilise un wrapper pour éviter
+            // toute dépendance à l'ordre d'exécution du script)
+            document.getElementById('zipFile').addEventListener('change', function(e) { handleZIP(e); });
 
             window.handleZIP = async function(e) {
                 const file = e.target.files[0];
-                if (!file) {
-                    alert("Aucun fichier sélectionné.");
-                    return;
-                }
+                if (!file) { alert("Aucun fichier sélectionné."); return; }
 
                 try {
-                    console.log("Début de l'import du ZIP...");
                     const zip = await JSZip.loadAsync(file);
                     const files = Object.keys(zip.files);
-                    console.log("Fichiers dans le ZIP :", files);
-
                     let photosCount = 0;
+                    let nonReconnus = [];
+
                     for (const filename of files) {
                         if (!filename.endsWith('/')) {
-                            const match = filename.match(/^_([^,]+),_[^_]+_([FM])\.jpg$/i);
+                            // Format iDoceo : _NOM,_Prenom_M.jpg (dernière lettre = sexe, M ou F)
+                            const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.jpg$/i);
                             if (match) {
                                 const nom = match[1].trim().toUpperCase();
-                                console.log(`Trouvé : ${nom} (fichier : ${filename})`);
-
+                                const prenom = match[2].trim();
+                                const sexe = match[3].trim().toUpperCase();
                                 const fileData = await zip.files[filename].async('blob');
                                 const photoURL = URL.createObjectURL(fileData);
-                                photosEleve[nom] = photoURL;
+                                photosEleve[clePhoto(nom, prenom)] = photoURL;
+                                photosEleve[nom] = photoURL; // repli si le format de nom diffère à l'import CSV
+                                sexeEleve[clePhoto(nom, prenom)] = sexe;
+                                sexeEleve[nom] = sexe;
                                 photosCount++;
                             } else {
-                                console.warn(`Fichier ignoré (format invalide) : ${filename}`);
+                                nonReconnus.push(filename);
                             }
                         }
                     }
 
-                    console.log(`Photos importées : ${photosCount}`, photosEleve);
-                    alert(`Photos importées avec succès pour ${photosCount} élèves.`);
+                    let msg = `Photos importées avec succès pour ${photosCount} élève(s) (sexe extrait du nom de fichier pour la mixité).`;
+                    if (nonReconnus.length > 0) msg += `\n${nonReconnus.length} fichier(s) au format non reconnu (à associer manuellement si besoin).`;
+                    alert(msg);
 
                     if (eleves.length > 0) {
                         eleves.forEach(eleve => {
-                            const eleveKey = eleve.Nom.toUpperCase();
-                            if (photosEleve[eleveKey]) {
-                                eleve.photo = photosEleve[eleveKey];
+                            const cle = clePhoto(eleve.Nom, eleve.Prenom);
+                            if (photosEleve[cle]) eleve.photo = photosEleve[cle];
+                            else if (photosEleve[eleve.Nom.toUpperCase()]) eleve.photo = photosEleve[eleve.Nom.toUpperCase()];
+                            if (!eleve.Sexe) {
+                                if (sexeEleve[cle]) eleve.Sexe = sexeEleve[cle];
+                                else if (sexeEleve[eleve.Nom.toUpperCase()]) eleve.Sexe = sexeEleve[eleve.Nom.toUpperCase()];
                             }
                         });
-                        if (!document.getElementById('manualInputPanel').classList.contains('hidden')) {
-                            renderManualVmaTable();
-                        } else {
-                            generateTeams();
-                        }
+                        if (!document.getElementById('manualInputPanel').classList.contains('hidden')) renderManualVmaTable();
+                        else generateTeams();
                     }
                 } catch (error) {
-                    console.error("Erreur lors de l'import du ZIP :", error);
                     alert(`Erreur : ${error.message}. Vérifiez le fichier ZIP.`);
                 }
             };
 
-            // Générer les équipes avec équilibrage des VMA
+            // --- Génération des équipes (équilibrage VMA, mixité optionnelle, gestion des reliquats) ---
             window.generateTeams = function() {
-                // Filtrer les élèves avec VMA valide
-                eleves = eleves.filter(eleve => eleve && !isNaN(eleve.VMA));
+                if (eleves.length === 0) { alert("Aucun élève importé ou saisi."); return; }
 
-                if (eleves.length === 0) {
-                    alert("Aucun élève avec une VMA valide.");
-                    return;
-                }
+                eleves = eleves.filter(eleve => !isNaN(eleve.VMA));
+                if (eleves.length === 0) { alert("Aucun élève avec une VMA valide."); return; }
 
-                // Tri des élèves par VMA décroissante
-                eleves.sort((a, b) => b.VMA - a.VMA);
-
-                // Calcul du nombre d'équipes
                 const nbEquipes = Math.floor(eleves.length / 4);
-                if (nbEquipes === 0) {
-                    alert("Pas assez d'élèves pour former des équipes de 4.");
-                    return;
-                }
+                if (nbEquipes === 0) { alert("Pas assez d'élèves pour former une équipe de 4 (minimum requis)."); return; }
 
-                // Initialisation des équipes
+                const reste = eleves.length - nbEquipes * 4;
+                const mixiteVoulue = document.getElementById('mixiteCheckbox').checked;
+                const aDesSexes = eleves.some(e => e.Sexe === 'F' || e.Sexe === 'M');
+
                 equipes = Array.from({ length: nbEquipes }, (_, i) => ({
-                    id: `EQ${i + 1}`,
-                    membres: [],
-                    score: 0,
-                    sumVMA: 0
+                    id: `EQ${i + 1}`, membres: [], score: 0, sumVMA: 0
                 }));
 
-                // Algorithme d'équilibrage des VMA
-                // Répartition en serpentin pour équilibrer les équipes
+                let ordreRepartition;
+                if (mixiteVoulue && aDesSexes) {
+                    // Répartition en serpentin séparée par sexe pour favoriser la mixité dans chaque équipe
+                    const filles = eleves.filter(e => e.Sexe === 'F').sort((a, b) => b.VMA - a.VMA);
+                    const garcons = eleves.filter(e => e.Sexe === 'M').sort((a, b) => b.VMA - a.VMA);
+                    const autres = eleves.filter(e => e.Sexe !== 'F' && e.Sexe !== 'M').sort((a, b) => b.VMA - a.VMA);
+                    ordreRepartition = [];
+                    const maxLen = Math.max(filles.length, garcons.length, autres.length);
+                    for (let i = 0; i < maxLen; i++) {
+                        if (filles[i]) ordreRepartition.push(filles[i]);
+                        if (garcons[i]) ordreRepartition.push(garcons[i]);
+                        if (autres[i]) ordreRepartition.push(autres[i]);
+                    }
+                } else {
+                    ordreRepartition = [...eleves].sort((a, b) => b.VMA - a.VMA);
+                }
+
+                // Distribution en serpentin (snake draft) sur les équipes, y compris les élèves en surnombre
+                // (répartis un par un sur les premières équipes plutôt que d'être exclus silencieusement)
                 let eqIdx = 0, sens = 1;
-                eleves.forEach((eleve, i) => {
-                    const equipeIndex = eqIdx;
-                    equipes[equipeIndex].membres.push({
+                ordreRepartition.forEach(eleve => {
+                    equipes[eqIdx].membres.push({
                         prenom: eleve.Prenom,
                         nom: eleve.Nom.charAt(0) + ".",
                         vma: eleve.VMA,
-                        maillot: "",
-                        style: "",
-                        scoreIndiv: 0,
-                        photo: eleve.photo
+                        sexe: eleve.Sexe || "",
+                        maillot: "", style: "", scoreIndiv: 0, photo: eleve.photo
                     });
-                    equipes[equipeIndex].sumVMA += eleve.VMA;
+                    equipes[eqIdx].sumVMA += eleve.VMA;
                     eqIdx += sens;
-                    if (eqIdx === nbEquipes - 1 || eqIdx === 0) {
-                        sens *= -1; // Inverser le sens
-                    }
+                    if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; }
+                    else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
                 });
 
-                // Attribution des couleurs de maillots
+                // Attribution des couleurs de maillot par équipe (jusqu'à 5 si reliquat)
                 const couleurs = [
                     { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
                     { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
                     { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
                     { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
                 ];
-
-                // Attribution des couleurs en serpentin pour favoriser la mixité
-                equipes.forEach((eq, eqIndex) => {
-                    eq.membres.forEach((membre, j) => {
+                equipes.forEach((eq) => {
+                    eq.membres.forEach((m, j) => {
                         const c = couleurs[j % 4];
-                        membre.maillot = c.nom;
-                        membre.style = c.style;
+                        m.maillot = c.nom;
+                        m.style = c.style;
+                        if (j >= 4) m.style += ' ring-2 ring-amber-500'; // signale un maillot dupliqué (équipe à 5+)
                     });
                 });
 
-                // Mise à jour de la configuration anonyme pour Firebase
                 configAnonyme = {};
                 equipes.forEach(eq => {
                     configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma }));
                 });
 
+                const warningEl = document.getElementById('reliquatWarning');
+                if (reste > 0) {
+                    warningEl.textContent = `⚠️ ${reste} élève(s) en surnombre réparti(s) dans des équipes à 5 (2 élèves partagent alors un maillot lors de la rotation).`;
+                    warningEl.classList.remove('hidden');
+                } else {
+                    warningEl.classList.add('hidden');
+                }
+
                 renderTeams();
             };
 
-            // Afficher les équipes
             function renderTeams() {
                 const teamsContainer = document.getElementById('teamsContainer');
                 teamsContainer.innerHTML = '';
@@ -483,10 +580,7 @@
 
                     const teamHeader = document.createElement('div');
                     teamHeader.className = 'font-black text-xl mb-3 text-slate-300 flex justify-between items-center';
-                    teamHeader.innerHTML = `
-                        <span>ÉQUIPE ${eq.id}</span>
-                        <span class="text-emerald-400 font-black">${eq.sumVMA.toFixed(1)} <span class="text-xs text-slate-500">VMA</span></span>
-                    `;
+                    teamHeader.innerHTML = `<span>ÉQUIPE ${eq.id}</span><span class="text-emerald-400 font-black">${eq.sumVMA.toFixed(1)} <span class="text-xs text-slate-500">VMA</span></span>`;
                     teamDiv.appendChild(teamHeader);
 
                     const membersDiv = document.createElement('div');
@@ -498,15 +592,13 @@
                         memberDiv.draggable = isEditingTeams;
                         memberDiv.dataset.teamId = eq.id;
                         memberDiv.dataset.memberIndex = index;
+                        if (isEditingTeams) memberDiv.addEventListener('dragstart', handleDragStart);
 
-                        if (isEditingTeams) {
-                            memberDiv.addEventListener('dragstart', handleDragStart);
-                        }
-
+                        const sexeTag = m.sexe ? `<span class="text-[10px] text-slate-500">${m.sexe}</span>` : '';
                         memberDiv.innerHTML = `
                             ${m.photo ? `<img src="${m.photo}" class="team-photo">` : '<div class="team-photo bg-slate-700"></div>'}
                             <span class="font-black uppercase">${m.maillot}</span>
-                            <span class="font-bold text-white">${m.prenom} ${m.nom} <span class="text-xs text-slate-400 ml-1">(VMA: ${m.vma})</span></span>
+                            <span class="font-bold text-white">${m.prenom} ${m.nom} ${sexeTag} <span class="text-xs text-slate-400 ml-1">(VMA: ${m.vma})</span></span>
                         `;
                         membersDiv.appendChild(memberDiv);
                     });
@@ -525,29 +617,26 @@
                     teamsContainer.appendChild(teamDiv);
                 });
 
-                // Activer le bouton de modification des équipes si des équipes existent
-                if (equipes.length > 0) {
-                    document.getElementById('editTeamsBtn').classList.remove('hidden');
-                }
+                if (equipes.length > 0) document.getElementById('editTeamsBtn').classList.remove('hidden');
             }
 
-            // Activer le mode édition des équipes
             document.getElementById('editTeamsBtn').addEventListener('click', function() {
                 isEditingTeams = true;
                 renderTeams();
             });
 
-            // Sauvegarder les équipes modifiées
             document.getElementById('saveTeamsBtn').addEventListener('click', function() {
                 isEditingTeams = false;
+                // Recalcule la config anonyme après un réarrangement manuel des équipes
+                configAnonyme = {};
+                equipes.forEach(eq => {
+                    configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma }));
+                });
                 renderTeams();
-                alert("Modifications sauvegardées.");
+                alert("Modifications sauvegardées. Pensez à ré-envoyer la configuration aux iPads (étape 3).");
             });
 
-            // Gérer le drag and drop pour réorganiser les équipes
-            let draggedMember = null;
-            let draggedFromTeam = null;
-            let draggedMemberIndex = null;
+            let draggedMember = null, draggedFromTeam = null, draggedMemberIndex = null;
 
             function handleDragStart(e) {
                 const teamId = this.dataset.teamId;
@@ -557,34 +646,21 @@
                 draggedMemberIndex = memberIndex;
                 e.dataTransfer.setData('text/plain', 'drag-member');
             }
-
-            function handleDragOver(e) {
-                e.preventDefault();
-            }
-
+            function handleDragOver(e) { e.preventDefault(); }
             function handleDrop(e) {
                 e.preventDefault();
                 const targetTeamId = this.dataset.teamId;
-
                 if (draggedMember && targetTeamId) {
-                    // Retirer le membre de l'équipe d'origine
                     const fromTeam = equipes.find(eq => eq.id === draggedFromTeam);
                     fromTeam.membres.splice(draggedMemberIndex, 1);
                     fromTeam.sumVMA -= draggedMember.vma;
-
-                    // Ajouter le membre à la nouvelle équipe
                     const toTeam = equipes.find(eq => eq.id === targetTeamId);
                     toTeam.membres.push(draggedMember);
                     toTeam.sumVMA += draggedMember.vma;
-
-                    // Réattribuer les couleurs pour maintenir l'équilibre
                     reassignColors();
-
                     renderTeams();
                 }
             }
-
-            // Réattribuer les couleurs pour maintenir l'équilibre
             function reassignColors() {
                 const couleurs = [
                     { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
@@ -592,39 +668,17 @@
                     { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
                     { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
                 ];
-
-                equipes.forEach((eq, eqIndex) => {
-                    eq.membres.forEach((membre, membreIndex) => {
-                        const couleurIndex = (eqIndex * 4 + membreIndex) % 4;
-                        membre.maillot = couleurs[couleurIndex].nom;
-                        membre.style = couleurs[couleurIndex].style;
+                equipes.forEach((eq) => {
+                    eq.membres.forEach((membre, j) => {
+                        const c = couleurs[j % 4];
+                        membre.maillot = c.nom;
+                        membre.style = c.style + (j >= 4 ? ' ring-2 ring-amber-500' : '');
                     });
                 });
             }
 
-            // Bouton pour générer les équipes
             document.getElementById('generateTeamsBtn').addEventListener('click', generateTeams);
 
-            // Écouter les mises à jour des scores
-            db.ref('arcathlon/live/passages').on('value', snap => {
-                const passages = snap.val() || {};
-                equipes.forEach(eq => { eq.score = 0; eq.membres.forEach(m => m.scoreIndiv = 0); });
-
-                Object.values(passages).forEach(p => {
-                    let eq = equipes.find(e => e.id === p.equipe);
-                    if (eq) {
-                        let membre = eq.membres.find(m => m.maillot === p.maillot);
-                        if (membre) {
-                            let pts = (p.ptsVMA || 0) + (p.ptsTir || 0);
-                            membre.scoreIndiv += pts;
-                            eq.score += pts;
-                        }
-                    }
-                });
-                updateScoresLocally();
-            });
-
-            // Mettre à jour les scores localement
             function updateScoresLocally() {
                 let eqTriees = [...equipes].sort((a, b) => b.score - a.score);
                 document.getElementById('grosGlobe').innerHTML = eqTriees.map((eq, idx) => `
@@ -640,9 +694,7 @@
                         eq.membres.filter(m => m.maillot === c).forEach(j => joueurs.push({ prenom: j.prenom, nom: j.nom, eq: eq.id, score: j.scoreIndiv }));
                     });
                     joueurs.sort((a, b) => b.score - a.score);
-
                     let textColor = c === 'Vert' ? 'text-green-400' : c === 'Bleu' ? 'text-blue-400' : c === 'Jaune' ? 'text-yellow-400' : 'text-red-400';
-
                     document.getElementById('globe' + c).innerHTML = `<h4 class="font-black text-center mb-4 uppercase ${textColor} tracking-widest text-lg">${c}</h4>` +
                         joueurs.map((j, idx) => `
                             <div class="text-sm flex justify-between items-center border-b border-black/30 py-2">
@@ -653,8 +705,37 @@
                 });
             }
 
-            // Initialiser Eruda
-            eruda.init();
+            // --- Journal des passages (avec suppression individuelle pour corriger une erreur) ---
+            function renderJournal(passagesActuels, dbRef) {
+                const journal = document.getElementById('journalPassages');
+                const entries = Object.entries(passagesActuels).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 20);
+                if (entries.length === 0) {
+                    journal.innerHTML = '<p class="text-slate-600 text-sm text-center py-2">Aucun passage enregistré.</p>';
+                    return;
+                }
+                journal.innerHTML = entries.map(([key, p]) => {
+                    const heure = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const total = (p.ptsTir || 0) + (p.ptsVMA || 0);
+                    return `
+                        <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2">
+                            <span class="text-slate-400">${heure}</span>
+                            <span class="font-bold text-slate-200">Équipe ${p.equipe} — ${p.maillot}</span>
+                            <span class="font-black text-emerald-400">${total} pts</span>
+                            <button data-key="${key}" class="btn-del-passage bg-red-900/50 text-red-400 border border-red-800 px-2 py-1 rounded font-bold hover:bg-red-800">🗑</button>
+                        </div>`;
+                }).join('');
+
+                if (!dbRef) return;
+                journal.querySelectorAll('.btn-del-passage').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        if (confirm("Supprimer ce passage ?")) {
+                            dbRef.ref('arcathlon/live/passages/' + this.dataset.key).remove();
+                        }
+                    });
+                });
+            }
+
+            try { eruda.init(); } catch (e) { /* console de debug non chargée, sans impact sur les fonctions locales */ }
         });
     </script>
 </body>

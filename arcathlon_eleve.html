@@ -79,11 +79,23 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        let db = null;
+        try {
+            if (typeof firebase === 'undefined') throw new Error("SDK Firebase non chargé");
+            const firebaseConfig = {
+                databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
+            };
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (err) {
+            document.body.innerHTML = `
+                <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+                    <div class="text-6xl mb-6">📡</div>
+                    <h1 class="text-3xl font-black text-red-500 uppercase mb-4">Connexion impossible</h1>
+                    <p class="text-slate-400 text-lg">Vérifiez le wifi de l'iPad, puis rechargez la page.</p>
+                </div>`;
+        }
+        if (db) {
 
         let equipesConfig = {};
         let bareme = { f1: 7, f2: 8 }; // valeurs par défaut si le prof n'a pas encore configuré le barème
@@ -127,14 +139,14 @@
             updateBtn(1); updateBtn(2); updateTotal();
         });
 
-        function loadEquipe() {
+        window.loadEquipe = function() {
             currentEq = document.getElementById('selEquipe').value;
             if (currentEq) document.getElementById('maillotsGrid').classList.remove('hidden');
             else document.getElementById('maillotsGrid').classList.add('hidden');
             document.getElementById('saisieTir').classList.add('hidden');
         }
 
-        function changerEquipe() {
+        window.changerEquipe = function() {
             document.getElementById('saisieTir').classList.add('hidden');
             document.getElementById('saisieTir').classList.remove('flex');
             document.getElementById('ecranEquipe').classList.remove('hidden');
@@ -142,7 +154,7 @@
             loadEquipe();
         }
 
-        function setCoureur(maillot) {
+        window.setCoureur = function(maillot) {
             currentMaillot = maillot;
             document.getElementById('ecranEquipe').classList.add('hidden');
             document.getElementById('saisieTir').classList.remove('hidden');
@@ -157,7 +169,7 @@
             updateTotal();
         }
 
-        function toggleF(num) {
+        window.toggleF = function(num) {
             if (num === 1) f1 = !f1; else f2 = !f2;
             updateBtn(num);
             updateTotal();
@@ -184,12 +196,12 @@
             return { ptsTir, ptsVMA, total: ptsTir + ptsVMA };
         }
 
-        function updateTotal() {
+        window.updateTotal = function() {
             const { total } = calculerPoints();
             document.getElementById('totalPreview').textContent = `(${total} pts)`;
         }
 
-        function validerPassage() {
+        window.validerPassage = function() {
             if (envoiEnCours) return; // anti double-tap
             envoiEnCours = true;
             const btn = document.getElementById('btnValider');
@@ -245,7 +257,7 @@
             }, 8000);
         }
 
-        function annulerDernier() {
+        window.annulerDernier = function() {
             if (dernierKey) {
                 db.ref('arcathlon/live/passages/' + dernierKey).remove();
             }
@@ -276,6 +288,7 @@
                 });
             });
         }
+        } // fin du bloc if (db) : tout ce qui précède nécessite une connexion Firebase active
     </script>
 </body>
 </html>
