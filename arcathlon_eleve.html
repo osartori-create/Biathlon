@@ -30,11 +30,11 @@
 
     <!-- ZONE PRINCIPALE -->
     <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[3rem] shadow-2xl flex-1 flex flex-col justify-center max-w-4xl mx-auto w-full relative overflow-hidden">
-        
+
         <!-- ECRAN 1 : CHOIX EQUIPE & PIN -->
         <div id="ecranLogin" class="flex flex-col items-center">
             <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-10 italic">Stand de Tir</h1>
-            
+
             <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-6 rounded-2xl text-3xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6">
                 <option value="">-- CHOISIR L'ÉQUIPE --</option>
             </select>
@@ -60,7 +60,7 @@
             <div id="maillotsGrid" class="grid grid-cols-2 gap-4">
                 <!-- Généré dynamiquement -->
             </div>
-            
+
             <div class="mt-8 pt-6 border-t border-slate-800 text-center">
                 <button onclick="toggleHistorique()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold text-sm text-slate-400 uppercase tracking-widest border border-slate-700 active:bg-slate-700">📜 Voir notre historique (Annulation)</button>
             </div>
@@ -75,7 +75,7 @@
                 <!-- Zone Cible SVG Interactive -->
                 <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-4 flex flex-col items-center justify-center relative shadow-inner">
                     <span class="absolute top-4 text-xs font-black text-slate-500 uppercase tracking-widest">Touchez la cible 🎯</span>
-                    
+
                     <svg viewBox="0 0 100 100" class="w-full max-w-[250px] md:max-w-xs mx-auto drop-shadow-2xl">
                         <!-- Zone 6 (Bleu) -->
                         <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6, 'Bleu')" />
@@ -84,7 +84,7 @@
                         <!-- Zone 10 (Jaune) -->
                         <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="marquerTir(10, 'Jaune')" />
                     </svg>
-                    
+
                     <div class="grid grid-cols-2 gap-2 mt-4 w-full">
                         <button onclick="marquerTir(5, 'Bord')" class="bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300 active:bg-slate-700">+5 (Hors zone)</button>
                         <button onclick="marquerTir(0, 'Manqué')" class="bg-red-950/40 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400 active:bg-red-900">0 (Manqué)</button>
@@ -136,7 +136,7 @@
         let configMode = "sprint";
         let currentEq = "", currentPin = "", currentMaillot = "";
         let inputPin = "";
-        
+
         let tirs = []; // Stocke les scores des flèches
         let myHistory = []; // Stocke les clés Firebase des passages envoyés par cet iPad
 
@@ -151,7 +151,7 @@
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
             configMode = config.mode || "sprint";
-            
+
             document.getElementById('modeBadge').textContent = "Mode : " + (configMode === 'relais' ? "RELAIS" : configMode === 'poursuite' ? "POURSUITE" : "CLASSIQUE");
 
             const sel = document.getElementById('selEquipe');
@@ -159,7 +159,7 @@
             sel.innerHTML = "<option value=\"\">-- CHOISIR L'ÉQUIPE --</option>" +
                 Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
             if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
-            
+
             // Si l'équipe est déjà loggée mais sa configuration change (re-génération par le prof)
             if(currentEq && !equipesConfig[currentEq]) resetLogin();
             else if(currentEq && currentMaillot && document.getElementById('ecranCoureurs').classList.contains('hidden')===false) buildCoureursGrid();
@@ -215,31 +215,31 @@
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
             const membres = equipesConfig[currentEq].membres || [];
-            
+
             let html = "";
             const colorMap = {'Rouge': 'bg-red-950 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950 border-yellow-600 text-yellow-400', 'Bleu': 'bg-blue-950 border-blue-600 text-blue-400', 'Vert': 'bg-green-950 border-green-600 text-green-400'};
 
             membres.forEach((m, idx) => {
                 let labelRole = configMode === 'relais' ? `RELAYEUR ${idx + 1}` : m.maillot;
                 let cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
-                
+
                 html += `
-                <button onclick="openSaisie('${m.maillot}', '${m.prenom}')" class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg active:bg-slate-900">
+                <button onclick="openSaisie('${m.maillot}', '${labelRole}')" class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg active:bg-slate-900">
                     <span class="font-black text-2xl uppercase tracking-widest">${labelRole}</span>
-                    <span class="text-sm font-bold mt-1 text-slate-300">${m.prenom} (VMA: ${m.vma})</span>
+                    <span class="text-sm font-bold mt-1 text-slate-300">VMA: ${m.vma}</span>
                 </button>`;
             });
             grid.innerHTML = html;
         }
 
-        window.openSaisie = function(maillot, prenom) {
+        window.openSaisie = function(maillot, label) {
             currentMaillot = maillot;
             document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('flex');
             document.getElementById('ecranSaisie').classList.remove('hidden'); document.getElementById('ecranSaisie').classList.add('flex');
-            
+
             const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
-            document.getElementById('labelCoureur').innerHTML = `<span class="${colorTexte}">Coureur : ${prenom}</span>`;
-            
+            document.getElementById('labelCoureur').innerHTML = `<span class="${colorTexte}">Coureur : ${label}</span>`;
+
             document.getElementById('selVMA').value = "2";
             resetTir();
         }
@@ -253,11 +253,11 @@
         window.marquerTir = function(pts, zoneName) {
             if(tirs.length >= 2) return; // Déjà 2 flèches
             tirs.push(pts);
-            
+
             let aff = document.getElementById(tirs.length === 1 ? 'affF1' : 'affF2');
             aff.className = "bg-slate-800 text-white font-black text-xl py-4 rounded-xl text-center border-4 border-slate-500 shadow-lg impact";
             aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span> <span class="text-[10px] block uppercase text-slate-400">${zoneName}</span>`;
-            
+
             updateTotal();
         }
 
@@ -288,10 +288,10 @@
         // --- VALIDATION & ENVOI ---
         window.validerPassage = function() {
             const btn = document.getElementById('btnValider'); btn.disabled = true;
-            
+
             let ptsTir = tirs[0] + tirs[1];
             let ptsVMA = parseInt(document.getElementById('selVMA').value);
-            
+
             const passage = {
                 equipe: currentEq, maillot: currentMaillot, ptsTir: ptsTir, ptsVMA: ptsVMA,
                 timestamp: Date.now()
@@ -300,7 +300,7 @@
             const ref = db.ref('arcathlon/live/passages').push();
             ref.set(passage).then(() => {
                 myHistory.push(ref.key); // Mémorise qu'ON a envoyé ce passage
-                
+
                 document.body.classList.add('bg-emerald-900'); // Feed-back visuel
                 setTimeout(() => {
                     document.body.classList.remove('bg-emerald-900');

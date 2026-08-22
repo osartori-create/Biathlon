@@ -63,7 +63,7 @@
                         <input type="checkbox" id="mixiteCheckbox" class="w-5 h-5 accent-orange-500"> ⚥ Mixité
                     </label>
                 </div>
-                
+
                 <div class="flex items-center gap-4 bg-slate-800 p-3 rounded-2xl border-2 border-slate-700">
                     <span class="font-black text-slate-300 uppercase text-xs">⚙️ Mode :</span>
                     <select id="modeEpreuve" class="bg-slate-900 border border-slate-600 rounded p-2 text-xs font-bold text-white outline-none">
@@ -144,7 +144,7 @@
         }
 
         function updateClSelect() {
-            document.getElementById('selectClasse').innerHTML = Object.keys(state.classes).map(c => 
+            document.getElementById('selectClasse').innerHTML = Object.keys(state.classes).map(c =>
                 `<option value="${c}" ${c === state.activeCl ? 'selected' : ''}>${c}</option>`
             ).join('');
         }
@@ -165,13 +165,13 @@
             return true;
         }
 
-        window.switchTab = function(t) { 
-            ['viewImport','viewEquipes','viewLive'].forEach(v => document.getElementById(v).classList.add('hidden')); 
+        window.switchTab = function(t) {
+            ['viewImport','viewEquipes','viewLive'].forEach(v => document.getElementById(v).classList.add('hidden'));
             ['btnTab1','btnTab2','btnTab3'].forEach(b => {
                 document.getElementById(b).classList.remove('tab-active','text-blue-500'); document.getElementById(b).classList.add('text-slate-500');
-            }); 
+            });
             let tMap = {'import':'1', 'equipes':'2', 'live':'3'};
-            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden'); 
+            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
             document.getElementById('btnTab' + tMap[t]).classList.add('tab-active', 'text-blue-500');
             document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
         };
@@ -215,7 +215,7 @@
                             const blob = await entry.async("blob");
                             savePhoto(cle, blob);
                             let eleve = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                            if (eleve) { eleve.idPhoto = cle; if (!eleve.Sexe && sexe) eleve.Sexe = sexe; } 
+                            if (eleve) { eleve.idPhoto = cle; if (!eleve.Sexe && sexe) eleve.Sexe = sexe; }
                             else { state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle }); }
                             photosCount++;
                         }
@@ -241,7 +241,7 @@
             }
         }
 
-        async function renderEleves() { 
+        async function renderEleves() {
             const list = document.getElementById('elevesGrid');
             if(!list || !state.activeCl) return;
             let html = "";
@@ -268,12 +268,11 @@
             const nbEquipes = Math.floor(elevesVMA.length / 4);
             if (nbEquipes === 0) return alert("Pas assez d'élèves (min 4).");
 
-            let ordre = document.getElementById('mixiteCheckbox').checked 
+            let ordre = document.getElementById('mixiteCheckbox').checked
                 ? [...elevesVMA.filter(e=>e.Sexe==='F').sort((a,b)=>b.VMA-a.VMA), ...elevesVMA.filter(e=>e.Sexe==='M').sort((a,b)=>b.VMA-a.VMA), ...elevesVMA.filter(e=>e.Sexe!=='F'&&e.Sexe!=='M').sort((a,b)=>b.VMA-a.VMA)]
                 : [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
 
             let newEquipes = Array.from({ length: nbEquipes }, (_, i) => {
-                // Génération du PIN Sécurisé
                 return { id: `EQ${i + 1}`, membres: [], sumVMA: 0, score: 0, pin: Math.floor(100 + Math.random() * 900).toString() };
             });
 
@@ -311,7 +310,7 @@
             }
             document.querySelectorAll('.team-list').forEach(el => {
                 if (el.sortableInstance) el.sortableInstance.destroy();
-                el.sortableInstance = Sortable.create(el, { group: 'teams', animation: 150, ghostClass: 'ghost-item', onEnd: function () { 
+                el.sortableInstance = Sortable.create(el, { group: 'teams', animation: 150, ghostClass: 'ghost-item', onEnd: function () {
                     const newEquipes = [];
                     document.querySelectorAll('#teamsGrid > div').forEach(tDiv => {
                         let sumVMA = 0, membres = [];
@@ -321,7 +320,7 @@
                         let eqBase = state.equipes[state.activeCl].find(e => e.id === tDiv.dataset.teamId);
                         newEquipes.push({ id: eqBase.id, pin: eqBase.pin, membres: membres, sumVMA: sumVMA, score: 0 });
                     });
-                    state.equipes[state.activeCl] = newEquipes; saveToLocal(); renderTeams(); 
+                    state.equipes[state.activeCl] = newEquipes; saveToLocal(); renderTeams();
                 }});
             });
         }
@@ -329,8 +328,8 @@
         window.pushConfig = function() {
             if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0) return alert("Aucune équipe.");
             let configObj = { equipes: {}, mode: document.getElementById('modeEpreuve').value };
-            state.equipes[state.activeCl].forEach(eq => { 
-                configObj.equipes[eq.id] = { pin: eq.pin, membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma, prenom: m.prenom })) };
+            state.equipes[state.activeCl].forEach(eq => {
+                configObj.equipes[eq.id] = { pin: eq.pin, membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma })) };
             });
             db.ref('arcathlon/config').set(configObj).then(() => alert(`🚀 Configuration (${configObj.mode}) envoyée aux iPads !`));
         }
@@ -355,7 +354,7 @@
             `).join('');
 
             ['Vert', 'Bleu', 'Jaune', 'Rouge'].forEach(c => {
-                let joueurs = []; equipesActive.forEach(eq => { eq.membres.filter(m=>m.maillot===c).forEach(j => joueurs.push({ prenom: j.prenom, eq: eq.id, score: j.scoreIndiv })); });
+                let joueurs = []; equipesActive.forEach(eq => { eq.membres.filter(m=>m.maillot===c).forEach(j => joueurs.push({ prenom: `Coureur ${eq.id}-${c}`, eq: eq.id, score: j.scoreIndiv })); });
                 joueurs.sort((a,b)=>b.score-a.score);
                 let col = c==='Vert'?'text-green-400':c==='Bleu'?'text-blue-400':c==='Jaune'?'text-yellow-400':'text-red-400';
                 document.getElementById('globe'+c).innerHTML = `<h4 class="font-black text-center mb-4 uppercase ${col} tracking-widest">${c}</h4>` +
