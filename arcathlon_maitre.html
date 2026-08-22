@@ -20,6 +20,8 @@
         .nav-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
         .nav-scroll::-webkit-scrollbar-track { background: transparent; }
         .doubleur-badge { background: #fbbf24; color: #0f172a; padding: 0 8px; border-radius: 999px; font-size: 0.6rem; font-weight: 900; text-transform: uppercase; }
+        .absent-badge { background: #ef4444; color: white; padding: 0 8px; border-radius: 999px; font-size: 0.6rem; font-weight: 900; text-transform: uppercase; }
+        .alerte-triche { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 900; font-size: 0.7rem; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col font-sans">
@@ -109,9 +111,12 @@
 
         <!-- ONGLET 4 : HISTORIQUE -->
         <div id="viewHistorique" class="h-full flex flex-col hidden">
-            <div class="flex justify-between mb-4 shrink-0">
+            <div class="flex flex-wrap gap-4 mb-4 shrink-0">
                 <select id="selectSeance" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-bold">
                     <option value="">-- Sélectionner une séance --</option>
+                </select>
+                <select id="filterEquipe" class="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm font-bold">
+                    <option value="all">Toutes les équipes</option>
                 </select>
                 <button onclick="loadHistorique()" class="bg-blue-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">🔍 Charger</button>
             </div>
@@ -124,7 +129,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v5')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v6')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -132,7 +137,7 @@
         request.onupgradeneeded = e => { dbPhotos = e.target.result; dbPhotos.createObjectStore("eleves", { keyPath: "id" }); };
         request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v5', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v6', JSON.stringify(state)); }
         function savePhoto(id, blob) { dbPhotos.transaction("eleves", "readwrite").objectStore("eleves").put({ id, blob }); }
         async function getPhotoUrl(id) {
             return new Promise(resolve => {
@@ -203,6 +208,8 @@
             document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
             document.getElementById('btnTab' + tMap[t]).classList.add('tab-active', 'text-blue-500');
             document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
+            // Mettre à jour le filtre équipe dans l'historique
+            if (t === 'historique') updateFilterEquipes();
         };
 
         // Gestion élèves
@@ -308,7 +315,7 @@
             list.innerHTML = html;
         }
 
-        // Génération des équipes avec gestion des doubleurs
+        // Génération des équipes avec gestion des doubleurs et absents
         window.generateTeams = function() {
             if(!state.activeCl) return;
             const eleves = state.classes[state.activeCl] || [];
@@ -322,17 +329,23 @@
                 : [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
 
             const total = ordre.length;
-            const nbEquipes = Math.floor(total / 4);
-            const reste = total % 4;
+            // On veut des équipes de 4 ou 3, avec au maximum 4 par équipe.
+            // Si le total n'est pas un multiple de 4, on fait des équipes de 3 avec un doubleur.
+            const nbEquipes = Math.ceil(total / 4);
+            const nb4 = total - 3 * nbEquipes; // nombre d'équipes de 4
+            const nb3 = nbEquipes - nb4;
+            let tailles = [];
+            for (let i = 0; i < nb4; i++) tailles.push(4);
+            for (let i = 0; i < nb3; i++) tailles.push(3);
+            tailles.sort((a,b) => b - a); // les plus grandes d'abord
 
-            let newEquipes = [];
             let idx = 0;
-
-            // Créer d'abord des équipes de 4
-            for (let i = 0; i < nbEquipes; i++) {
+            let newEquipes = [];
+            let eqIdx = 0;
+            for (let t of tailles) {
                 const membres = [];
                 let sumVMA = 0;
-                for (let j = 0; j < 4; j++) {
+                for (let j = 0; j < t; j++) {
                     if (idx < total) {
                         const eleve = ordre[idx];
                         const couleurs = [
@@ -349,85 +362,26 @@
                             maillot: c.nom,
                             style: c.style,
                             idPhoto: clePhoto(eleve.Nom, eleve.Prenom),
-                            doubleur: false
+                            doubleur: false,
+                            absent: false,
+                            remplaceAbsent: false
                         });
                         sumVMA += eleve.VMA;
                         idx++;
                     }
                 }
-                newEquipes.push({ id: `EQ${i + 1}`, membres, sumVMA, score: 0, pin: Math.floor(100 + Math.random() * 900).toString() });
-            }
-
-            // Gérer le reste : on va transformer certaines équipes en équipes de 3 et désigner un doubleur
-            // Si reste > 0, on va prendre les derniers élèves et les ajouter à des équipes existantes (en passant à 5 ? non, on veut max 4)
-            // Donc on va plutôt réduire le nombre d'équipes pour avoir des équipes de 3 et un doubleur.
-            // On va retirer des élèves des équipes existantes pour les mettre dans de nouvelles équipes de 3 avec doubleur.
-            // Simplification : on va supprimer la dernière équipe de 4 si elle n'est pas pleine, et répartir ses membres.
-            // Mais le plus simple est de refaire la répartition en prenant en compte le reste.
-
-            // On va reconstruire en fonction du reste.
-            if (reste > 0) {
-                // On a nbEquipes équipes de 4, et reste élèves non placés.
-                // On va retirer un élève de chaque équipe pour former des équipes de 3, et ces élèves retirés formeront des équipes de 3 avec doubleur.
-                // Mais l'énoncé veut que certaines équipes soient de 3 avec un doubleur.
-                // Je vais faire simple : je prends les (nbEquipes - reste) équipes de 4, et les reste équipes de 3 (avec un doubleur).
-                // Pour cela, je recommence la génération avec un nombre d'équipes = Math.ceil(total/4) ?
-                // Je vais plutôt utiliser la méthode de remplissage classique : on crée des équipes de taille 4 ou 3, et on marque un doubleur dans les équipes de 3.
-
-                // Réinitialiser
-                newEquipes = [];
-                idx = 0;
-                const nbTotalEquipes = Math.ceil(total / 4); // on aura des équipes de 4 ou 3
-                // On détermine combien d'équipes auront 4 membres et combien 3
-                const nb4 = total - 3 * nbTotalEquipes; // nombre d'équipes de 4
-                const nb3 = nbTotalEquipes - nb4;
-                let tailles = [];
-                for (let i = 0; i < nb4; i++) tailles.push(4);
-                for (let i = 0; i < nb3; i++) tailles.push(3);
-
-                // On trie pour que les plus grandes équipes soient d'abord (pour répartir la VMA)
-                tailles.sort((a,b) => b - a);
-
-                let eqIdx = 0;
-                for (let t of tailles) {
-                    const membres = [];
-                    let sumVMA = 0;
-                    for (let j = 0; j < t; j++) {
-                        if (idx < total) {
-                            const eleve = ordre[idx];
-                            const couleurs = [
-                                { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' },
-                                { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                                { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' },
-                                { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-                            ];
-                            const c = couleurs[j % 4];
-                            membres.push({
-                                prenom: eleve.Prenom,
-                                nom: eleve.Nom.charAt(0) + ".",
-                                vma: eleve.VMA,
-                                maillot: c.nom,
-                                style: c.style,
-                                idPhoto: clePhoto(eleve.Nom, eleve.Prenom),
-                                doubleur: false
-                            });
-                            sumVMA += eleve.VMA;
-                            idx++;
-                        }
-                    }
-                    // Si l'équipe a 3 membres, on marque le premier comme doubleur
-                    if (t === 3 && membres.length === 3) {
-                        membres[0].doubleur = true;
-                    }
-                    newEquipes.push({
-                        id: `EQ${eqIdx + 1}`,
-                        membres,
-                        sumVMA,
-                        score: 0,
-                        pin: Math.floor(100 + Math.random() * 900).toString()
-                    });
-                    eqIdx++;
+                // Si l'équipe a 3 membres, on marque le premier comme doubleur
+                if (t === 3 && membres.length === 3) {
+                    membres[0].doubleur = true;
                 }
+                newEquipes.push({
+                    id: `EQ${eqIdx + 1}`,
+                    membres,
+                    sumVMA,
+                    score: 0,
+                    pin: Math.floor(100 + Math.random() * 900).toString()
+                });
+                eqIdx++;
             }
 
             state.equipes[state.activeCl] = newEquipes;
@@ -451,19 +405,26 @@
                     const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
                     const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700"></div>`;
                     const doubleurBadge = m.doubleur ? `<span class="doubleur-badge">⭐ Doubleur</span>` : '';
+                    const absentBadge = m.absent ? `<span class="absent-badge">⚠️ Absent</span>` : '';
+                    const remplaceBadge = m.remplaceAbsent ? `<span class="doubleur-badge">🔄 Remplace</span>` : '';
+                    const absentClass = m.absent ? 'opacity-50 grayscale' : '';
                     html += `
-                    <div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab bg-slate-900"
+                    <div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab bg-slate-900 ${absentClass}"
                          data-member='${JSON.stringify(m).replace(/"/g, "&quot;")}'>
                         ${photo}
                         <span class="font-black uppercase text-[10px] w-12 tracking-widest">${m.maillot}</span>
                         <div class="flex flex-col"><span class="font-bold text-white text-sm">${m.prenom} ${m.nom}</span><span class="text-[10px] text-slate-400">VMA: ${m.vma}</span></div>
-                        ${doubleurBadge}
+                        ${doubleurBadge} ${remplaceBadge} ${absentBadge}
                     </div>`;
                 }
                 html += `</div>
-                    <div class="flex justify-between items-center mt-2">
+                    <div class="flex flex-wrap justify-between items-center mt-2 gap-2">
                         <span class="bg-slate-800 px-2 py-1 rounded text-red-400 text-xs font-mono tracking-widest border border-slate-700">PIN: ${eq.pin}</span>
-                        ${eq.membres.length === 3 ? `<button onclick="changerDoubleur('${eq.id}')" class="bg-yellow-600/30 text-yellow-300 border border-yellow-700 px-2 py-1 rounded text-xs font-bold uppercase">Changer doubleur</button>` : ''}
+                        <div class="flex gap-2">
+                            ${eq.membres.some(m => m.absent) ? `<button onclick="reactiverAbsent('${eq.id}')" class="bg-emerald-600/30 text-emerald-300 border border-emerald-700 px-2 py-1 rounded text-xs font-bold uppercase">Réactiver absent</button>` : ''}
+                            ${eq.membres.length === 3 ? `<button onclick="changerDoubleur('${eq.id}')" class="bg-yellow-600/30 text-yellow-300 border border-yellow-700 px-2 py-1 rounded text-xs font-bold uppercase">Changer doubleur</button>` : ''}
+                            ${eq.membres.some(m => !m.absent) ? `<button onclick="marquerAbsent('${eq.id}')" class="bg-red-600/30 text-red-300 border border-red-700 px-2 py-1 rounded text-xs font-bold uppercase">Absent</button>` : ''}
+                        </div>
                     </div>
                 </div>`;
                 container.innerHTML += html;
@@ -492,13 +453,47 @@
             });
         }
 
-        // Fonction pour changer le doubleur dans une équipe de 3
+        // Gestion des absents
+        window.marquerAbsent = function(teamId) {
+            const equipe = state.equipes[state.activeCl].find(e => e.id === teamId);
+            if (!equipe) return;
+            // Trouver un membre non absent
+            const actifs = equipe.membres.filter(m => !m.absent);
+            if (actifs.length === 0) { alert("Tous les membres sont déjà absents !"); return; }
+            // Demander quel membre mettre absent
+            const choix = prompt(`Quel membre mettre absent ?\n${actifs.map((m, i) => `${i+1}: ${m.maillot} (${m.prenom})`).join('\n')}`, "1");
+            const idx = parseInt(choix) - 1;
+            if (idx < 0 || idx >= actifs.length) return;
+            const absent = actifs[idx];
+            absent.absent = true;
+            // Désigner un remplaçant : le premier actif non absent (autre que lui)
+            const remplacants = equipe.membres.filter(m => !m.absent && m.maillot !== absent.maillot);
+            if (remplacants.length > 0) {
+                remplacants[0].remplaceAbsent = true;
+            } else {
+                alert("Impossible de trouver un remplaçant, l'équipe est vide.");
+            }
+            saveToLocal();
+            renderTeams();
+        };
+
+        window.reactiverAbsent = function(teamId) {
+            const equipe = state.equipes[state.activeCl].find(e => e.id === teamId);
+            if (!equipe) return;
+            equipe.membres.forEach(m => { m.absent = false; m.remplaceAbsent = false; });
+            // Réattribuer un doubleur si l'équipe est de 3
+            const actifs = equipe.membres.filter(m => !m.absent);
+            if (actifs.length === 3) {
+                actifs[0].doubleur = true;
+            }
+            saveToLocal();
+            renderTeams();
+        };
+
         window.changerDoubleur = function(teamId) {
             const equipe = state.equipes[state.activeCl].find(e => e.id === teamId);
             if (!equipe || equipe.membres.length !== 3) return;
-            // On retire le doubleur actuel
             equipe.membres.forEach(m => m.doubleur = false);
-            // On propose de choisir un nouveau doubleur parmi les 3
             const choix = prompt(`Quel coureur doit être le doubleur ?\n1: ${equipe.membres[0].maillot} (${equipe.membres[0].prenom})\n2: ${equipe.membres[1].maillot} (${equipe.membres[1].prenom})\n3: ${equipe.membres[2].maillot} (${equipe.membres[2].prenom})`, "1");
             const idx = parseInt(choix) - 1;
             if (idx >= 0 && idx < 3) {
@@ -532,7 +527,9 @@
                         vma: m.vma,
                         prenom: m.prenom,
                         nom: m.nom,
-                        doubleur: m.doubleur || false
+                        doubleur: m.doubleur || false,
+                        absent: m.absent || false,
+                        remplaceAbsent: m.remplaceAbsent || false
                     }))
                 };
                 eq.membres.forEach(m => { configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma; });
@@ -562,6 +559,19 @@
                         ${seance.nbSeries} séries | ${seance.nbTours} tours | ${seance.nbFleches} flèches
                     </option>
                 `).join('');
+        }
+
+        function updateFilterEquipes() {
+            const seanceId = document.getElementById('selectSeance').value;
+            const filter = document.getElementById('filterEquipe');
+            if (!seanceId || !state.seances[seanceId]) {
+                filter.innerHTML = '<option value="all">Toutes les équipes</option>';
+                return;
+            }
+            const seance = state.seances[seanceId];
+            const equipes = Object.keys(seance.equipes);
+            filter.innerHTML = '<option value="all">Toutes les équipes</option>' +
+                equipes.map(eq => `<option value="${eq}">${eq}</option>`).join('');
         }
 
         // Résultats live
@@ -596,11 +606,13 @@
                     const type = p.ptsVMA !== undefined ? "Course" : "Tir";
                     const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
                     const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                    const alerte = p.alerteTriche ? '<span class="alerte-triche ml-2">⚠️ Triche</span>' : '';
                     return `
                     <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-2 shadow">
                         <span class="text-slate-400">${h}</span>
                         <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
                         <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}</span>
+                        ${alerte}
                         <button onclick="corrigerPassage('${key}', '${type}', ${pts})"
                                 class="bg-slate-700 text-yellow-400 border border-yellow-800 px-3 py-1 rounded-lg font-bold text-xs">✏️ Corriger</button>
                         <button onclick="supprimerPassage('${key}')"
@@ -622,6 +634,7 @@
             if (confirm("Supprimer ce passage ?")) db.ref('arcathlon/live/passages').child(key).remove();
         };
 
+        // Export avec noms et prénoms
         window.exportResults = function() {
             const seanceId = document.getElementById('selectSeance').value;
             if (!seanceId) return alert("Sélectionnez une séance.");
@@ -629,11 +642,16 @@
                 const passages = snap.val() || {};
                 const seance = state.seances[seanceId];
                 if (!seance) return alert("Séance introuvable.");
-                let csv = "Type;Équipe;Maillot;Points;Timestamp;Série;Vitesse;Temps\n";
+                let csv = "Type;Équipe;Maillot;Prénom;Nom;Points;Timestamp;Série;Vitesse;Temps;AlerteTriche\n";
                 Object.values(passages).forEach(p => {
                     const type = p.ptsVMA !== undefined ? "Course" : "Tir";
                     const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
-                    csv += `${type};${p.equipe};${p.maillot};${pts};${new Date(p.timestamp).toLocaleString()};${p.serie||1};${p.vitesse||''};${p.temps||''}\n`;
+                    // Récupérer prénom et nom depuis la config de la séance
+                    const membres = seance.equipes[p.equipe]?.membres || [];
+                    const membre = membres.find(m => m.maillot === p.maillot);
+                    const prenom = membre ? membre.prenom : '';
+                    const nom = membre ? membre.nom : '';
+                    csv += `${type};${p.equipe};${p.maillot};${prenom};${nom};${pts};${new Date(p.timestamp).toLocaleString()};${p.serie||1};${p.vitesse||''};${p.temps||''};${p.alerteTriche ? 'Oui' : 'Non'}\n`;
                 });
                 csv += "\nTotaux par Équipe;\n";
                 const totauxEquipes = {};
@@ -649,9 +667,9 @@
                     }
                 });
                 Object.entries(totauxEquipes).forEach(([eqId, data]) => {
-                    csv += `Équipe;${eqId};Total;${data.total}\n`;
+                    csv += `Équipe;${eqId};;;Total;${data.total};;;\n`;
                     Object.entries(data.coureurs).forEach(([maillot, scores]) => {
-                        csv += `;;${maillot};${scores.course + scores.tir};Course: ${scores.course};Tir: ${scores.tir}\n`;
+                        csv += `;;${maillot};;;${scores.course + scores.tir};Course: ${scores.course};Tir: ${scores.tir}\n`;
                     });
                 });
                 const blob = new Blob([csv], { type: 'text/csv' });
@@ -674,6 +692,7 @@
             if (!seanceId) return;
             const seance = state.seances[seanceId];
             if (!seance) return alert("Séance introuvable.");
+            const filterEquipe = document.getElementById('filterEquipe').value;
             const container = document.getElementById('historiqueContainer');
             db.ref('arcathlon/historique').child(seanceId).once('value', snap => {
                 const passages = snap.val() || {};
@@ -686,12 +705,23 @@
                         <div class="bg-slate-900 p-3 rounded-xl"><span class="text-xs text-slate-400">Flèches</span><div class="font-bold text-emerald-400">${seance.nbFleches}</div></div>
                     </div>
                 </div>`;
+
+                // Filtrer les passages selon l'équipe sélectionnée
+                const passagesFiltres = {};
+                Object.entries(passages).forEach(([key, p]) => {
+                    if (filterEquipe === 'all' || p.equipe === filterEquipe) {
+                        passagesFiltres[key] = p;
+                    }
+                });
+
                 const scoresEquipes = {};
                 Object.values(seance.equipes).forEach(eq => {
-                    scoresEquipes[eq.id] = { total: 0, coureurs: {} };
-                    eq.membres.forEach(m => { scoresEquipes[eq.id].coureurs[m.maillot] = { course: 0, tir: 0 }; });
+                    if (filterEquipe === 'all' || eq.id === filterEquipe) {
+                        scoresEquipes[eq.id] = { total: 0, coureurs: {} };
+                        eq.membres.forEach(m => { scoresEquipes[eq.id].coureurs[m.maillot] = { course: 0, tir: 0 }; });
+                    }
                 });
-                Object.values(passages).forEach(p => {
+                Object.values(passagesFiltres).forEach(p => {
                     if (scoresEquipes[p.equipe] && scoresEquipes[p.equipe].coureurs[p.maillot]) {
                         if (p.ptsVMA !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].course += p.ptsVMA;
                         if (p.ptsTir !== undefined) scoresEquipes[p.equipe].coureurs[p.maillot].tir += p.ptsTir;
@@ -713,14 +743,15 @@
                 html += `</div>`;
                 html += `<div class="mt-6"><h4 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Détails des Passages</h4>
                     <div class="flex flex-col gap-2 max-h-96 overflow-y-auto">`;
-                Object.entries(passages).sort((a, b) => a[1].timestamp - b[1].timestamp).forEach(([key, p]) => {
+                Object.entries(passagesFiltres).sort((a, b) => a[1].timestamp - b[1].timestamp).forEach(([key, p]) => {
                     const type = p.ptsVMA !== undefined ? "Course" : "Tir";
                     const pts = p.ptsVMA !== undefined ? p.ptsVMA : p.ptsTir;
                     const h = new Date(p.timestamp).toLocaleTimeString('fr-FR');
+                    const alerte = p.alerteTriche ? ' ⚠️' : '';
                     html += `<div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
                         <span class="text-slate-400">${h}</span>
                         <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
-                        <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}</span>
+                        <span class="font-bold ${type === 'Course' ? 'text-blue-400' : 'text-green-400'}">${type}: +${pts}${alerte}</span>
                         <span class="text-slate-400">Série ${p.serie || 1}</span>
                     </div>`;
                 });
@@ -728,6 +759,9 @@
                 container.innerHTML = html;
             });
         };
+
+        // Mettre à jour le filtre équipe quand la séance change
+        document.getElementById('selectSeance').addEventListener('change', updateFilterEquipes);
     </script>
 </body>
 </html>

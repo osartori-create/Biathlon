@@ -20,6 +20,7 @@
         .transition-overlay h2 { font-size: 3rem; font-weight: 900; color: #fbbf24; margin-bottom: 1rem; }
         .transition-overlay p { font-size: 1.5rem; color: #e2e8f0; }
         .icone-statut { font-size: 1.2rem; margin: 0 1px; }
+        .alerte-triche { color: #ef4444; font-weight: 900; background: rgba(239,68,68,0.2); padding: 4px 8px; border-radius: 8px; border: 1px solid #ef4444; }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col font-sans">
@@ -64,7 +65,7 @@
             </div>
         </div>
 
-        <!-- ECRAN 3 : CHRONOMÉTRAGE (démarrage automatique) -->
+        <!-- ECRAN 3 : CHRONOMÉTRAGE (départ manuel pour la première série) -->
         <div id="ecranChrono" class="hidden flex-col h-full">
             <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
             <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0">
@@ -74,7 +75,7 @@
             <div class="flex-1 flex flex-col items-center justify-center gap-6">
                 <div class="text-6xl font-mono font-bold tabular-nums" id="chronoDisplay">00:00.00</div>
                 <div class="flex gap-4">
-                    <button id="btnDepart" onclick="demarrerChrono()" class="bg-green-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-green-700" style="display:none;">Départ</button>
+                    <button id="btnDepart" onclick="demarrerChrono()" class="bg-green-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-green-700">Départ</button>
                     <button id="btnArrivee" onclick="arreterChrono()" class="bg-red-600 text-white w-32 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-red-700" disabled>Arrivée</button>
                 </div>
                 <div class="w-full max-w-md bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
@@ -153,7 +154,7 @@
         let currentPointsCourse = 0;
         let enTransition = false;
         let transitionTimer = null;
-        let chronoAutoDemarre = false; // pour savoir si on a déjà lancé auto
+        let isFirstSerie = true; // pour savoir si on est à la première série (départ manuel)
 
         db.ref('.info/connected').on('value', snap => {
             document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
@@ -176,19 +177,17 @@
             document.getElementById('seanceInfo').textContent = `Séance ${seanceConfig.seanceId ? seanceConfig.seanceId.substring(0, 8) : 'non chargée'}`;
             document.getElementById('toursInfo').textContent = `${seanceConfig.nbTours} tours (${seanceConfig.distanceTotale} m)`;
 
-            // Initialisation des scores : pour chaque coureur, on détermine le nombre de séries à effectuer
-            // Le nombre de séries peut varier selon le doubleur. On le lira depuis la config.
-            // Pour simplifier, on suppose que le nombre de séries est le même pour tous, sauf pour le doubleur qui en a une de plus.
-            // On va stocker dans un objet le nombre de séries par coureur.
+            // Initialisation des scores : chaque coureur a un nombre de séries défini par la config, sauf les remplaçants qui en ont +1
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 const membres = equipesConfig[eq].membres || [];
-                // Déterminer qui est doubleur (s'il y en a un)
-                const doubleur = membres.find(m => m.doubleur === true);
                 membres.forEach(m => {
                     const key = `${eq}-${m.maillot}`;
                     let nbSeries = seanceConfig.nbSeries;
-                    if (doubleur && m.maillot === doubleur.maillot) nbSeries = seanceConfig.nbSeries + 1;
+                    // Si le membre est remplaçant (remplaceAbsent), il fait une série supplémentaire
+                    if (m.remplaceAbsent) nbSeries = seanceConfig.nbSeries + 1;
+                    // Si le membre est absent, on ne lui donne pas de séries (mais on garde la structure pour historique)
+                    if (m.absent) nbSeries = 0;
                     scoresCoureur[key] = {
                         series: Array(nbSeries).fill().map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
                         complet: false
@@ -251,7 +250,7 @@
             clearInterval(chronoInterval);
             if (transitionTimer) clearTimeout(transitionTimer);
             enTransition = false;
-            chronoAutoDemarre = false;
+            isFirstSerie = true;
             currentEq = ""; inputPin = ""; currentMaillot = "";
             document.getElementById('selEquipe').value = "";
             document.getElementById('numpad').classList.add('hidden');
@@ -267,7 +266,6 @@
             document.getElementById('ecranLogin').classList.remove('hidden');
             document.getElementById('ecranLogin').classList.add('flex');
             passageActuel = 1; tirs = []; currentSerie = 0;
-            // Réafficher le bouton Départ (il était caché)
             document.getElementById('btnDepart').style.display = 'block';
         };
 
@@ -282,6 +280,18 @@
                 'Vert': 'bg-green-950 border-green-600 text-green-400'
             };
             membres.forEach(m => {
+                // Si absent, on ne l'affiche pas en tant que bouton cliquable
+                if (m.absent) {
+                    // On affiche un élément grisé
+                    const cClass = 'bg-slate-800 border-slate-600 text-slate-400';
+                    html += `
+                    <div class="border-4 py-8 rounded-3xl flex flex-col items-center justify-center ${cClass} opacity-50">
+                        <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                        <span class="text-sm font-bold mt-1 text-slate-400">VMA: ${m.vma}</span>
+                        <div class="text-xs font-bold text-red-400 mt-1">⚠️ Absent</div>
+                    </div>`;
+                    return;
+                }
                 const key = `${currentEq}-${m.maillot}`;
                 const scores = scoresCoureur[key] || { series: [], complet: false };
                 const serieActuelle = scores.series.findIndex(s => s.course === 0);
@@ -295,7 +305,7 @@
                 let icones = '';
                 for (let i = 0; i < scores.series.length; i++) {
                     const s = scores.series[i];
-                    let icone = '⬜'; // non réalisé
+                    let icone = '⬜';
                     if (s.course > 0) {
                         icone = s.course >= 2 ? '✅' : '❌';
                     }
@@ -305,12 +315,11 @@
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
                 const disabledClass = complet ? 'opacity-50 disabled' : 'active:bg-slate-900';
                 const scoreDisplay = total > 0 ? `<span class="score-badge">${total} pts</span>` : '';
-                // Vérifier si c'est un doubleur (pour affichage éventuel)
-                const estDoubleur = m.doubleur ? ' ⭐' : '';
+                const remplaceBadge = m.remplaceAbsent ? ' ⭐ (remplace absent)' : '';
                 html += `
                 <button onclick="${complet ? '' : `openChrono('${m.maillot}')`}"
                         class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
-                    <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}${estDoubleur}</span>
+                    <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}${remplaceBadge}</span>
                     <span class="text-sm font-bold mt-1 text-slate-300">VMA: ${m.vma}</span>
                     <div class="flex items-center gap-1 mt-2">${icones}</div>
                     ${scoreDisplay}
@@ -320,14 +329,14 @@
             grid.innerHTML = html;
         }
 
-        // Fonction pour ouvrir le chrono avec départ automatique après transition
-        function ouvrirChronoAuto(maillot, transitionNeeded) {
+        // Fonction pour ouvrir le chrono
+        window.openChrono = function(maillot) {
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
             const serieActuelle = scoresCoureur[key].series.findIndex(s => s.course === 0);
             currentSerie = serieActuelle;
-            document.getElementById('ecranTransition').classList.add('hidden');
-            document.getElementById('ecranTransition').classList.remove('flex');
+            // On réinitialise le flag de première série
+            isFirstSerie = true;
             document.getElementById('ecranCoureurs').classList.add('hidden');
             document.getElementById('ecranCoureurs').classList.remove('flex');
             document.getElementById('ecranChrono').classList.remove('hidden');
@@ -341,49 +350,62 @@
                 </div>`;
             document.getElementById('serieActuelle').textContent = `${serieActuelle + 1}/${scoresCoureur[key].series.length}`;
             resetChrono();
-
-            // Masquer le bouton Départ si départ automatique
-            document.getElementById('btnDepart').style.display = 'none';
-
-            // Démarrer automatiquement après un petit délai (si transitionNeeded est false, on démarre immédiatement)
-            if (transitionNeeded) {
-                // On affiche un court compte à rebours avant de démarrer
-                let count = 3;
-                const overlay = document.getElementById('ecranTransition');
-                overlay.classList.remove('hidden');
-                overlay.classList.add('flex');
-                document.getElementById('transitionTexte').textContent = `Série ${serieActuelle + 1} – ${maillot}`;
-                document.getElementById('transitionCompte').textContent = count;
-                if (transitionTimer) clearTimeout(transitionTimer);
-                transitionTimer = setInterval(() => {
-                    count--;
-                    document.getElementById('transitionCompte').textContent = count;
-                    if (count <= 0) {
-                        clearInterval(transitionTimer);
-                        transitionTimer = null;
-                        overlay.classList.add('hidden');
-                        overlay.classList.remove('flex');
-                        // Démarrer le chrono
-                        demarrerChrono();
-                    }
-                }, 1000);
-            } else {
-                // Démarrage immédiat
-                demarrerChrono();
-            }
-        }
-
-        window.openChrono = function(maillot) {
-            // Appel normal depuis la grille (première série)
-            // On veut un départ automatique après un petit temps
-            ouvrirChronoAuto(maillot, true);
+            // Bouton Départ visible (première série)
+            document.getElementById('btnDepart').style.display = 'block';
+            document.getElementById('btnDepart').disabled = false;
         };
+
+        // Fonction pour lancer une série suivante en auto
+        function lancerSerieSuivante(maillot) {
+            currentMaillot = maillot;
+            const key = `${currentEq}-${maillot}`;
+            const serieActuelle = scoresCoureur[key].series.findIndex(s => s.course === 0);
+            currentSerie = serieActuelle;
+            // On cache l'écran de transition
+            document.getElementById('ecranTransition').classList.add('hidden');
+            document.getElementById('ecranTransition').classList.remove('flex');
+            // On affiche le chrono
+            document.getElementById('ecranCoureurs').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranChrono').classList.remove('hidden');
+            document.getElementById('ecranChrono').classList.add('flex');
+            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
+            document.getElementById('coureurLabel').innerHTML = `
+                <span class="${colorTexte}">${maillot}</span>
+                <div class="text-sm font-bold text-slate-400 mt-1">
+                    Série ${serieActuelle + 1}/${scoresCoureur[key].series.length} |
+                    VMA: <span id="vmaCoureur">${seanceConfig.vmaReference[key] || 'N/A'}</span> km/h
+                </div>`;
+            document.getElementById('serieActuelle').textContent = `${serieActuelle + 1}/${scoresCoureur[key].series.length}`;
+            resetChrono();
+            // Masquer le bouton Départ (départ auto)
+            document.getElementById('btnDepart').style.display = 'none';
+            // Démarrer automatiquement après un court délai (3s)
+            let count = 3;
+            const overlay = document.getElementById('ecranTransition');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            document.getElementById('transitionTexte').textContent = `Série ${serieActuelle + 1} – ${maillot}`;
+            document.getElementById('transitionCompte').textContent = count;
+            if (transitionTimer) clearTimeout(transitionTimer);
+            transitionTimer = setInterval(() => {
+                count--;
+                document.getElementById('transitionCompte').textContent = count;
+                if (count <= 0) {
+                    clearInterval(transitionTimer);
+                    transitionTimer = null;
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                    demarrerChrono();
+                }
+            }, 1000);
+        }
 
         window.retourCoureurs = function() {
             clearInterval(chronoInterval);
             if (transitionTimer) clearTimeout(transitionTimer);
             enTransition = false;
-            chronoAutoDemarre = false;
+            isFirstSerie = true;
             document.getElementById('ecranChrono').classList.add('hidden');
             document.getElementById('ecranChrono').classList.remove('flex');
             document.getElementById('ecranSaisie').classList.add('hidden');
@@ -393,7 +415,6 @@
             document.getElementById('ecranCoureurs').classList.remove('hidden');
             document.getElementById('ecranCoureurs').classList.add('flex');
             buildCoureursGrid();
-            // Rétablir le bouton Départ
             document.getElementById('btnDepart').style.display = 'block';
         };
 
@@ -402,7 +423,6 @@
             chronoInterval = setInterval(mettreAJourChrono, 10);
             document.getElementById('btnDepart').disabled = true;
             document.getElementById('btnArrivee').disabled = false;
-            chronoAutoDemarre = true;
         }
 
         function mettreAJourChrono() {
@@ -421,6 +441,13 @@
             currentVitesse = (seanceConfig.distanceTotale / 1000) / (secondesTotales / 3600);
             document.getElementById('tempsAffiche').textContent = document.getElementById('chronoDisplay').textContent;
             document.getElementById('vitesseAffiche').textContent = `${currentVitesse.toFixed(1)} km/h`;
+
+            // Vérification de la vitesse suspecte (>17 km/h)
+            let alerteTriche = false;
+            if (currentVitesse > 17) {
+                alerteTriche = true;
+                alert("⚠️ Vitesse anormalement élevée ! Une alerte a été envoyée au professeur.");
+            }
 
             const key = `${currentEq}-${currentMaillot}`;
             const vmaEleve = seanceConfig.vmaReference[key] || 12;
@@ -448,11 +475,13 @@
                     <div class="text-sm font-bold text-slate-400 mt-1">
                         Série ${currentSerie + 1}/${scoresCoureur[key].series.length} |
                         Vitesse: ${currentVitesse.toFixed(1)} km/h (${pointsVMA} pts)
+                        ${alerteTriche ? '<span class="alerte-triche ml-2">⚠️ Triche suspectée</span>' : ''}
                     </div>`;
                 genererZonesFleches();
                 resetChrono();
-                // Rétablir le bouton Départ pour le prochain appel
                 document.getElementById('btnDepart').style.display = 'block';
+                // On stocke l'alerte pour l'envoi
+                window._alerteTriche = alerteTriche;
             }, 500);
         }
 
@@ -464,7 +493,6 @@
             document.getElementById('btnArrivee').disabled = true;
             document.getElementById('tempsAffiche').textContent = "00:00.00";
             document.getElementById('vitesseAffiche').textContent = "0 km/h";
-            chronoAutoDemarre = false;
         }
 
         function genererZonesFleches() {
@@ -532,7 +560,8 @@
                 passage: passageActuel,
                 serie: currentSerie + 1,
                 timestamp: Date.now(),
-                seanceId: seanceConfig.seanceId
+                seanceId: seanceConfig.seanceId,
+                alerteTriche: window._alerteTriche || false
             };
 
             const ref = db.ref('arcathlon/live/passages').push();
@@ -548,9 +577,8 @@
                 } else {
                     // Série suivante pour le même coureur
                     passageActuel++;
-                    // Lancer directement le chrono avec départ automatique (sans transition, ou avec courte transition)
-                    // On utilise un court délai pour permettre de voir le message
-                    ouvrirChronoAuto(currentMaillot, true);
+                    // Lancer la série suivante en automatique
+                    lancerSerieSuivante(currentMaillot);
                 }
             }).catch(() => {
                 alert("Erreur d'envoi. Vérifiez la connexion.");
