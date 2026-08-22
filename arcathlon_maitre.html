@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcathlon | Maître</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-white p-4 font-sans">
+    <header class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+        <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest">Arcathlon <span class="text-slate-400 text-sm">| Professeur</span></h1>
+        <div class="flex gap-2">
+            <label class="bg-amber-600 px-4 py-2 rounded-lg font-bold text-sm cursor-pointer hover:bg-amber-500">
+                📥 Importer CSV iDoceo (Nom, Prenom, Sexe, VMA)
+                <input type="file" id="csvFile" accept=".csv" class="hidden" onchange="handleCSV(event)">
+            </label>
+            <button onclick="pushConfig()" class="bg-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:bg-blue-500">🚀 Lancer Session</button>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-3 gap-4">
+        <!-- Equipes Générées -->
+        <div class="col-span-1 bg-slate-800 p-4 rounded-xl border border-slate-700 h-[80vh] overflow-y-auto">
+            <h2 class="font-black text-emerald-400 mb-4 uppercase">Équipes (Générées en Local)</h2>
+            <div id="teamsList" class="flex flex-col gap-3"></div>
+        </div>
+        
+        <!-- Live Live & Globes -->
+        <div class="col-span-2 bg-slate-800 p-4 rounded-xl border border-slate-700 h-[80vh] overflow-y-auto">
+            <h2 class="font-black text-amber-400 mb-4 uppercase">🏆 Live Score & Globes</h2>
+            
+            <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-1 mb-2">Gros Globe (Équipes)</h3>
+            <div id="grosGlobe" class="grid grid-cols-2 gap-2 mb-6"></div>
+
+            <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-1 mb-2">Petits Globes (Par Maillot)</h3>
+            <div class="grid grid-cols-4 gap-2">
+                <div id="globeRouge" class="bg-red-900/50 p-2 rounded-lg border border-red-700"></div>
+                <div id="globeJaune" class="bg-yellow-900/50 p-2 rounded-lg border border-yellow-700"></div>
+                <div id="globeBleu" class="bg-blue-900/50 p-2 rounded-lg border border-blue-700"></div>
+                <div id="globeVert" class="bg-green-900/50 p-2 rounded-lg border border-green-700"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "VOTRE_API_KEY",
+            authDomain: "votre-app.firebaseapp.com",
+            databaseURL: "https://votre-app.firebaseio.com",
+            projectId: "votre-app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let equipes = [];
+        let configAnonyme = {};
+
+        function handleCSV(e) {
+            Papa.parse(e.target.files[0], {
+                header: true, skipEmptyLines: true,
+                complete: function(results) {
+                    let data = results.data;
+                    // Tri par VMA décroissante
+                    data.sort((a,b) => parseFloat(b.VMA) - parseFloat(a.VMA));
+                    
+                    let nbEquipes = Math.floor(data.length / 4);
+                    equipes = Array.from({length: nbEquipes}, (_, i) => ({ id: `EQ${i+1}`, membres: [], score: 0, penalitesJuge: 0 }));
+                    
+                    // Distribution Serpentin / Maillots
+                    let couleurs = [
+                        { nom: 'Rouge', style: 'text-red-400' },
+                        { nom: 'Jaune', style: 'text-yellow-400' },
+                        { nom: 'Bleu', style: 'text-blue-400' },
+                        { nom: 'Vert', style: 'text-green-400' }
+                    ];
+
+                    let eleveIdx = 0;
+                    couleurs.forEach((c) => {
+                        for(let i=0; i<nbEquipes; i++) {
+                            if(data[eleveIdx]) {
+                                let el = data[eleveIdx];
+                                // Placeholder pour Laurence si besoin d'exemple, on garde les vrais noms du CSV
+                                equipes[i].membres.push({ nom: el.Nom, prenom: el.Prenom, vma: el.VMA, maillot: c.nom, style: c.style, code: `EQ${i+1}-${c.nom}`, scoreIndiv: 0 });
+                                
+                                // Préparation config anonyme pour tablettes élèves (RGPD)
+                                if(!configAnonyme[`EQ${i+1}`]) configAnonyme[`EQ${i+1}`] = [];
+                                configAnonyme[`EQ${i+1}`].push({ code: `EQ${i+1}-${c.nom}`, maillot: c.nom, vma: el.VMA });
+                                eleveIdx++;
+                            }
+                        }
+                        equipes.reverse(); // Effet serpentin pour équilibrer
+                    });
+
+                    renderTeams();
+                }
+            });
+        }
+
+        function renderTeams() {
+            const container = document.getElementById('teamsList');
+            container.innerHTML = equipes.map(eq => `
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-black text-lg">${eq.id}</span>
+                        <button onclick="penaliserJuge('${eq.id}')" class="bg-red-600 px-2 py-1 rounded text-xs font-bold">Malus Juge (-1pt)</button>
+                    </div>
+                    ${eq.membres.map(m => `<div class="text-sm flex justify-between"><span class="${m.style} font-bold">${m.maillot}</span> <span>${m.prenom} ${m.nom.charAt(0)}. (VMA: ${m.vma})</span></div>`).join('')}
+                </div>
+            `).join('');
+        }
+
+        function penaliserJuge(eqId) {
+            let eq = equipes.find(e => e.id === eqId);
+            if(eq) eq.penalitesJuge++;
+            // Envoi éventuel sur Firebase pour mise à jour live
+            updateScoresLocally();
+        }
+
+        function pushConfig() {
+            db.ref('arcathlon/config/equipes').set(configAnonyme);
+            alert("Session envoyée aux tablettes élèves !");
+        }
+
+        // Ecoute du Live
+        db.ref('arcathlon/live/passages').on('value', snap => {
+            const passages = snap.val() || {};
+            // Calcul des scores
+            equipes.forEach(eq => {
+                eq.score = -eq.penalitesJuge; 
+                eq.membres.forEach(m => m.scoreIndiv = 0);
+            });
+
+            Object.values(passages).forEach(p => {
+                let eq = equipes.find(e => e.id === p.equipe);
+                if(eq) {
+                    let membre = eq.membres.find(m => m.maillot === p.maillot);
+                    if(membre) {
+                        let pts = p.pointsTir + p.pointsVMA;
+                        membre.scoreIndiv += pts;
+                        eq.score += pts;
+                    }
+                }
+            });
+            updateScoresLocally();
+        });
+
+        function updateScoresLocally() {
+            // Tri Gros Globe
+            let eqTriees = [...equipes].sort((a,b) => b.score - a.score);
+            document.getElementById('grosGlobe').innerHTML = eqTriees.map((eq, idx) => `
+                <div class="bg-slate-700 p-2 rounded flex justify-between items-center">
+                    <span class="font-bold">${idx+1}. ${eq.id}</span>
+                    <span class="text-emerald-400 font-black">${eq.score} pts</span>
+                </div>
+            `).join('');
+
+            // Tri Petits Globes
+            ['Rouge', 'Jaune', 'Bleu', 'Vert'].forEach(c => {
+                let joueurs = [];
+                equipes.forEach(eq => {
+                    let j = eq.membres.find(m => m.maillot === c);
+                    if(j) joueurs.push({ nom: j.prenom, eq: eq.id, score: j.scoreIndiv });
+                });
+                joueurs.sort((a,b) => b.score - a.score);
+                document.getElementById('globe'+c).innerHTML = `<h4 class="font-black text-center mb-2 uppercase">${c}</h4>` + 
+                    joueurs.map((j, idx) => `<div class="text-xs flex justify-between border-b border-black/20 py-1"><span>${idx+1}. ${j.nom} (${j.eq})</span> <span class="font-bold">${j.score}</span></div>`).join('');
+            });
+        }
+    </script>
+</body>
+</html>

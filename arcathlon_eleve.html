@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arcathlon | Kiosk Tir</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+</head>
+<body class="bg-black text-white p-4 h-screen flex flex-col font-sans select-none">
+    
+    <div class="bg-slate-900 border-2 border-slate-800 p-6 rounded-[2rem] shadow-xl flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
+        <h1 class="text-4xl font-black text-center text-blue-500 uppercase tracking-widest mb-8">Stand de Tir</h1>
+        
+        <select id="selEquipe" onchange="loadEquipe()" class="w-full bg-slate-950 p-4 rounded-xl text-2xl font-black uppercase text-center border-2 border-slate-700 outline-none mb-4">
+            <option value="">-- CHOISIR SON ÉQUIPE --</option>
+        </select>
+
+        <div id="maillotsGrid" class="grid grid-cols-2 gap-4 mb-8 hidden">
+            <button onclick="setCoureur('Vert')" class="bg-green-900/50 border-4 border-green-600 text-green-400 py-6 rounded-2xl font-black text-2xl uppercase active:scale-95 transition-transform">Maillot Vert</button>
+            <button onclick="setCoureur('Bleu')" class="bg-blue-900/50 border-4 border-blue-600 text-blue-400 py-6 rounded-2xl font-black text-2xl uppercase active:scale-95 transition-transform">Maillot Bleu</button>
+            <button onclick="setCoureur('Jaune')" class="bg-yellow-900/50 border-4 border-yellow-600 text-yellow-400 py-6 rounded-2xl font-black text-2xl uppercase active:scale-95 transition-transform">Maillot Jaune</button>
+            <button onclick="setCoureur('Rouge')" class="bg-red-900/50 border-4 border-red-600 text-red-400 py-6 rounded-2xl font-black text-2xl uppercase active:scale-95 transition-transform">Maillot Rouge</button>
+        </div>
+
+        <div id="saisieTir" class="hidden flex-col gap-4">
+            <div class="text-center font-black text-2xl text-slate-400 mb-2" id="labelCoureur"></div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <button id="btnF1" onclick="toggleF(1)" class="bg-slate-800 border-4 border-slate-600 py-8 rounded-2xl font-black text-2xl uppercase text-slate-400 active:scale-95">Flèche 1 : ---</button>
+                <button id="btnF2" onclick="toggleF(2)" class="bg-slate-800 border-4 border-slate-600 py-8 rounded-2xl font-black text-2xl uppercase text-slate-400 active:scale-95">Flèche 2 : ---</button>
+            </div>
+            
+            <div class="flex items-center gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800 mt-4">
+                <span class="font-bold text-slate-400 uppercase">Points VMA :</span>
+                <select id="selVMA" class="bg-slate-900 text-white p-3 rounded text-xl font-bold border border-slate-700 flex-1 outline-none">
+                    <option value="0">+ 0 pt (Hors délai)</option>
+                    <option value="1">+ 1 pt (Proche)</option>
+                    <option value="2" selected>+ 2 pts (Contrat VMA)</option>
+                    <option value="3">+ 3 pts (Plus vite)</option>
+                </select>
+            </div>
+
+            <button onclick="validerPassage()" class="bg-emerald-600 border-4 border-emerald-400 py-6 rounded-2xl font-black text-3xl uppercase tracking-widest text-white shadow-xl active:bg-emerald-700 mt-4">
+                ✓ Valider le Tir
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "VOTRE_API_KEY",
+            authDomain: "votre-app.firebaseapp.com",
+            databaseURL: "https://votre-app.firebaseio.com",
+            projectId: "votre-app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let equipesConfig = {};
+        let currentEq = "", currentMaillot = "";
+        let f1 = false, f2 = false;
+
+        db.ref('arcathlon/config/equipes').on('value', snap => {
+            equipesConfig = snap.val() || {};
+            const sel = document.getElementById('selEquipe');
+            sel.innerHTML = '<option value="">-- CHOISIR SON ÉQUIPE --</option>' + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+        });
+
+        function loadEquipe() {
+            currentEq = document.getElementById('selEquipe').value;
+            if(currentEq) document.getElementById('maillotsGrid').classList.remove('hidden');
+            else document.getElementById('maillotsGrid').classList.add('hidden');
+            document.getElementById('saisieTir').classList.add('hidden');
+        }
+
+        function setCoureur(maillot) {
+            currentMaillot = maillot;
+            document.getElementById('maillotsGrid').classList.add('hidden');
+            document.getElementById('saisieTir').classList.remove('hidden');
+            document.getElementById('saisieTir').classList.add('flex');
+            document.getElementById('labelCoureur').innerText = `Tireur : ${currentEq} - Maillot ${maillot}`;
+            
+            // Reset
+            f1 = false; f2 = false;
+            updateBtn(1); updateBtn(2);
+            document.getElementById('selVMA').value = "2";
+        }
+
+        function toggleF(num) {
+            if(num===1) f1 = !f1; else f2 = !f2;
+            updateBtn(num);
+        }
+
+        function updateBtn(num) {
+            let btn = document.getElementById(num===1 ? 'btnF1' : 'btnF2');
+            let state = num===1 ? f1 : f2;
+            if(state) {
+                btn.className = "bg-green-600 border-4 border-green-400 py-8 rounded-2xl font-black text-2xl uppercase text-white active:scale-95";
+                btn.innerText = `Flèche ${num} : DANS LA CIBLE`;
+            } else {
+                btn.className = "bg-red-600 border-4 border-red-400 py-8 rounded-2xl font-black text-2xl uppercase text-white active:scale-95";
+                btn.innerText = `Flèche ${num} : MANQUÉE`;
+            }
+        }
+
+        function validerPassage() {
+            let ptsTir = 0;
+            if(f1) ptsTir += 7; // Bareme simple, à ajuster
+            if(f2) ptsTir += 8; 
+            
+            let ptsVMA = parseInt(document.getElementById('selVMA').value);
+
+            db.ref('arcathlon/live/passages').push({
+                equipe: currentEq,
+                maillot: currentMaillot,
+                pointsTir: ptsTir,
+                pointsVMA: ptsVMA,
+                timestamp: Date.now()
+            });
+
+            document.getElementById('selEquipe').value = "";
+            loadEquipe();
+        }
+    </script>
+</body>
+</html>
