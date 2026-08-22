@@ -8,9 +8,9 @@
     <meta http-equiv="Expires" content="0">
     <title>Arcathlon | Maître</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
     <style>
@@ -30,12 +30,6 @@
                 <span id="connDot" class="w-2.5 h-2.5 rounded-full bg-slate-600"></span>
                 <span id="connLabel">Connexion...</span>
             </div>
-            <!-- Sélecteur de classe -->
-            <select id="classSelector" class="bg-slate-900 border border-slate-700 rounded px-3 py-1 text-xs font-bold uppercase tracking-widest">
-                <option value="6èmeA">6èmeA</option>
-                <option value="5èmeB">5èmeB</option>
-                <option value="4èmeC">4èmeC</option>
-            </select>
         </div>
         <button id="purgeLiveBtn" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-800">⚠️ Purger Live</button>
     </header>
@@ -141,11 +135,9 @@
     </div>
 
     <script>
-        // Configuration Firebase par classe
-        const firebaseConfigs = {
-            "6èmeA": { databaseURL: "https://arcathlon-6a-default-rtdb.europe-west1.firebasedatabase.app/" },
-            "5èmeB": { databaseURL: "https://arcathlon-5b-default-rtdb.europe-west1.firebasedatabase.app/" },
-            "4èmeC": { databaseURL: "https://arcathlon-4c-default-rtdb.europe-west1.firebasedatabase.app/" }
+        // Configuration Firebase
+        const firebaseConfig = {
+            databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
         };
 
         // Variables globales
@@ -155,53 +147,68 @@
         let photosEleve = {};
         let sexeEleve = {};
         let isEditingTeams = false;
-        let dernierReliquat = [];
         let db = null;
 
-        // Initialisation de Firebase avec la classe sélectionnée
+        // Initialisation de Firebase
         function initFirebase() {
-            const selectedClass = document.getElementById('classSelector').value;
             try {
                 if (typeof firebase === 'undefined') throw new Error("SDK Firebase non chargé");
-                firebase.initializeApp(firebaseConfigs[selectedClass]);
-                return firebase.database();
+
+                console.log("Initialisation de Firebase...");
+                firebase.initializeApp(firebaseConfig);
+                const db = firebase.database();
+
+                // Vérification de la connexion
+                db.ref('.info/connected').on('value', (snap) => {
+                    const connected = snap.val() === true;
+                    const dot = document.getElementById('connDot');
+                    const label = document.getElementById('connLabel');
+
+                    if (connected) {
+                        console.log("Connecté à Firebase avec succès");
+                        dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                        label.textContent = "En ligne";
+                    } else {
+                        console.log("Non connecté à Firebase");
+                        dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
+                        label.textContent = "Hors ligne";
+                    }
+                });
+
+                return db;
             } catch (err) {
-                console.error("Firebase indisponible :", err.message);
+                console.error("Erreur lors de l'initialisation de Firebase :", err);
                 afficherBanniereHorsLigne();
                 return null;
             }
         }
 
-        // Écouteur pour changer de classe
-        document.getElementById('classSelector').addEventListener('change', function() {
-            db = initFirebase();
-            if (db) {
-                db.ref('arcathlon/config/bareme').once('value', snap => {
-                    const val = snap.val();
-                    if (val) {
-                        document.getElementById('baremeF1').value = val.f1;
-                        document.getElementById('baremeF2').value = val.f2;
-                    }
-                });
-            }
-        });
-
-        // Initialisation au chargement de la page
-        db = initFirebase();
-
-        // Fonction pour afficher une bannière hors ligne
+        // Affichage d'une bannière hors ligne
         function afficherBanniereHorsLigne() {
             const dot = document.getElementById('connDot');
             const label = document.getElementById('connLabel');
             dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 pulse-dot";
             label.textContent = "Firebase indisponible";
+
             const banniere = document.createElement('div');
             banniere.className = "bg-red-950 border-2 border-red-700 text-red-300 text-xs font-bold rounded-xl px-4 py-2 mb-4 shrink-0";
-            banniere.textContent = "⚠️ Connexion à Firebase impossible (réseau ou pare-feu). L'import, la saisie manuelle et la génération des équipes restent utilisables hors-ligne ; l'envoi aux iPads et le suivi en direct seront indisponibles tant que la connexion n'est pas rétablie.";
+            banniere.innerHTML = `
+                ⚠️ Connexion à Firebase impossible.
+                <ul class="list-disc pl-5 mt-1">
+                    <li>Vérifiez votre connexion Internet.</li>
+                    <li>Assurez-vous que Firebase n'est pas bloqué par le réseau.</li>
+                    <li>Les données seront sauvegardées localement en attendant une reconnexion.</li>
+                </ul>
+            `;
             document.querySelector('header').after(banniere);
+
+            // Désactiver les boutons nécessitant Firebase
             ['pushConfigBtn', 'saveBaremeBtn', 'purgeLiveBtn'].forEach(id => {
-                document.getElementById(id).disabled = true;
-                document.getElementById(id).classList.add('opacity-40', 'cursor-not-allowed');
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add('opacity-40', 'cursor-not-allowed');
+                }
             });
         }
 
@@ -638,6 +645,106 @@
 
         document.getElementById('generateTeamsBtn').addEventListener('click', generateTeams);
 
+        // Sauvegarder les données localement
+        function sauvegarderLocalement() {
+            localStorage.setItem('equipes', JSON.stringify(equipes));
+            localStorage.setItem('configAnonyme', JSON.stringify(configAnonyme));
+            localStorage.setItem('bareme', JSON.stringify({
+                f1: document.getElementById('baremeF1').value,
+                f2: document.getElementById('baremeF2').value
+            }));
+            console.log("Données sauvegardées localement");
+        }
+
+        // Charger les données depuis le stockage local
+        function chargerDepuisLocal() {
+            const equipesSauvegardees = localStorage.getItem('equipes');
+            const configSauvegardee = localStorage.getItem('configAnonyme');
+            const baremeSauvegarde = localStorage.getItem('bareme');
+
+            if (equipesSauvegardees) equipes = JSON.parse(equipesSauvegardees);
+            if (configSauvegardee) configAnonyme = JSON.parse(configSauvegardee);
+            if (baremeSauvegarde) {
+                const bareme = JSON.parse(baremeSauvegarde);
+                document.getElementById('baremeF1').value = bareme.f1;
+                document.getElementById('baremeF2').value = bareme.f2;
+            }
+
+            console.log("Données chargées depuis le stockage local");
+        }
+
+        // Synchroniser avec Firebase
+        function synchroniserAvecFirebase() {
+            if (!db) {
+                console.error("Firebase n'est pas initialisé");
+                return;
+            }
+
+            const bareme = {
+                f1: parseInt(document.getElementById('baremeF1').value) || 0,
+                f2: parseInt(document.getElementById('baremeF2').value) || 0
+            };
+
+            // Synchronisation du barème
+            db.ref('arcathlon/config/bareme').set(bareme)
+                .then(() => {
+                    console.log("Barème synchronisé avec Firebase");
+                })
+                .catch(err => {
+                    console.error("Erreur de synchronisation du barème :", err);
+                });
+
+            // Synchronisation des équipes
+            if (Object.keys(configAnonyme).length > 0) {
+                db.ref('arcathlon/config/equipes').set(configAnonyme)
+                    .then(() => {
+                        console.log("Équipes synchronisées avec Firebase");
+                        alert("Configuration envoyée avec succès aux iPads élèves !");
+                    })
+                    .catch(err => {
+                        console.error("Erreur de synchronisation des équipes :", err);
+                        alert("Erreur de synchronisation : " + err.message);
+                    });
+            }
+        }
+
+        // Chargement initial des données
+        document.addEventListener('DOMContentLoaded', function() {
+            db = initFirebase();
+            chargerDepuisLocal();
+
+            if (db) {
+                // Charger le barème depuis Firebase
+                db.ref('arcathlon/config/bareme').once('value', snap => {
+                    const val = snap.val();
+                    if (val) {
+                        document.getElementById('baremeF1').value = val.f1;
+                        document.getElementById('baremeF2').value = val.f2;
+                    }
+                });
+            }
+
+            if (equipes.length > 0) {
+                renderTeams();
+            }
+        });
+
+        // Sauvegarde locale après génération des équipes
+        document.getElementById('generateTeamsBtn').addEventListener('click', function() {
+            generateTeams();
+            sauvegarderLocalement();
+        });
+
+        // Synchronisation avec Firebase
+        document.getElementById('pushConfigBtn').addEventListener('click', function() {
+            if (db) {
+                synchroniserAvecFirebase();
+            } else {
+                sauvegarderLocalement();
+                alert("Firebase n'est pas disponible. Les données sont sauvegardées localement et seront synchronisées dès que la connexion sera rétablie.");
+            }
+        });
+
         // Mise à jour des scores
         function updateScoresLocally() {
             let eqTriees = [...equipes].sort((a, b) => b.score - a.score);
@@ -748,7 +855,7 @@
                 passagesActuels = snap.val() || {};
                 equipes.forEach(eq => { eq.score = 0; eq.membres.forEach(m => m.scoreIndiv = 0); });
                 Object.values(passagesActuels).forEach(p => {
-                    let eq = équipes.find(e => e.id === p.equipe);
+                    let eq = equipes.find(e => e.id === p.equipe);
                     if (eq) {
                         let membres = eq.membres.filter(m => m.maillot === p.maillot);
                         if (membres.length > 0) {
