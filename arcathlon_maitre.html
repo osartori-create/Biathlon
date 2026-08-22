@@ -17,8 +17,6 @@
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col font-sans">
-
-    <!-- Header & Statut -->
     <header class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4 shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-4">
             <h1 class="text-2xl font-black text-blue-500 uppercase tracking-widest italic">Arcathlon <span class="text-slate-400 text-sm">| Professeur</span></h1>
@@ -27,8 +25,6 @@
                 <span id="connLabel">Connexion...</span>
             </div>
         </div>
-        
-        <!-- Sélecteur de classes -->
         <div class="flex items-center gap-2 bg-slate-800 p-2 rounded-2xl border border-slate-600">
             <span class="text-xs font-black uppercase text-slate-400 ml-2">Classe :</span>
             <select id="selectClasse" onchange="changeClasse(this.value)" class="bg-slate-950 p-2 rounded-xl text-sm font-bold border border-slate-700 text-white outline-none w-32"></select>
@@ -36,7 +32,6 @@
         </div>
     </header>
 
-    <!-- Navigation par Onglets -->
     <nav class="flex border-b border-slate-700 mb-6 font-bold text-xs uppercase tracking-widest overflow-x-auto shrink-0">
         <button id="btnTab1" onclick="switchTab('import')" class="px-6 py-4 tab-active whitespace-nowrap">📥 Import & Élèves</button>
         <button id="btnTab2" onclick="switchTab('equipes')" class="px-6 py-4 text-slate-500 whitespace-nowrap">👥 Équipes & Config</button>
@@ -44,65 +39,55 @@
     </nav>
 
     <div class="flex-1 overflow-hidden">
-        <!-- ONGLET 1 : IMPORT & ELEVES -->
+        <!-- ONGLET 1 -->
         <div id="viewImport" class="h-full flex flex-col">
             <div class="flex flex-wrap items-center gap-4 mb-4 shrink-0 bg-slate-800 p-4 rounded-2xl border-2 border-slate-700">
-                <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-6 py-3 rounded-xl font-black text-sm uppercase shadow-lg border border-emerald-400 active:scale-95 transition-transform">📄 1. Import CSV iDoceo</button>
+                <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-6 py-3 rounded-xl font-black text-sm uppercase shadow-lg border border-emerald-400">📄 Import CSV</button>
                 <input type="file" id="csvFile" accept=".csv" class="hidden">
-                
-                <button onclick="document.getElementById('zipFile').click()" class="bg-indigo-600 px-6 py-3 rounded-xl font-black text-sm uppercase shadow-lg border border-indigo-400 active:scale-95 transition-transform">📸 2. Import ZIP Photos</button>
+                <button onclick="document.getElementById('zipFile').click()" class="bg-indigo-600 px-6 py-3 rounded-xl font-black text-sm uppercase shadow-lg border border-indigo-400">📸 Import ZIP</button>
                 <input type="file" id="zipFile" accept=".zip" class="hidden">
-
                 <div class="ml-auto flex gap-2">
-                    <button onclick="addManualEleve()" class="bg-slate-700 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-slate-500 active:bg-slate-600">+ Élève</button>
-                    <button onclick="purgeEleves()" class="bg-red-900/50 text-red-400 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-red-800 active:bg-red-800">🗑 Vider</button>
+                    <button onclick="addManualEleve()" class="bg-slate-700 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-slate-500">+ Élève</button>
+                    <button onclick="purgeEleves()" class="bg-red-900/50 text-red-400 px-4 py-3 rounded-xl font-bold text-xs uppercase border border-red-800">🗑 Vider</button>
                 </div>
             </div>
-            
-            <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 overflow-y-auto pb-6 pr-2 content-start">
-                <!-- Les cartes élèves s'affichent ici -->
-            </div>
+            <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 overflow-y-auto pb-6 pr-2 content-start"></div>
         </div>
 
-        <!-- ONGLET 2 : EQUIPES & CONFIG -->
+        <!-- ONGLET 2 -->
         <div id="viewEquipes" class="h-full flex flex-col hidden">
             <div class="flex flex-wrap items-center justify-between mb-6 gap-4 border-b border-slate-700 pb-4 shrink-0">
                 <div class="flex items-center gap-4">
-                    <button onclick="generateTeams()" class="bg-orange-600 px-6 py-3 rounded-xl font-black uppercase text-sm shadow-lg active:scale-95 transition-transform border border-orange-400">🔄 Générer les équipes</button>
-                    <label class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-3 rounded-xl font-bold text-sm text-slate-300 cursor-pointer">
-                        <input type="checkbox" id="mixiteCheckbox" class="w-5 h-5 accent-orange-500">
-                        ⚥ Équilibrer la mixité
+                    <button onclick="generateTeams()" class="bg-orange-600 px-6 py-3 rounded-xl font-black uppercase text-sm shadow-lg border border-orange-400">🔄 Générer</button>
+                    <label class="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-3 rounded-xl font-bold text-sm text-slate-300">
+                        <input type="checkbox" id="mixiteCheckbox" class="w-5 h-5 accent-orange-500"> ⚥ Mixité
                     </label>
                 </div>
                 
                 <div class="flex items-center gap-4 bg-slate-800 p-3 rounded-2xl border-2 border-slate-700">
-                    <span class="font-black text-slate-300 uppercase text-xs">🎯 Barème :</span>
-                    <label class="text-xs font-bold text-slate-300">F1 <input type="number" id="baremeF1" class="w-12 bg-slate-900 border border-slate-600 rounded text-center ml-1 py-1"></label>
-                    <label class="text-xs font-bold text-slate-300">F2 <input type="number" id="baremeF2" class="w-12 bg-slate-900 border border-slate-600 rounded text-center ml-1 py-1"></label>
+                    <span class="font-black text-slate-300 uppercase text-xs">⚙️ Mode :</span>
+                    <select id="modeEpreuve" class="bg-slate-900 border border-slate-600 rounded p-2 text-xs font-bold text-white outline-none">
+                        <option value="sprint">Sprint / Mass Start</option>
+                        <option value="poursuite">Poursuite Inversée</option>
+                        <option value="relais">Relais Stratégique</option>
+                    </select>
                 </div>
 
-                <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-sm shadow-xl active:scale-95 transition-transform text-white border-2 border-blue-400">🚀 Envoyer aux iPads</button>
+                <button onclick="pushConfig()" class="bg-blue-600 px-8 py-3 rounded-xl font-black uppercase text-sm shadow-xl text-white border-2 border-blue-400">🚀 Envoyer aux iPads</button>
             </div>
-            
-            <div class="text-xs text-slate-500 font-bold mb-4 uppercase tracking-widest shrink-0">👆 Glissez et déposez les élèves pour ajuster les équipes manuellement (leur couleur restera fixe).</div>
-            
-            <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6 pr-2 content-start">
-                <!-- Les équipes s'affichent ici -->
-            </div>
+            <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto pb-6 pr-2 content-start"></div>
         </div>
 
-        <!-- ONGLET 3 : RÉSULTATS LIVE -->
+        <!-- ONGLET 3 -->
         <div id="viewLive" class="h-full flex flex-col hidden">
             <div class="flex justify-end mb-4 shrink-0">
-                <button onclick="purgeLive()" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-800 transition-colors">⚠️ Purger le Direct</button>
+                <button onclick="purgeLive()" class="bg-red-900/50 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs">⚠️ Purger le Direct</button>
             </div>
-            
             <div class="flex-1 overflow-y-auto pr-2 pb-6 space-y-8">
                 <div>
                     <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Gros Globe (Par Équipe)</h3>
                     <div id="grosGlobe" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
                 </div>
-                
                 <div>
                     <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Petits Globes (Individuel)</h3>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -112,9 +97,8 @@
                         <div id="globeRouge" class="bg-red-900/30 p-4 rounded-2xl border-2 border-red-800/50"></div>
                     </div>
                 </div>
-
                 <div>
-                    <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Derniers passages enregistrés</h3>
+                    <h3 class="font-bold text-slate-300 border-b border-slate-600 pb-2 mb-4 uppercase tracking-widest">Passages enregistrés (Direct)</h3>
                     <div id="journalPassages" class="flex flex-col gap-2"></div>
                 </div>
             </div>
@@ -122,115 +106,69 @@
     </div>
 
     <script>
-        // CONFIGURATION FIREBASE
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // GESTION DE L'ÉTAT LOCAL (Multi-classes)
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v2')) || {
-            classes: {}, // Ex: { "3A": [...], "4B": [...] }
-            equipes: {}, // Ex: { "3A": [...], "4B": [...] }
-            activeCl: "",
-            bareme: { f1: 7, f2: 8 }
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_master_v3')) || {
+            classes: {}, equipes: {}, activeCl: ""
         };
 
-        function saveToLocal() {
-            localStorage.setItem('arcathlon_state_master_v2', JSON.stringify(state));
-        }
-
-        // BASE DE DONNEES INDEXED DB (Photos)
         let dbPhotos;
         const request = indexedDB.open("Arcathlon_DB", 1);
         request.onupgradeneeded = e => { dbPhotos = e.target.result; dbPhotos.createObjectStore("eleves", { keyPath: "id" }); };
         request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
 
-        function savePhoto(id, blob) {
-            const tx = dbPhotos.transaction("eleves", "readwrite");
-            tx.objectStore("eleves").put({ id, blob });
-        }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_master_v3', JSON.stringify(state)); }
+        function savePhoto(id, blob) { dbPhotos.transaction("eleves", "readwrite").objectStore("eleves").put({ id, blob }); }
         async function getPhotoUrl(id) {
             return new Promise(resolve => {
                 if(!dbPhotos) resolve(null);
-                const tx = dbPhotos.transaction("eleves", "readonly");
-                const req = tx.objectStore("eleves").get(id);
+                const req = dbPhotos.transaction("eleves", "readonly").objectStore("eleves").get(id);
                 req.onsuccess = () => req.result ? resolve(URL.createObjectURL(req.result.blob)) : resolve(null);
             });
         }
-
-        // NOUVELLE CLÉ UNIQUE (Nom + 1ère lettre du prénom) - Contourne les bugs de caractères
         function clePhoto(nom, prenom) {
             if(!nom) nom = ""; if(!prenom) prenom = "";
             return (nom.trim() + "_" + prenom.trim().charAt(0)).toUpperCase().replace(/\s+/g, "");
         }
 
-        // INITIALISATION DE L'INTERFACE
         function initUI() {
-            document.getElementById('baremeF1').value = state.bareme.f1;
-            document.getElementById('baremeF2').value = state.bareme.f2;
             updateClSelect();
-            
-            if(state.activeCl && state.classes[state.activeCl]) {
-                renderEleves();
-                renderTeams();
-            }
-
+            if(state.activeCl && state.classes[state.activeCl]) { renderEleves(); renderTeams(); }
             db.ref('.info/connected').on('value', snap => {
-                const connecte = snap.val() === true;
-                document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (connecte ? "bg-emerald-500" : "bg-red-500 animate-pulse");
-                document.getElementById('connLabel').textContent = connecte ? "En Ligne" : "Hors Ligne";
+                document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500 animate-pulse");
+                document.getElementById('connLabel').textContent = snap.val() ? "En Ligne" : "Hors Ligne";
             });
-            db.ref('arcathlon/live/passages').on('value', snap => {
-                updateLiveScores(snap.val() || {});
-            });
+            db.ref('arcathlon/live/passages').on('value', snap => { updateLiveScores(snap.val() || {}); });
         }
 
-        // GESTION DES CLASSES
         function updateClSelect() {
-            const sel = document.getElementById('selectClasse');
-            sel.innerHTML = Object.keys(state.classes).map(c => 
+            document.getElementById('selectClasse').innerHTML = Object.keys(state.classes).map(c => 
                 `<option value="${c}" ${c === state.activeCl ? 'selected' : ''}>${c}</option>`
             ).join('');
         }
-
-        window.changeClasse = function(val) {
-            state.activeCl = val;
-            saveToLocal();
-            renderEleves();
-            renderTeams();
-        }
-
+        window.changeClasse = function(val) { state.activeCl = val; saveToLocal(); renderEleves(); renderTeams(); }
         window.addClasse = function() {
             const nom = prompt("Nom de la nouvelle classe ?");
             if(nom && !state.classes[nom]) {
-                state.classes[nom] = [];
-                state.equipes[nom] = [];
-                state.activeCl = nom;
-                updateClSelect();
-                saveToLocal();
-                renderEleves();
-                renderTeams();
+                state.classes[nom] = []; state.equipes[nom] = []; state.activeCl = nom;
+                updateClSelect(); saveToLocal(); renderEleves(); renderTeams();
             }
         }
-
-        function verifyActiveClass(promptMsg) {
+        function verifyActiveClass(msg) {
             if(Object.keys(state.classes).length === 0) {
-                const nom = prompt(promptMsg || "Nom de la classe pour cet import ?");
+                const nom = prompt(msg || "Nom de la classe pour cet import ?");
                 if(!nom) return false;
-                state.classes[nom] = [];
-                state.equipes[nom] = [];
-                state.activeCl = nom;
-                updateClSelect();
+                state.classes[nom] = []; state.equipes[nom] = []; state.activeCl = nom; updateClSelect();
             }
             return true;
         }
 
-        // ONGLETS
         window.switchTab = function(t) { 
             ['viewImport','viewEquipes','viewLive'].forEach(v => document.getElementById(v).classList.add('hidden')); 
             ['btnTab1','btnTab2','btnTab3'].forEach(b => {
-                document.getElementById(b).classList.remove('tab-active','text-blue-500');
-                document.getElementById(b).classList.add('text-slate-500');
+                document.getElementById(b).classList.remove('tab-active','text-blue-500'); document.getElementById(b).classList.add('text-slate-500');
             }); 
             let tMap = {'import':'1', 'equipes':'2', 'live':'3'};
             document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden'); 
@@ -238,30 +176,20 @@
             document.getElementById('btnTab' + tMap[t]).classList.remove('text-slate-500');
         };
 
-        // --- ONGLET 1 : IMPORT & ELEVES ---
         document.getElementById('csvFile').addEventListener('change', function(e) {
             if(!verifyActiveClass("Nom de la classe pour ce fichier CSV ?")) { e.target.value = ''; return; }
-            
             Papa.parse(e.target.files[0], {
                 delimiter: ";", header: false, skipEmptyLines: true,
                 complete: function(results) {
-                    let brut = results.data;
                     let importes = 0;
-                    brut.forEach(row => {
-                        if (!row[0] || row[0].trim() === "") return;
-                        if (row[0].toLowerCase().includes("luc léger") || row[0].toLowerCase().includes("vma")) return;
-                        
+                    results.data.forEach(row => {
+                        if (!row[0] || row[0].trim() === "" || row[0].toLowerCase().includes("luc léger")) return;
                         const nomComplet = row[0].trim().split(" ");
-                        const prenom = nomComplet[0];
-                        const nom = nomComplet.slice(1).join(" ").toUpperCase();
-                        
-                        const vmaRaw = row[1] ? String(row[1]).trim().replace(",", ".") : "";
-                        const vma = parseFloat(vmaRaw);
+                        const prenom = nomComplet[0]; const nom = nomComplet.slice(1).join(" ").toUpperCase();
+                        const vma = parseFloat(row[1] ? String(row[1]).trim().replace(",", ".") : "");
                         if (isNaN(vma)) return;
-
                         const cle = clePhoto(nom, prenom);
                         let existing = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                        
                         if (existing) existing.VMA = vma;
                         else state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: "", idPhoto: cle });
                         importes++;
@@ -273,77 +201,41 @@
         });
 
         document.getElementById('zipFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (!dbPhotos) return alert("Base de données photos non prête.");
-            if(!verifyActiveClass("Nom de la classe pour ces photos ?")) { e.target.value = ''; return; }
-
+            const file = e.target.files[0]; if (!file || !dbPhotos || !verifyActiveClass()) { e.target.value = ''; return; }
             JSZip.loadAsync(file).then(async function(zip) {
                 let photosCount = 0;
                 for (const path in zip.files) {
                     const entry = zip.files[path];
                     if (!entry.dir && entry.name.match(/\.(jpe?g|png)$/i)) {
                         const filename = entry.name.split('/').pop().normalize("NFC");
-                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.(jpe?g|png)$/i);
-                        let nom, prenom, sexe, cle;
+                        const match = filename.match(/^_([^,]+),_([^_]+)_([FM])\.(jpe?g|png)$/i) || filename.match(/^_([^,]+),_([^_]+)\.(jpe?g|png)$/i);
                         if (match) {
-                            nom = match[1].trim().toUpperCase(); prenom = match[2].trim(); sexe = match[3].trim().toUpperCase();
-                        } else {
-                            const match2 = filename.match(/^_([^,]+),_([^_]+)\.(jpe?g|png)$/i);
-                            if (match2) { nom = match2[1].trim().toUpperCase(); prenom = match2[2].trim(); sexe = ""; }
-                        }
-                        if (nom && prenom) {
-                            cle = clePhoto(nom, prenom);
+                            let nom = match[1].trim().toUpperCase(), prenom = match[2].trim(), sexe = match[3] ? match[3].trim().toUpperCase() : "";
+                            let cle = clePhoto(nom, prenom);
                             const blob = await entry.async("blob");
-                            savePhoto(cle, blob); // Sauvegarde avec la clé courte
-                            
+                            savePhoto(cle, blob);
                             let eleve = state.classes[state.activeCl].find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                            if (eleve) {
-                                eleve.idPhoto = cle;
-                                if (!eleve.Sexe && sexe) eleve.Sexe = sexe;
-                            } else {
-                                state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle });
-                            }
+                            if (eleve) { eleve.idPhoto = cle; if (!eleve.Sexe && sexe) eleve.Sexe = sexe; } 
+                            else { state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: 0, Sexe: sexe, idPhoto: cle }); }
                             photosCount++;
                         }
                     }
                 }
-                alert(`${photosCount} photos iDoceo associées dans ${state.activeCl} !`);
-                saveToLocal(); renderEleves(); renderTeams(); e.target.value = '';
+                alert(`${photosCount} photos associées dans ${state.activeCl} !`); saveToLocal(); renderEleves(); renderTeams(); e.target.value = '';
             });
         });
 
         window.addManualEleve = function() {
             if(!verifyActiveClass("Créez d'abord une classe :")) return;
-            const prenom = prompt("Prénom de l'élève :"); if (!prenom) return;
-            const nom = prompt("Nom de l'élève :"); if (!nom) return;
-            const vmaRaw = prompt("VMA de l'élève (ex: 12.5) :");
-            const vma = parseFloat(vmaRaw.replace(',', '.'));
-            const sexe = prompt("Sexe (F ou M) :") || "";
-
-            if (!isNaN(vma)) {
-                state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: sexe.toUpperCase(), idPhoto: clePhoto(nom, prenom) });
+            const prenom = prompt("Prénom :"); const nom = prompt("Nom :");
+            const vma = parseFloat((prompt("VMA (ex: 12.5) :")||"").replace(',', '.'));
+            if (!isNaN(vma) && prenom && nom) {
+                state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: prompt("Sexe (F/M) :")?.toUpperCase()||"", idPhoto: clePhoto(nom, prenom) });
                 saveToLocal(); renderEleves();
-            } else alert("VMA invalide.");
-        }
-
-        window.editEleve = function(index) {
-            if(!state.activeCl) return;
-            let eleve = state.classes[state.activeCl][index];
-            const newVMA = prompt(`Modifier la VMA pour ${eleve.Prenom} ${eleve.Nom} :`, eleve.VMA);
-            if(newVMA !== null) {
-                const parsedVMA = parseFloat(newVMA.replace(',', '.'));
-                if(!isNaN(parsedVMA)) eleve.VMA = parsedVMA;
             }
-            const newSexe = prompt(`Modifier le Sexe (F ou M) pour ${eleve.Prenom} ${eleve.Nom} :`, eleve.Sexe);
-            if(newSexe !== null) eleve.Sexe = newSexe.toUpperCase();
-            
-            saveToLocal(); renderEleves(); renderTeams();
         }
-
         window.purgeEleves = function() {
-            if(!state.activeCl) return;
-            if(confirm(`Vider entièrement la classe ${state.activeCl} ?`)) {
+            if(state.activeCl && confirm(`Vider entièrement la classe ${state.activeCl} ?`)) {
                 state.classes[state.activeCl] = []; state.equipes[state.activeCl] = [];
                 saveToLocal(); renderEleves(); renderTeams();
             }
@@ -352,168 +244,100 @@
         async function renderEleves() { 
             const list = document.getElementById('elevesGrid');
             if(!list || !state.activeCl) return;
-            const elevesActive = state.classes[state.activeCl] || [];
             let html = "";
-            for(let i = 0; i < elevesActive.length; i++) {
-                const e = elevesActive[i];
+            for(let i = 0; i < (state.classes[state.activeCl] || []).length; i++) {
+                const e = state.classes[state.activeCl][i];
                 const url = e.idPhoto ? await getPhotoUrl(e.idPhoto) : null;
                 const photo = url ? `<img src="${url}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-4xl bg-slate-700">👤</div>`;
-                
                 html += `
                 <div class="bg-slate-800 rounded-2xl border-2 border-slate-700 flex flex-col overflow-hidden relative shadow-lg">
-                    <button onclick="editEleve(${i})" class="absolute top-2 left-2 bg-blue-600 text-white w-7 h-7 rounded-full font-bold text-xs shadow-md z-10 active:scale-95">✏️</button>
-                    <button onclick="state.classes['${state.activeCl}'].splice(${i}, 1); saveToLocal(); renderEleves(); renderTeams();" class="absolute top-2 right-2 bg-red-600 text-white w-7 h-7 rounded-full font-bold leading-none shadow-md z-10 active:scale-95">&times;</button>
-                    <div class="h-32 w-full bg-slate-900 overflow-hidden shrink-0">${photo}</div>
-                    <div class="p-3 text-center flex flex-col items-center flex-1 justify-center">
-                        <p class="text-lg font-black leading-tight">${e.Prenom}</p>
-                        <p class="text-[10px] uppercase text-slate-400 font-bold">${e.Nom}</p>
-                        <div class="mt-2 flex gap-2">
-                            <span class="bg-slate-950 px-2 py-1 rounded border border-slate-700 text-xs font-bold text-emerald-400">VMA: ${e.VMA || '-'}</span>
-                            <span class="bg-slate-950 px-2 py-1 rounded border border-slate-700 text-xs font-bold text-blue-400">${e.Sexe || '?'}</span>
-                        </div>
+                    <button onclick="state.classes['${state.activeCl}'].splice(${i}, 1); saveToLocal(); renderEleves(); renderTeams();" class="absolute top-2 right-2 bg-red-600 text-white w-7 h-7 rounded-full font-bold leading-none z-10">&times;</button>
+                    <div class="h-32 w-full bg-slate-900">${photo}</div>
+                    <div class="p-3 text-center flex flex-col items-center">
+                        <p class="text-lg font-black leading-tight">${e.Prenom}</p><p class="text-[10px] uppercase text-slate-400 font-bold">${e.Nom}</p>
+                        <div class="mt-2 flex gap-2"><span class="bg-slate-950 px-2 py-1 rounded text-xs font-bold text-emerald-400">VMA: ${e.VMA}</span></div>
                     </div>
                 </div>`;
             }
             list.innerHTML = html;
         }
 
-        // --- ONGLET 2 : EQUIPES & CONFIG ---
         window.generateTeams = function() {
             if(!state.activeCl) return;
             let elevesVMA = (state.classes[state.activeCl] || []).filter(e => e.VMA && !isNaN(e.VMA));
-            if (elevesVMA.length === 0) return alert("Aucun élève avec VMA valide.");
-
             const nbEquipes = Math.floor(elevesVMA.length / 4);
-            if (nbEquipes === 0) return alert("Pas assez d'élèves pour faire une équipe de 4.");
+            if (nbEquipes === 0) return alert("Pas assez d'élèves (min 4).");
 
-            const mixiteVoulue = document.getElementById('mixiteCheckbox').checked;
-            let ordreRepartition = [];
-            
-            if (mixiteVoulue) {
-                const filles = elevesVMA.filter(e => e.Sexe === 'F').sort((a, b) => b.VMA - a.VMA);
-                const garcons = elevesVMA.filter(e => e.Sexe === 'M').sort((a, b) => b.VMA - a.VMA);
-                const autres = elevesVMA.filter(e => e.Sexe !== 'F' && e.Sexe !== 'M').sort((a, b) => b.VMA - a.VMA);
-                
-                const maxLen = Math.max(filles.length, garcons.length, autres.length);
-                for (let i = 0; i < maxLen; i++) {
-                    if (filles[i]) ordreRepartition.push(filles[i]);
-                    if (garcons[i]) ordreRepartition.push(garcons[i]);
-                    if (autres[i]) ordreRepartition.push(autres[i]);
-                }
-            } else {
-                ordreRepartition = [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
-            }
+            let ordre = document.getElementById('mixiteCheckbox').checked 
+                ? [...elevesVMA.filter(e=>e.Sexe==='F').sort((a,b)=>b.VMA-a.VMA), ...elevesVMA.filter(e=>e.Sexe==='M').sort((a,b)=>b.VMA-a.VMA), ...elevesVMA.filter(e=>e.Sexe!=='F'&&e.Sexe!=='M').sort((a,b)=>b.VMA-a.VMA)]
+                : [...elevesVMA].sort((a, b) => b.VMA - a.VMA);
 
-            let newEquipes = Array.from({ length: nbEquipes }, (_, i) => ({ id: `EQ${i + 1}`, membres: [], sumVMA: 0, score: 0 }));
-
-            let eqIdx = 0, sens = 1;
-            ordreRepartition.forEach(eleve => {
-                const couleurs = [
-                    { nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' }, { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' },
-                    { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' }, { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }
-                ];
-                let index = newEquipes[eqIdx].membres.length;
-                let c = couleurs[index % 4];
-                
-                newEquipes[eqIdx].membres.push({
-                    prenom: eleve.Prenom, nom: eleve.Nom.charAt(0) + ".", cle: clePhoto(eleve.Nom, eleve.Prenom),
-                    vma: eleve.VMA, sexe: eleve.Sexe || "", maillot: c.nom, style: c.style + (index >= 4 ? ' ring-2 ring-amber-500' : ''),
-                    scoreIndiv: 0, idPhoto: clePhoto(eleve.Nom, eleve.Prenom)
-                });
-                newEquipes[eqIdx].sumVMA += eleve.VMA;
-                eqIdx += sens;
-                if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; } else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
+            let newEquipes = Array.from({ length: nbEquipes }, (_, i) => {
+                // Génération du PIN Sécurisé
+                return { id: `EQ${i + 1}`, membres: [], sumVMA: 0, score: 0, pin: Math.floor(100 + Math.random() * 900).toString() };
             });
 
+            let eqIdx = 0, sens = 1;
+            ordre.forEach(eleve => {
+                const couleurs = [{ nom: 'Rouge', style: 'text-red-400 bg-red-950 border-red-800' }, { nom: 'Jaune', style: 'text-yellow-400 bg-yellow-950 border-yellow-800' }, { nom: 'Bleu', style: 'text-blue-400 bg-blue-950 border-blue-800' }, { nom: 'Vert', style: 'text-green-400 bg-green-950 border-green-800' }];
+                let c = couleurs[newEquipes[eqIdx].membres.length % 4];
+                newEquipes[eqIdx].membres.push({
+                    prenom: eleve.Prenom, nom: eleve.Nom.charAt(0)+".", vma: eleve.VMA, maillot: c.nom, style: c.style, idPhoto: clePhoto(eleve.Nom, eleve.Prenom)
+                });
+                newEquipes[eqIdx].sumVMA += eleve.VMA;
+                eqIdx += sens; if (eqIdx === nbEquipes) { eqIdx = nbEquipes - 1; sens = -1; } else if (eqIdx < 0) { eqIdx = 0; sens = 1; }
+            });
             state.equipes[state.activeCl] = newEquipes; saveToLocal(); renderTeams();
         }
 
         async function renderTeams() {
             const container = document.getElementById('teamsGrid');
             if(!container || !state.activeCl) return;
-            
-            const equipesActive = state.equipes[state.activeCl] || [];
             container.innerHTML = "";
-            for(let eq of equipesActive) {
-                const reliquat = eq.membres.length > 4;
+            for(let eq of (state.equipes[state.activeCl] || [])) {
                 let html = `
-                <div class="bg-slate-900 rounded-3xl border-2 ${reliquat ? 'border-amber-500 bg-amber-950/20' : 'border-slate-700'} p-4 flex flex-col shadow-lg" data-team-id="${eq.id}">
+                <div class="bg-slate-900 rounded-3xl border-2 border-slate-700 p-4 flex flex-col shadow-lg" data-team-id="${eq.id}">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-black text-xl text-slate-200">ÉQUIPE ${eq.id} ${reliquat ? '⚠️' : ''}</h3>
+                        <h3 class="font-black text-xl text-slate-200">${eq.id} <span class="bg-slate-800 ml-2 px-2 py-1 rounded text-red-400 text-xs font-mono tracking-widest border border-slate-700" title="Code de connexion">PIN: ${eq.pin}</span></h3>
                         <span class="text-emerald-400 font-black text-lg">${eq.sumVMA.toFixed(1)} <span class="text-[10px] text-slate-500">VMA</span></span>
                     </div>
-                    <div class="team-list flex-1 space-y-2 min-h-[100px] border-2 border-dashed border-slate-700 rounded-xl p-2 bg-black/20" data-team-id="${eq.id}">
-                `;
-
+                    <div class="team-list flex-1 space-y-2 min-h-[100px] border-2 border-dashed border-slate-700 rounded-xl p-2 bg-black/20" data-team-id="${eq.id}">`;
                 for(let m of eq.membres) {
-                    const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
-                    const photo = url ? `<img src="${url}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs">👤</div>`;
-                    const memberJson = JSON.stringify(m).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-                    
-                    html += `
-                        <div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab active:cursor-grabbing bg-slate-900 shadow-md" data-member="${memberJson}">
-                            ${photo}
-                            <span class="font-black uppercase text-[10px] w-12 tracking-widest">${m.maillot}</span>
-                            <div class="flex flex-col leading-tight overflow-hidden">
-                                <span class="font-bold text-white text-sm truncate">${m.prenom} ${m.nom}</span>
-                                <span class="text-[10px] text-slate-400">VMA: ${m.vma} ${m.sexe ? `(${m.sexe})` : ''}</span>
-                            </div>
-                        </div>
-                    `;
+                    const photo = m.idPhoto ? `<img src="${await getPhotoUrl(m.idPhoto)}" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 rounded-full bg-slate-700"></div>`;
+                    html += `<div class="member-item flex items-center gap-3 border border-slate-800 p-2 rounded-lg ${m.style} cursor-grab bg-slate-900" data-member="${JSON.stringify(m).replace(/"/g, "&quot;")}">
+                            ${photo}<span class="font-black uppercase text-[10px] w-12 tracking-widest">${m.maillot}</span><div class="flex flex-col"><span class="font-bold text-white text-sm">${m.prenom} ${m.nom}</span></div></div>`;
                 }
                 html += `</div></div>`; container.innerHTML += html;
             }
-            initSortable();
-        }
-
-        // Drag & Drop fixé : L'élève GARDE sa couleur de maillot quand il est bougé.
-        function initSortable() {
             document.querySelectorAll('.team-list').forEach(el => {
                 if (el.sortableInstance) el.sortableInstance.destroy();
-                el.sortableInstance = Sortable.create(el, {
-                    group: 'teams', animation: 150, ghostClass: 'ghost-item',
-                    onEnd: function () { rebuildTeamsFromDOM(); }
-                });
+                el.sortableInstance = Sortable.create(el, { group: 'teams', animation: 150, ghostClass: 'ghost-item', onEnd: function () { 
+                    const newEquipes = [];
+                    document.querySelectorAll('#teamsGrid > div').forEach(tDiv => {
+                        let sumVMA = 0, membres = [];
+                        tDiv.querySelectorAll('.member-item').forEach(mDiv => {
+                            const m = JSON.parse(mDiv.dataset.member); sumVMA += m.vma; membres.push(m);
+                        });
+                        let eqBase = state.equipes[state.activeCl].find(e => e.id === tDiv.dataset.teamId);
+                        newEquipes.push({ id: eqBase.id, pin: eqBase.pin, membres: membres, sumVMA: sumVMA, score: 0 });
+                    });
+                    state.equipes[state.activeCl] = newEquipes; saveToLocal(); renderTeams(); 
+                }});
             });
-        }
-
-        function rebuildTeamsFromDOM() {
-            const newEquipes = [];
-            document.querySelectorAll('#teamsGrid > div').forEach(teamDiv => {
-                const teamId = teamDiv.dataset.teamId;
-                let sumVMA = 0;
-                let membres = [];
-                
-                teamDiv.querySelectorAll('.member-item').forEach(mDiv => {
-                    const m = JSON.parse(mDiv.dataset.member);
-                    sumVMA += m.vma;
-                    membres.push(m); // On réintègre l'objet complet tel quel, avec SA couleur d'origine !
-                });
-                
-                newEquipes.push({ id: teamId, membres: membres, sumVMA: sumVMA, score: 0 });
-            });
-            state.equipes[state.activeCl] = newEquipes;
-            saveToLocal(); renderTeams(); 
         }
 
         window.pushConfig = function() {
-            if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0) return alert("Aucune équipe à envoyer pour cette classe.");
-            let configAnonyme = {};
-            state.equipes[state.activeCl].forEach(eq => { configAnonyme[eq.id] = eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma })); });
-
-            state.bareme = { f1: parseInt(document.getElementById('baremeF1').value) || 7, f2: parseInt(document.getElementById('baremeF2').value) || 8 };
-            saveToLocal();
-
-            db.ref('arcathlon/config').set({ equipes: configAnonyme, bareme: state.bareme })
-                .then(() => alert(`🚀 Configuration de la classe ${state.activeCl} envoyée aux iPads avec succès !`))
-                .catch(err => alert("Erreur : " + err.message));
+            if (!state.activeCl || !state.equipes[state.activeCl] || state.equipes[state.activeCl].length === 0) return alert("Aucune équipe.");
+            let configObj = { equipes: {}, mode: document.getElementById('modeEpreuve').value };
+            state.equipes[state.activeCl].forEach(eq => { 
+                configObj.equipes[eq.id] = { pin: eq.pin, membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma, prenom: m.prenom })) };
+            });
+            db.ref('arcathlon/config').set(configObj).then(() => alert(`🚀 Configuration (${configObj.mode}) envoyée aux iPads !`));
         }
 
-        // --- ONGLET 3 : RÉSULTATS LIVE ---
         function updateLiveScores(passages) {
             if(!state.activeCl) return;
             const equipesActive = state.equipes[state.activeCl] || [];
-            
             equipesActive.forEach(eq => { eq.score = 0; eq.membres.forEach(m => m.scoreIndiv = 0); });
 
             Object.values(passages).forEach(p => {
@@ -521,53 +345,32 @@
                 if (eq) {
                     let membres = eq.membres.filter(m => m.maillot === p.maillot);
                     if (membres.length > 0) {
-                        let pts = (p.ptsVMA || 0) + (p.ptsTir || 0);
-                        membres[0].scoreIndiv += pts; eq.score += pts;
+                        let pts = (p.ptsVMA || 0) + (p.ptsTir || 0); membres[0].scoreIndiv += pts; eq.score += pts;
                     }
                 }
             });
 
-            let eqTriees = [...equipesActive].sort((a, b) => b.score - a.score);
-            document.getElementById('grosGlobe').innerHTML = eqTriees.map((eq, idx) => `
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center shadow-md">
-                    <span class="font-black text-lg text-slate-300">${idx + 1}. ${eq.id}</span>
-                    <span class="text-emerald-400 font-black text-2xl">${eq.score} <span class="text-xs text-slate-500">pts</span></span>
-                </div>
+            document.getElementById('grosGlobe').innerHTML = [...equipesActive].sort((a,b)=>b.score-a.score).map((eq, idx) => `
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center shadow-md"><span class="font-black text-slate-300">${idx+1}. ${eq.id}</span><span class="text-emerald-400 font-black text-2xl">${eq.score}</span></div>
             `).join('');
 
             ['Vert', 'Bleu', 'Jaune', 'Rouge'].forEach(c => {
-                let joueurs = [];
-                equipesActive.forEach(eq => { eq.membres.filter(m => m.maillot === c).forEach(j => joueurs.push({ prenom: j.prenom, eq: eq.id, score: j.scoreIndiv })); });
-                joueurs.sort((a, b) => b.score - a.score);
-                
-                let textColor = c === 'Vert' ? 'text-green-400' : c === 'Bleu' ? 'text-blue-400' : c === 'Jaune' ? 'text-yellow-400' : 'text-red-400';
-                document.getElementById('globe' + c).innerHTML = `<h4 class="font-black text-center mb-4 uppercase ${textColor} tracking-widest text-lg">${c}</h4>` +
-                    joueurs.map((j, idx) => `
-                        <div class="text-sm flex justify-between items-center border-b border-black/30 py-2">
-                            <span class="font-bold text-slate-300 truncate w-32">${idx + 1}. ${j.prenom} <span class="text-[10px] text-slate-500 ml-1">(${j.eq})</span></span>
-                            <span class="font-black ${textColor}">${j.score}</span>
-                        </div>
-                    `).join('');
+                let joueurs = []; equipesActive.forEach(eq => { eq.membres.filter(m=>m.maillot===c).forEach(j => joueurs.push({ prenom: j.prenom, eq: eq.id, score: j.scoreIndiv })); });
+                joueurs.sort((a,b)=>b.score-a.score);
+                let col = c==='Vert'?'text-green-400':c==='Bleu'?'text-blue-400':c==='Jaune'?'text-yellow-400':'text-red-400';
+                document.getElementById('globe'+c).innerHTML = `<h4 class="font-black text-center mb-4 uppercase ${col} tracking-widest">${c}</h4>` +
+                    joueurs.map((j, idx) => `<div class="text-sm flex justify-between border-b border-black/30 py-2"><span class="font-bold text-slate-300 w-32 truncate">${idx+1}. ${j.prenom} <span class="text-[10px] text-slate-500">(${j.eq})</span></span><span class="font-black ${col}">${j.score}</span></div>`).join('');
             });
 
-            // Journal
-            const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp).slice(0, 20);
-            const journal = document.getElementById('journalPassages');
-            if (entries.length === 0) journal.innerHTML = '<p class="text-slate-600 text-sm text-center py-2">Aucun passage enregistré.</p>';
-            else journal.innerHTML = entries.map(([key, p]) => {
-                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR');
-                return `<div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-2 shadow">
-                            <span class="text-slate-400">${h}</span><span class="font-bold text-slate-200">Équipe ${p.equipe} — ${p.maillot}</span>
-                            <span class="font-black text-emerald-400 text-sm">${(p.ptsTir || 0) + (p.ptsVMA || 0)} pts</span>
-                            <button onclick="db.ref('arcathlon/live/passages/${key}').remove()" class="bg-red-900/50 text-red-400 border border-red-800 px-3 py-1.5 rounded-lg font-bold">🗑</button>
-                        </div>`;
-            }).join('');
+            const entries = Object.entries(passages).sort((a,b)=>b[1].timestamp-a[1].timestamp).slice(0, 15);
+            document.getElementById('journalPassages').innerHTML = entries.map(([key, p]) => `
+                <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 shadow">
+                    <span class="text-slate-400">${new Date(p.timestamp).toLocaleTimeString('fr-FR')}</span><span class="font-bold text-slate-200">Équipe ${p.equipe} — ${p.maillot}</span><span class="font-black text-emerald-400">${(p.ptsTir||0)+(p.ptsVMA||0)} pts</span>
+                    <button onclick="db.ref('arcathlon/live/passages/${key}').remove()" class="bg-red-900/50 text-red-400 px-2 py-1 rounded">🗑</button>
+                </div>`).join('');
         }
 
-        window.purgeLive = function() {
-            if (prompt("Code de sécurité (RNE) :") !== "0680013V") return;
-            db.ref('arcathlon/live').remove().then(() => alert("Direct purgé avec succès !"));
-        }
+        window.purgeLive = function() { if (prompt("Code de sécurité (RNE) :") === "0680013V") db.ref('arcathlon/live').remove(); }
     </script>
 </body>
 </html>

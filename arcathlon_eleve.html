@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arcathlon | Stand</title>
+    <title>Arcathlon | Stand Élève</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
@@ -11,284 +11,354 @@
         body { user-select: none; touch-action: manipulation; }
         .btn-arrow { transition: transform 0.1s; }
         .btn-arrow:active { transform: scale(0.95); }
-        .btn-arrow:disabled { opacity: 0.5; }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .slide-up { animation: slideUp 0.25s ease-out; }
-        .pulse-dot { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .cible-circle { cursor: pointer; transition: opacity 0.2s; }
+        .cible-circle:active { opacity: 0.7; }
+        /* Animation d'impact */
+        @keyframes pulse-impact { 0% { transform: scale(1); stroke-width: 0; } 50% { transform: scale(1.05); stroke-width: 4px; stroke: white; } 100% { transform: scale(1); stroke-width: 0; } }
+        .impact { animation: pulse-impact 0.3s ease-out; }
     </style>
 </head>
-<body class="bg-black text-white p-4 h-screen flex flex-col font-sans">
+<body class="bg-slate-950 text-white p-4 h-screen flex flex-col font-sans">
 
-    <!-- Statut de connexion -->
+    <!-- Statut & Navigation rapide -->
     <div class="flex justify-between items-center mb-2 shrink-0 px-2">
         <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-            <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
-            <span id="connLabel">Connexion...</span>
+            <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span><span id="connLabel">Connexion...</span>
         </div>
-        <div id="queueBadge" class="hidden text-xs font-black uppercase tracking-widest text-amber-400 bg-amber-950 border border-amber-700 px-3 py-1 rounded-full">
-            0 en attente
-        </div>
+        <div id="modeBadge" class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/30">Mode: Classique</div>
     </div>
 
-    <div class="bg-slate-900 border-4 border-slate-800 p-8 rounded-[3rem] shadow-2xl flex-1 flex flex-col justify-center max-w-3xl mx-auto w-full relative overflow-hidden">
-        <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-10 italic">Stand de Tir</h1>
-
-        <div id="ecranEquipe">
-            <select id="selEquipe" onchange="loadEquipe()" class="w-full bg-slate-950 p-6 rounded-2xl text-3xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6">
-                <option value="">-- SÉLECTIONNER L'ÉQUIPE --</option>
+    <!-- ZONE PRINCIPALE -->
+    <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[3rem] shadow-2xl flex-1 flex flex-col justify-center max-w-4xl mx-auto w-full relative overflow-hidden">
+        
+        <!-- ECRAN 1 : CHOIX EQUIPE & PIN -->
+        <div id="ecranLogin" class="flex flex-col items-center">
+            <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-10 italic">Stand de Tir</h1>
+            
+            <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-6 rounded-2xl text-3xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6">
+                <option value="">-- CHOISIR L'ÉQUIPE --</option>
             </select>
 
-            <div id="maillotsGrid" class="grid grid-cols-2 gap-6 hidden">
-                <button onclick="setCoureur('Vert')" class="btn-arrow bg-green-950 border-4 border-green-600 text-green-400 py-10 rounded-3xl font-black text-3xl uppercase shadow-lg">🟩 Vert</button>
-                <button onclick="setCoureur('Bleu')" class="btn-arrow bg-blue-950 border-4 border-blue-600 text-blue-400 py-10 rounded-3xl font-black text-3xl uppercase shadow-lg">🟦 Bleu</button>
-                <button onclick="setCoureur('Jaune')" class="btn-arrow bg-yellow-950 border-4 border-yellow-600 text-yellow-400 py-10 rounded-3xl font-black text-3xl uppercase shadow-lg">🟨 Jaune</button>
-                <button onclick="setCoureur('Rouge')" class="btn-arrow bg-red-950 border-4 border-red-600 text-red-400 py-10 rounded-3xl font-black text-3xl uppercase shadow-lg">🟥 Rouge</button>
+            <div id="numpad" class="hidden flex-col items-center">
+                <div class="text-sm font-bold text-slate-400 mb-2 uppercase tracking-widest">Saisir le PIN (3 chiffres)</div>
+                <div id="pinDisplay" class="bg-slate-950 border-2 border-slate-700 w-48 h-16 rounded-xl flex items-center justify-center text-3xl font-mono tracking-[1em] mb-4 text-emerald-400 shadow-inner"></div>
+                <div class="grid grid-cols-3 gap-3">
+                    <script>
+                        for(let i=1; i<=9; i++) document.write(`<button onclick="addPin(${i})" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">${i}</button>`);
+                    </script>
+                    <button onclick="clearPin()" class="bg-red-900/50 text-red-400 w-16 h-16 rounded-xl text-sm font-black uppercase border border-red-800 active:bg-red-800">Effacer</button>
+                    <button onclick="addPin(0)" class="bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">0</button>
+                    <button onclick="validatePin()" class="bg-emerald-600 text-white w-16 h-16 rounded-xl text-sm font-black uppercase border-2 border-emerald-400 active:bg-emerald-700">OK</button>
+                </div>
             </div>
         </div>
 
-        <div id="saisieTir" class="hidden flex-col gap-6">
-            <button onclick="changerEquipe()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-1">↩ Changer d'équipe</button>
-            <div class="text-center font-black text-3xl text-slate-400 mb-2 bg-slate-950 py-4 rounded-xl border-2 border-slate-800" id="labelCoureur"></div>
-
-            <div class="grid grid-cols-2 gap-6">
-                <button id="btnF1" onclick="toggleF(1)" class="btn-arrow bg-slate-800 border-4 border-slate-600 py-12 rounded-3xl font-black text-3xl uppercase text-slate-400">Flèche 1 : ---</button>
-                <button id="btnF2" onclick="toggleF(2)" class="btn-arrow bg-slate-800 border-4 border-slate-600 py-12 rounded-3xl font-black text-3xl uppercase text-slate-400">Flèche 2 : ---</button>
+        <!-- ECRAN 2 : CHOIX COUREUR -->
+        <div id="ecranCoureurs" class="hidden flex-col">
+            <button onclick="resetLogin()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-6">↩ Changer d'équipe</button>
+            <h2 id="titreEquipe" class="text-4xl font-black text-center text-slate-200 uppercase tracking-widest mb-8">Équipe X</h2>
+            <div id="maillotsGrid" class="grid grid-cols-2 gap-4">
+                <!-- Généré dynamiquement -->
             </div>
-
-            <div class="flex items-center gap-6 bg-slate-950 p-6 rounded-2xl border-2 border-slate-800 mt-2">
-                <span class="font-black text-slate-400 uppercase text-2xl">Points VMA :</span>
-                <select id="selVMA" onchange="updateTotal()" class="bg-black text-white p-4 rounded-xl text-2xl font-black border-2 border-slate-700 flex-1 outline-none text-center">
-                    <option value="0">+ 0 pt (Arrêt / Trop lent)</option>
-                    <option value="1">+ 1 pt (Proche VMA)</option>
-                    <option value="2" selected>+ 2 pts (Contrat VMA)</option>
-                    <option value="3">+ 3 pts (Plus rapide)</option>
-                </select>
+            
+            <div class="mt-8 pt-6 border-t border-slate-800 text-center">
+                <button onclick="toggleHistorique()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold text-sm text-slate-400 uppercase tracking-widest border border-slate-700 active:bg-slate-700">📜 Voir notre historique (Annulation)</button>
             </div>
-
-            <button id="btnValider" onclick="validerPassage()" class="btn-arrow bg-emerald-600 border-4 border-emerald-400 py-8 rounded-3xl font-black text-4xl uppercase tracking-widest text-white shadow-xl mt-6">
-                ✓ Enregistrer <span id="totalPreview">(2 pts)</span>
-            </button>
         </div>
 
-        <!-- Bandeau dernier passage / annulation -->
-        <div id="derniereBar" class="hidden slide-up absolute left-4 right-4 bottom-4 bg-slate-800 border-2 border-slate-600 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-xl">
-            <span id="derniereTxt" class="font-bold text-sm text-slate-200"></span>
-            <button onclick="annulerDernier()" class="bg-red-600 border-2 border-red-400 px-4 py-2 rounded-xl font-black text-sm uppercase shrink-0">Annuler</button>
+        <!-- ECRAN 3 : SAISIE TIR & VMA -->
+        <div id="ecranSaisie" class="hidden flex-col h-full">
+            <button onclick="retourCoureurs()" class="text-slate-500 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour aux coureurs</button>
+            <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0" id="labelCoureur"></div>
+
+            <div class="flex-1 flex gap-6 min-h-0">
+                <!-- Zone Cible SVG Interactive -->
+                <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-4 flex flex-col items-center justify-center relative shadow-inner">
+                    <span class="absolute top-4 text-xs font-black text-slate-500 uppercase tracking-widest">Touchez la cible 🎯</span>
+                    
+                    <svg viewBox="0 0 100 100" class="w-full max-w-[250px] md:max-w-xs mx-auto drop-shadow-2xl">
+                        <!-- Zone 6 (Bleu) -->
+                        <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6, 'Bleu')" />
+                        <!-- Zone 8 (Rouge) -->
+                        <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="marquerTir(8, 'Rouge')" />
+                        <!-- Zone 10 (Jaune) -->
+                        <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="marquerTir(10, 'Jaune')" />
+                    </svg>
+                    
+                    <div class="grid grid-cols-2 gap-2 mt-4 w-full">
+                        <button onclick="marquerTir(5, 'Bord')" class="bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300 active:bg-slate-700">+5 (Hors zone)</button>
+                        <button onclick="marquerTir(0, 'Manqué')" class="bg-red-950/40 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400 active:bg-red-900">0 (Manqué)</button>
+                    </div>
+                </div>
+
+                <!-- Zone Validation -->
+                <div class="flex-1 flex flex-col gap-3">
+                    <div class="bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 flex flex-col gap-2">
+                        <div id="affF1" class="bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800">Flèche 1 : --</div>
+                        <div id="affF2" class="bg-black text-slate-500 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800">Flèche 2 : --</div>
+                        <button onclick="resetTir()" class="text-xs font-bold text-slate-500 mt-1 uppercase text-right">🔄 Recommencer le tir</button>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-2xl border-2 border-slate-700 flex-1 flex flex-col justify-center">
+                        <span class="font-black text-slate-400 uppercase text-sm mb-2">Points VMA (Course) :</span>
+                        <select id="selVMA" onchange="updateTotal()" class="bg-black text-white p-4 rounded-xl text-xl font-black border-2 border-slate-600 outline-none w-full">
+                            <option value="0">+ 0 pt (Arrêt / Trop lent)</option>
+                            <option value="1">+ 1 pt (Proche VMA)</option>
+                            <option value="2" selected>+ 2 pts (Contrat VMA)</option>
+                            <option value="3">+ 3 pts (Plus rapide)</option>
+                        </select>
+                    </div>
+
+                    <button id="btnValider" onclick="validerPassage()" disabled class="bg-emerald-600 border-4 border-emerald-400 py-6 rounded-2xl font-black text-2xl uppercase tracking-widest text-white shadow-xl opacity-50 transition-opacity">
+                        Valider <span id="totalPreview" class="text-lg"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ECRAN HISTORIQUE LOCAL -->
+        <div id="ecranHistorique" class="hidden flex-col h-full absolute inset-0 bg-slate-950/95 p-8 z-50 backdrop-blur-sm">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-4 mb-4">
+                <h2 class="text-2xl font-black text-blue-400 uppercase tracking-widest italic">Notre Historique</h2>
+                <button onclick="toggleHistorique()" class="bg-slate-800 px-4 py-2 rounded-xl font-bold uppercase text-xs">Fermer</button>
+            </div>
+            <p class="text-xs text-slate-400 mb-4 font-bold uppercase">Les 5 derniers passages de votre équipe (Appuyez sur 🗑 pour annuler une erreur).</p>
+            <div id="listHistorique" class="flex flex-col gap-3 overflow-y-auto"></div>
         </div>
     </div>
 
     <script>
-        let db = null;
-        try {
-            if (typeof firebase === 'undefined') throw new Error("SDK Firebase non chargé");
-            const firebaseConfig = {
-                databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
-            };
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
-        } catch (err) {
-            document.body.innerHTML = `
-                <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
-                    <div class="text-6xl mb-6">📡</div>
-                    <h1 class="text-3xl font-black text-red-500 uppercase mb-4">Connexion impossible</h1>
-                    <p class="text-slate-400 text-lg">Vérifiez le wifi de l'iPad, puis rechargez la page.</p>
-                </div>`;
-        }
-        if (db) {
+        const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
         let equipesConfig = {};
-        let bareme = { f1: 7, f2: 8 }; // valeurs par défaut si le prof n'a pas encore configuré le barème
-        let currentEq = "", currentMaillot = "";
-        let f1 = false, f2 = false;
-        let dernierKey = null, dernierTimeout = null;
-        let fileAttente = [];
-        let envoiEnCours = false;
+        let configMode = "sprint";
+        let currentEq = "", currentPin = "", currentMaillot = "";
+        let inputPin = "";
+        
+        let tirs = []; // Stocke les scores des flèches
+        let myHistory = []; // Stocke les clés Firebase des passages envoyés par cet iPad
 
-        // --- Statut de connexion ---
+        // --- ECOUTE FIREBASE ---
         db.ref('.info/connected').on('value', snap => {
             const connecte = snap.val() === true;
-            const dot = document.getElementById('connDot');
-            const label = document.getElementById('connLabel');
-            if (connecte) {
-                dot.className = "w-3 h-3 rounded-full bg-emerald-500";
-                label.textContent = "En ligne";
-                viderFileAttente();
-            } else {
-                dot.className = "w-3 h-3 rounded-full bg-red-500 pulse-dot";
-                label.textContent = "Hors ligne";
-            }
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (connecte ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = connecte ? "En ligne" : "Hors ligne";
         });
 
-        // --- Config équipes ---
-        db.ref('arcathlon/config/equipes').on('value', snap => {
-            equipesConfig = snap.val() || {};
+        db.ref('arcathlon/config').on('value', snap => {
+            const config = snap.val() || {};
+            equipesConfig = config.equipes || {};
+            configMode = config.mode || "sprint";
+            
+            document.getElementById('modeBadge').textContent = "Mode : " + (configMode === 'relais' ? "RELAIS" : configMode === 'poursuite' ? "POURSUITE" : "CLASSIQUE");
+
             const sel = document.getElementById('selEquipe');
-            const valeurActuelle = sel.value;
-            sel.innerHTML = "<option value=\"\">-- SÉLECTIONNER L'ÉQUIPE --</option>" +
+            const valActuelle = sel.value;
+            sel.innerHTML = "<option value=\"\">-- CHOISIR L'ÉQUIPE --</option>" +
                 Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
-            if (valeurActuelle && equipesConfig[valeurActuelle]) sel.value = valeurActuelle;
+            if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
+            
+            // Si l'équipe est déjà loggée mais sa configuration change (re-génération par le prof)
+            if(currentEq && !equipesConfig[currentEq]) resetLogin();
+            else if(currentEq && currentMaillot && document.getElementById('ecranCoureurs').classList.contains('hidden')===false) buildCoureursGrid();
         });
 
-        // --- Config barème (points de tir), modifiable par le prof ---
-        db.ref('arcathlon/config/bareme').on('value', snap => {
-            const val = snap.val();
-            if (val && typeof val.f1 === 'number' && typeof val.f2 === 'number') {
-                bareme = val;
-            }
-            updateBtn(1); updateBtn(2); updateTotal();
+        db.ref('arcathlon/live/passages').on('value', snap => {
+            const passages = snap.val() || {};
+            // Met à jour l'historique local visuellement
+            if(!document.getElementById('ecranHistorique').classList.contains('hidden')) renderHistorique(passages);
         });
 
-        window.loadEquipe = function() {
-            currentEq = document.getElementById('selEquipe').value;
-            if (currentEq) document.getElementById('maillotsGrid').classList.remove('hidden');
-            else document.getElementById('maillotsGrid').classList.add('hidden');
-            document.getElementById('saisieTir').classList.add('hidden');
-        }
-
-        window.changerEquipe = function() {
-            document.getElementById('saisieTir').classList.add('hidden');
-            document.getElementById('saisieTir').classList.remove('flex');
-            document.getElementById('ecranEquipe').classList.remove('hidden');
-            document.getElementById('selEquipe').value = "";
-            loadEquipe();
-        }
-
-        window.setCoureur = function(maillot) {
-            currentMaillot = maillot;
-            document.getElementById('ecranEquipe').classList.add('hidden');
-            document.getElementById('saisieTir').classList.remove('hidden');
-            document.getElementById('saisieTir').classList.add('flex');
-
-            let colorMap = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'};
-            document.getElementById('labelCoureur').innerHTML = `Équipe ${currentEq} — <span class="${colorMap[maillot]}">Maillot ${maillot}</span>`;
-
-            f1 = false; f2 = false;
-            updateBtn(1); updateBtn(2);
-            document.getElementById('selVMA').value = "2";
-            updateTotal();
-        }
-
-        window.toggleF = function(num) {
-            if (num === 1) f1 = !f1; else f2 = !f2;
-            updateBtn(num);
-            updateTotal();
-        }
-
-        function updateBtn(num) {
-            let btn = document.getElementById(num === 1 ? 'btnF1' : 'btnF2');
-            let state = num === 1 ? f1 : f2;
-            let pts = num === 1 ? bareme.f1 : bareme.f2;
-            if (state) {
-                btn.className = "btn-arrow bg-green-600 border-4 border-green-400 py-12 rounded-3xl font-black text-3xl uppercase text-white";
-                btn.innerText = `Flèche ${num} : CIBLE (+${pts})`;
+        // --- NAVIGATION & SECURITE ---
+        window.checkTeamSelection = function() {
+            const val = document.getElementById('selEquipe').value;
+            if(val) {
+                currentEq = val; currentPin = equipesConfig[val].pin;
+                inputPin = ""; document.getElementById('pinDisplay').textContent = "";
+                document.getElementById('numpad').classList.remove('hidden');
+                document.getElementById('numpad').classList.add('flex');
             } else {
-                btn.className = "btn-arrow bg-red-600 border-4 border-red-400 py-12 rounded-3xl font-black text-3xl uppercase text-white";
-                btn.innerText = `Flèche ${num} : MANQUÉE`;
+                document.getElementById('numpad').classList.add('hidden');
+                document.getElementById('numpad').classList.remove('flex');
             }
         }
 
-        function calculerPoints() {
-            let ptsTir = 0;
-            if (f1) ptsTir += bareme.f1;
-            if (f2) ptsTir += bareme.f2;
-            let ptsVMA = parseInt(document.getElementById('selVMA').value);
-            return { ptsTir, ptsVMA, total: ptsTir + ptsVMA };
+        window.addPin = function(num) {
+            if(inputPin.length < 3) { inputPin += num; document.getElementById('pinDisplay').textContent = inputPin.replace(/./g, '•'); }
+        }
+        window.clearPin = function() { inputPin = ""; document.getElementById('pinDisplay').textContent = ""; }
+
+        window.validatePin = function() {
+            if(inputPin === currentPin) {
+                document.getElementById('ecranLogin').classList.add('hidden');
+                document.getElementById('ecranLogin').classList.remove('flex');
+                document.getElementById('ecranCoureurs').classList.remove('hidden');
+                document.getElementById('ecranCoureurs').classList.add('flex');
+                document.getElementById('titreEquipe').textContent = `Équipe ${currentEq}`;
+                buildCoureursGrid();
+            } else {
+                alert("Code PIN incorrect. Demandez-le au professeur.");
+                clearPin();
+            }
+        }
+
+        window.resetLogin = function() {
+            currentEq = ""; inputPin = "";
+            document.getElementById('selEquipe').value = "";
+            document.getElementById('numpad').classList.add('hidden'); document.getElementById('numpad').classList.remove('flex');
+            document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex');
+        }
+
+        function buildCoureursGrid() {
+            const grid = document.getElementById('maillotsGrid');
+            const membres = equipesConfig[currentEq].membres || [];
+            
+            let html = "";
+            const colorMap = {'Rouge': 'bg-red-950 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950 border-yellow-600 text-yellow-400', 'Bleu': 'bg-blue-950 border-blue-600 text-blue-400', 'Vert': 'bg-green-950 border-green-600 text-green-400'};
+
+            membres.forEach((m, idx) => {
+                let labelRole = configMode === 'relais' ? `RELAYEUR ${idx + 1}` : m.maillot;
+                let cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                
+                html += `
+                <button onclick="openSaisie('${m.maillot}', '${m.prenom}')" class="btn-arrow ${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg active:bg-slate-900">
+                    <span class="font-black text-2xl uppercase tracking-widest">${labelRole}</span>
+                    <span class="text-sm font-bold mt-1 text-slate-300">${m.prenom} (VMA: ${m.vma})</span>
+                </button>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        window.openSaisie = function(maillot, prenom) {
+            currentMaillot = maillot;
+            document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('flex');
+            document.getElementById('ecranSaisie').classList.remove('hidden'); document.getElementById('ecranSaisie').classList.add('flex');
+            
+            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
+            document.getElementById('labelCoureur').innerHTML = `<span class="${colorTexte}">Coureur : ${prenom}</span>`;
+            
+            document.getElementById('selVMA').value = "2";
+            resetTir();
+        }
+
+        window.retourCoureurs = function() {
+            document.getElementById('ecranSaisie').classList.add('hidden'); document.getElementById('ecranSaisie').classList.remove('flex');
+            document.getElementById('ecranCoureurs').classList.remove('hidden'); document.getElementById('ecranCoureurs').classList.add('flex');
+        }
+
+        // --- GESTION DU TIR (CIBLE SVG) ---
+        window.marquerTir = function(pts, zoneName) {
+            if(tirs.length >= 2) return; // Déjà 2 flèches
+            tirs.push(pts);
+            
+            let aff = document.getElementById(tirs.length === 1 ? 'affF1' : 'affF2');
+            aff.className = "bg-slate-800 text-white font-black text-xl py-4 rounded-xl text-center border-4 border-slate-500 shadow-lg impact";
+            aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span> <span class="text-[10px] block uppercase text-slate-400">${zoneName}</span>`;
+            
+            updateTotal();
+        }
+
+        window.resetTir = function() {
+            tirs = [];
+            ['affF1', 'affF2'].forEach(id => {
+                document.getElementById(id).className = "bg-black text-slate-600 font-black text-xl py-4 rounded-xl text-center border-2 border-slate-800";
+                document.getElementById(id).textContent = id === 'affF1' ? "Flèche 1 : --" : "Flèche 2 : --";
+            });
+            updateTotal();
         }
 
         window.updateTotal = function() {
-            const { total } = calculerPoints();
-            document.getElementById('totalPreview').textContent = `(${total} pts)`;
+            const btn = document.getElementById('btnValider');
+            if(tirs.length === 2) {
+                let ptsTir = tirs[0] + tirs[1];
+                let ptsVMA = parseInt(document.getElementById('selVMA').value);
+                document.getElementById('totalPreview').textContent = `(${ptsTir + ptsVMA} pts)`;
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            } else {
+                document.getElementById('totalPreview').textContent = `(Tirez 2 flèches)`;
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+            }
         }
 
+        // --- VALIDATION & ENVOI ---
         window.validerPassage = function() {
-            if (envoiEnCours) return; // anti double-tap
-            envoiEnCours = true;
-            const btn = document.getElementById('btnValider');
-            btn.disabled = true;
-
-            const { ptsTir, ptsVMA, total } = calculerPoints();
+            const btn = document.getElementById('btnValider'); btn.disabled = true;
+            
+            let ptsTir = tirs[0] + tirs[1];
+            let ptsVMA = parseInt(document.getElementById('selVMA').value);
+            
             const passage = {
-                equipe: currentEq,
-                maillot: currentMaillot,
-                ptsTir,
-                ptsVMA,
+                equipe: currentEq, maillot: currentMaillot, ptsTir: ptsTir, ptsVMA: ptsVMA,
                 timestamp: Date.now()
             };
 
-            envoyerPassage(passage, total);
-
-            // Reset visuel immédiat : retour à la sélection du maillot (même équipe),
-            // pratique quand plusieurs coureurs de la même équipe passent à la suite.
-            document.body.classList.add('bg-emerald-900');
-            setTimeout(() => {
-                document.body.classList.remove('bg-emerald-900');
-                document.getElementById('saisieTir').classList.add('hidden');
-                document.getElementById('saisieTir').classList.remove('flex');
-                document.getElementById('ecranEquipe').classList.remove('hidden');
-                document.getElementById('maillotsGrid').classList.remove('hidden');
-                btn.disabled = false;
-                envoiEnCours = false;
-            }, 300);
-        }
-
-        function envoyerPassage(passage, total) {
             const ref = db.ref('arcathlon/live/passages').push();
-            ref.set(passage)
-                .then(() => afficherDernier(ref.key, passage, total))
-                .catch(() => {
-                    // Échec d'envoi (hors-ligne ou erreur réseau) : on met en file d'attente locale
-                    fileAttente.push(passage);
-                    majBadgeFile();
-                });
-        }
-
-        function afficherDernier(key, passage, total) {
-            dernierKey = key;
-            let colorLabel = {'Vert':'🟩','Bleu':'🟦','Jaune':'🟨','Rouge':'🟥'}[passage.maillot] || '';
-            document.getElementById('derniereTxt').textContent =
-                `Équipe ${passage.equipe} ${colorLabel} — ${total} pts enregistrés`;
-            document.getElementById('derniereBar').classList.remove('hidden');
-
-            clearTimeout(dernierTimeout);
-            dernierTimeout = setTimeout(() => {
-                document.getElementById('derniereBar').classList.add('hidden');
-                dernierKey = null;
-            }, 8000);
-        }
-
-        window.annulerDernier = function() {
-            if (dernierKey) {
-                db.ref('arcathlon/live/passages/' + dernierKey).remove();
-            }
-            document.getElementById('derniereBar').classList.add('hidden');
-            dernierKey = null;
-            clearTimeout(dernierTimeout);
-        }
-
-        function majBadgeFile() {
-            const badge = document.getElementById('queueBadge');
-            if (fileAttente.length > 0) {
-                badge.textContent = `${fileAttente.length} en attente`;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        function viderFileAttente() {
-            if (fileAttente.length === 0) return;
-            const enCours = [...fileAttente];
-            fileAttente = [];
-            majBadgeFile();
-            enCours.forEach(p => {
-                db.ref('arcathlon/live/passages').push(p).catch(() => {
-                    fileAttente.push(p);
-                    majBadgeFile();
-                });
+            ref.set(passage).then(() => {
+                myHistory.push(ref.key); // Mémorise qu'ON a envoyé ce passage
+                
+                document.body.classList.add('bg-emerald-900'); // Feed-back visuel
+                setTimeout(() => {
+                    document.body.classList.remove('bg-emerald-900');
+                    retourCoureurs();
+                }, 300);
+            }).catch(() => {
+                alert("Hors ligne : Donnée non envoyée. Rapprochez-vous de la borne.");
+                btn.disabled = false;
             });
         }
-        } // fin du bloc if (db) : tout ce qui précède nécessite une connexion Firebase active
+
+        // --- HISTORIQUE LOCAL ---
+        window.toggleHistorique = function() {
+            const panel = document.getElementById('ecranHistorique');
+            if(panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden'); panel.classList.add('flex');
+                db.ref('arcathlon/live/passages').once('value').then(snap => renderHistorique(snap.val() || {}));
+            } else {
+                panel.classList.add('hidden'); panel.classList.remove('flex');
+            }
+        }
+
+        function renderHistorique(passages) {
+            const container = document.getElementById('listHistorique');
+            // Filtrer uniquement les passages de NOTRE équipe qui sont dans NOTRE historique iPad
+            const entries = Object.entries(passages)
+                .filter(([key, p]) => p.equipe === currentEq && myHistory.includes(key))
+                .sort((a, b) => b[1].timestamp - a[1].timestamp)
+                .slice(0, 5); // 5 derniers
+
+            if(entries.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 font-bold italic text-center py-4">Aucun passage enregistré pour votre équipe.</p>';
+                return;
+            }
+
+            container.innerHTML = entries.map(([key, p]) => {
+                const total = (p.ptsTir || 0) + (p.ptsVMA || 0);
+                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                return `
+                <div class="bg-black border border-slate-700 p-4 rounded-xl flex justify-between items-center">
+                    <div>
+                        <span class="font-black text-slate-200 uppercase">${p.maillot}</span> <span class="text-xs text-slate-500 ml-2">${h}</span>
+                        <div class="text-xs font-bold text-slate-400 mt-1">Course: +${p.ptsVMA} | Tir: +${p.ptsTir}</div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="font-black text-emerald-400 text-xl">${total} pts</span>
+                        <button onclick="annulerPassage('${key}')" class="bg-red-900/40 text-red-400 border border-red-800 px-4 py-2 rounded-lg font-black uppercase text-xs active:bg-red-800">🗑 Annuler</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.annulerPassage = function(key) {
+            if(confirm("Êtes-vous sûr de vouloir annuler et effacer ce passage ?")) {
+                db.ref('arcathlon/live/passages/' + key).remove();
+                myHistory = myHistory.filter(k => k !== key);
+            }
+        }
     </script>
 </body>
 </html>
