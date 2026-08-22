@@ -3,12 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Arcathlon | Maître</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+    <style>
+        img.team-photo {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+    </style>
 </head>
 <body class="bg-slate-900 text-white p-4 font-sans h-screen flex flex-col">
     <header class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4 shrink-0">
@@ -155,7 +168,7 @@
                 const inputs = row.querySelectorAll('input[type="text"], input[type="number"]');
                 const fileInput = row.querySelector('input[type="file"]');
                 const prenom = inputs[0].value.trim();
-                const nom = inputs[1].value.trim();
+                const nom = inputs[1].value.trim().toUpperCase(); // Normaliser en majuscules
                 const vma = parseFloat(inputs[2].value);
 
                 if (prenom && nom && !isNaN(vma)) {
@@ -208,7 +221,7 @@
                         let el = eleves[eleveIdx];
                         let nomCourt = el.Nom ? el.Nom.charAt(0).toUpperCase() + "." : "";
                         equipes[i].membres.push({
-                            prenom: el.Prenom || "Inconnu",
+                            prenom: el.Prenom,
                             nom: nomCourt,
                             vma: el.VMA,
                             maillot: c.nom,
@@ -222,7 +235,7 @@
                         eleveIdx++;
                     }
                 }
-                equipes.reverse();
+                equipes.reverse(); // Serpentin
             });
             renderTeams();
         }
@@ -252,20 +265,33 @@
         // Importer un fichier CSV
         function handleCSV(e) {
             Papa.parse(e.target.files[0], {
-                header: true,
+                delimiter: ";",
+                header: false,
                 skipEmptyLines: true,
                 complete: function(results) {
-                    let data = results.data;
-                    eleves = data.map(eleve => {
-                        const eleveKey = `${eleve.Nom.trim()},${eleve.Prenom.trim()}`;
-                        if (photosEleve[eleveKey]) {
-                            eleve.photo = photosEleve[eleveKey];
-                        }
-                        return eleve;
-                    });
+                    let data = results.data.slice(1); // Ignorer la première ligne
 
-                    data.sort((a, b) => parseFloat(b.VMA) - parseFloat(a.VMA));
-                    let nbEquipes = Math.floor(data.length / 4);
+                    eleves = data.map(row => {
+                        if (row.length >= 2) {
+                            const nomComplet = row[0].trim().split(" ");
+                            const prenom = nomComplet[0];
+                            const nom = nomComplet.slice(1).join(" ").toUpperCase(); // Normaliser en majuscules
+                            const vma = parseFloat(row[1].trim().replace(",", "."));
+
+                            // Clé pour associer la photo
+                            const eleveKey = `${nom},${prenom}`;
+                            const photo = photosEleve[eleveKey] || "";
+
+                            return { Nom: nom, Prenom: prenom, VMA: vma, photo: photo };
+                        }
+                        return null;
+                    }).filter(eleve => eleve !== null);
+
+                    console.log("Élèves importés :", eleves.map(e => `${e.Nom}, ${e.Prenom}, VMA: ${e.VMA}`));
+
+                    // Générer les équipes
+                    eleves.sort((a, b) => b.VMA - a.VMA);
+                    let nbEquipes = Math.floor(eleves.length / 4);
                     if (nbEquipes === 0) return alert("Pas assez d'élèves pour faire des équipes de 4.");
 
                     equipes = Array.from({ length: nbEquipes }, (_, i) => ({ id: `EQ${i + 1}`, membres: [], score: 0 }));
@@ -280,11 +306,11 @@
                     let eleveIdx = 0;
                     couleurs.forEach((c) => {
                         for (let i = 0; i < nbEquipes; i++) {
-                            if (data[eleveIdx]) {
-                                let el = data[eleveIdx];
+                            if (eleves[eleveIdx]) {
+                                let el = eleves[eleveIdx];
                                 let nomCourt = el.Nom ? el.Nom.charAt(0).toUpperCase() + "." : "";
                                 equipes[i].membres.push({
-                                    prenom: el.Prenom || "Inconnu",
+                                    prenom: el.Prenom,
                                     nom: nomCourt,
                                     vma: el.VMA,
                                     maillot: c.nom,
@@ -298,8 +324,9 @@
                                 eleveIdx++;
                             }
                         }
-                        equipes.reverse();
+                        equipes.reverse(); // Serpentin
                     });
+
                     renderTeams();
                 }
             });
@@ -308,29 +335,44 @@
         // Importer un fichier ZIP de photos
         async function handleZIP(e) {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file) {
+                alert("Aucun fichier sélectionné.");
+                return;
+            }
 
             try {
+                console.log("Début de l'import du ZIP...");
                 const zip = await JSZip.loadAsync(file);
                 const files = Object.keys(zip.files);
+                console.log("Fichiers dans le ZIP :", files);
 
+                let photosCount = 0;
                 for (const filename of files) {
                     if (!filename.endsWith('/')) {
-                        const match = filename.match(/^([^,]+),([^,]+),[FM]$/);
+                        // Regex adaptée au format "_NOM,_Prénom_Sexe.jpg"
+                        const match = filename.match(/^_([^,]+),_([^_]+)_[FM]\.jpg$/i);
                         if (match) {
-                            const nom = match[1].trim();
+                            const nom = match[1].trim().toUpperCase();
                             const prenom = match[2].trim();
+                            console.log(`Trouvé : ${nom}, ${prenom} (fichier : ${filename})`);
+
                             const fileData = await zip.files[filename].async('blob');
                             const photoURL = URL.createObjectURL(fileData);
                             photosEleve[`${nom},${prenom}`] = photoURL;
+                            photosCount++;
+                        } else {
+                            console.warn(`Fichier ignoré (format invalide) : ${filename}`);
                         }
                     }
                 }
 
-                alert(`Photos importées avec succès pour ${Object.keys(photosEleve).length} élèves.`);
+                console.log(`Photos importées : ${photosCount}`, photosEleve);
+                alert(`Photos importées avec succès pour ${photosCount} élèves.`);
+
+                // Réassocier les photos aux élèves déjà importés
                 if (eleves.length > 0) {
                     eleves.forEach(eleve => {
-                        const eleveKey = `${eleve.Nom.trim()},${eleve.Prenom.trim()}`;
+                        const eleveKey = `${eleve.Nom.toUpperCase()},${eleve.Prenom}`;
                         if (photosEleve[eleveKey]) {
                             eleve.photo = photosEleve[eleveKey];
                         }
@@ -338,8 +380,8 @@
                     renderTeams();
                 }
             } catch (error) {
-                console.error("Erreur lors de la lecture du ZIP :", error);
-                alert("Erreur lors de l'import des photos. Vérifiez le fichier ZIP.");
+                console.error("Erreur lors de l'import du ZIP :", error);
+                alert(`Erreur : ${error.message}. Vérifiez le fichier ZIP.`);
             }
         }
 
@@ -353,7 +395,7 @@
                             let photoSrc = m.photo ? m.photo : "";
                             return `
                                 <div class="text-sm flex items-center gap-2 border border-slate-800 p-2 rounded-lg ${m.style}">
-                                    ${photoSrc ? `<img src="${photoSrc}" class="w-10 h-10 rounded-full object-cover">` : ''}
+                                    ${photoSrc ? `<img src="${photoSrc}" class="team-photo">` : '<div class="team-photo bg-slate-700"></div>'}
                                     <span class="font-black uppercase">${m.maillot}</span>
                                     <span class="font-bold text-white">${m.prenom} ${m.nom} <span class="text-xs text-slate-400 ml-1">(VMA: ${m.vma})</span></span>
                                 </div>
