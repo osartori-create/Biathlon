@@ -40,6 +40,7 @@
         .btn-action.course { background: linear-gradient(180deg, #5b57f1, #4f46e5); color: #fff; }
         .btn-action.pen    { background: linear-gradient(180deg, #b197ff, #9f86ff); color: #1b1200; }
         .btn-action.done   { background: #22c55e; color: #07150b; }
+        .btn-action.waiting { background: #f59e0b; color: #1b1200; cursor: default; }
         .penlaps { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
         .penlap {
             min-width: 60px; height: 48px; padding: 0 12px; border-radius: 12px; display: grid; place-items: center;
@@ -48,8 +49,14 @@
         }
         .penlap.done { background: #bbf7d0; border-color: #16a34a; cursor: default; }
         .error-msg {
-            background: #ef4444; color: white; padding: 8px 12px; border-radius: 8px;
-            font-weight: bold; margin-top: 8px; display: none; font-size: 1rem;
+            background: #ef4444;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-top: 8px;
+            display: none;
+            font-size: 1rem;
         }
         .tir-container { display: flex; flex-direction: column; height: 100%; min-height: 300px; }
         .tir-row { display: flex; flex: 1; gap: 16px; align-items: stretch; }
@@ -60,14 +67,29 @@
         .shot-box .shot-score { color: #60a5fa; }
         .valid-btn { margin-top: 8px; }
 
-        .coureur-feedback { font-size: 0.85rem; color: #ffffff; margin-top: 4px; line-height: 1.3; font-weight: 500; width: 100%; display: flex; flex-direction: column; align-items: center; }
-        .coureur-feedback .serie-line { white-space: normal; word-break: break-word; text-align: left; margin-bottom: 2px; width: 100%; }
-        .coureur-feedback .serie-line-2 { white-space: normal; word-break: break-word; text-align: left; font-weight: 400; font-size: 0.75rem; opacity: 0.9; margin-bottom: 6px; width: 100%; }
+        .coureur-feedback .serie-line {
+            white-space: normal;
+            word-break: break-word;
+            text-align: left;
+            margin-bottom: 2px;
+            width: 100%;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+        .coureur-feedback .serie-line-2 {
+            white-space: normal;
+            word-break: break-word;
+            text-align: left;
+            font-weight: 400;
+            font-size: 0.75rem;
+            opacity: 0.9;
+            margin-bottom: 6px;
+            width: 100%;
+        }
         .coureur-feedback .bonifie { font-weight: 700; color: #facc15; }
         .coureur-feedback .alerte { color: #ef4444; font-weight: 700; }
 
         .coureur-points { font-size: 2.2rem; font-weight: 900; color: #facc15; margin-top: 2px; text-shadow: 0 0 10px rgba(250,204,21,0.3); }
-        .coureur-moyenne { font-size: 1.2rem; font-weight: 700; color: #34d399; margin-top: 0px; }
         .coureur-temps-cumule { font-size: 1rem; font-weight: 600; color: #60a5fa; margin-top: 2px; }
         #teamTotal { font-size: 1.8rem; font-weight: 900; color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.3); }
         .ranking-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px 14px; border-radius: 12px; border: 1px solid #334155; }
@@ -85,15 +107,70 @@
         @keyframes fadeInDown { 0% { opacity: 0; transform: translateX(-50%) translateY(-20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
         .juge-selector { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 12px 0; }
-        .juge-btn { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.8rem; border: 2px solid #334155; background: #1e293b; color: #94a3b8; transition: all 0.15s; cursor: pointer; }
+        .juge-btn {
+            padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.8rem;
+            border: 2px solid #334155; background: #1e293b; color: #94a3b8;
+            transition: all 0.15s; cursor: pointer;
+        }
         .juge-btn.selected { border-color: #22c55e; background: #22c55e; color: #07150b; }
         .juge-btn:active { transform: scale(0.95); }
+
+        /* Départ centralisé - compte à rebours */
+        #departPanel {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; z-index: 9998;
+        }
+        #departPanel.active { display: flex; }
+        #departChrono {
+            font-size: 8rem; font-weight: 900; color: #facc15;
+            text-shadow: 0 0 60px rgba(250,204,21,0.3);
+            font-variant-numeric: tabular-nums;
+            animation: departPulse 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes departPulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.1); opacity: 0.7; }
+        }
+        .depart-handicap {
+            font-size: 1.8rem; color: #94a3b8; margin-top: 12px;
+        }
+        .depart-go {
+            font-size: 6rem; font-weight: 900; color: #22c55e;
+            text-shadow: 0 0 80px rgba(34,197,94,0.5);
+            animation: goPulse 0.3s ease-out;
+        }
+        @keyframes goPulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .temps-bonifie-global {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: #facc15;
+            background: #0a0f1a;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-top: 4px;
+            border: 1px solid #facc15;
+        }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
 
+    <!-- TOAST -->
     <div id="toast"></div>
 
+    <!-- PANNEAU DÉPART CENTRALISÉ -->
+    <div id="departPanel">
+        <div id="departChrono">--</div>
+        <div class="depart-handicap" id="departHandicap"></div>
+    </div>
+
+    <!-- En-tête -->
     <div class="flex justify-between items-center mb-3 shrink-0 px-2">
         <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
             <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
@@ -104,8 +181,10 @@
         </div>
     </div>
 
+    <!-- ZONE PRINCIPALE -->
     <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
         
+        <!-- LOGIN -->
         <div id="ecranLogin" class="flex flex-col items-center justify-center flex-1">
             <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-8 italic">Arcathlon</h1>
             <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-5 rounded-2xl text-2xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6 text-white">
@@ -125,6 +204,7 @@
             </div>
         </div>
 
+        <!-- GRILLE -->
         <div id="ecranCoureurs" class="hidden flex-col flex-1 overflow-y-auto">
             <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
             <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-2">Équipe X</h2>
@@ -137,39 +217,43 @@
             <div id="rankingContainer" class="mt-6 space-y-2"></div>
         </div>
 
+        <!-- ACTION -->
         <div id="ecranAction" class="hidden flex-col h-full">
             <button onclick="retourCoureurs()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
             
+            <!-- Phase Panel -->
             <div id="phasePanel" class="phase-panel panel-course" style="margin-bottom:12px">
                 <div style="display:flex; align-items:end; justify-content:space-between; gap:12px; flex-wrap:wrap">
                     <div>
                         <div id="phaseName" class="phase-title">COURSE</div>
                         <div id="phaseClock" class="phase-clock">00:00.00</div>
                     </div>
-                    <div class="chip">Course <span id="currentSerieChip">1</span>/<span id="totalSeriesChip">3</span> | <span id="distanceChip">400m</span></div>
+                    <div class="chip">Course <span id="currentSerieChip">1</span>/<span id="totalSeriesChip">3</span> | <span id="distanceChip">100m</span></div>
                 </div>
             </div>
 
-            <!-- Affichage Handicap Poursuite -->
-            <div id="handicapDisplay" class="hidden text-center font-bold text-red-400 mb-2 border border-red-500 rounded bg-red-950/30 p-2">
-                Handicap au départ: +<span id="handicapVal">0</span>s
-            </div>
-
+            <!-- Infos -->
             <div class="text-center font-black text-xl text-slate-300 mb-2 bg-slate-950 py-2 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4 flex-wrap">
                 <span id="coureurLabel">Maillot</span>
                 <span id="infoSerieVMA" class="text-sm font-bold text-slate-400"></span>
+                <span id="handicapDisplay" class="text-xs font-bold text-yellow-400 hidden">Handicap: +0s</span>
             </div>
 
             <div id="errorMessage" class="error-msg"></div>
 
+            <!-- RELAIS Cartes -->
             <div id="moduleRelais" class="hidden flex-col items-center mb-3">
                 <button id="btnTirerCarte" onclick="tirerCarteRelais()" class="bg-purple-600 px-6 py-2 rounded-xl font-black text-base uppercase shadow-lg shadow-purple-900/50 btn-tap border-2 border-purple-400">🃏 Tirer une Carte</button>
                 <div id="carteAffichee" class="text-lg font-bold text-center bg-slate-800 p-3 rounded-xl border-2 border-purple-500 hidden text-purple-300 mt-2 w-full max-w-md"></div>
             </div>
 
+            <!-- Giant Action Button -->
             <button id="giantActionBtn" class="btn-action course" onclick="onGiantAction()">Démarrer la course</button>
 
+            <!-- Phase Content -->
             <div id="phaseContent" class="flex-1 mt-3 overflow-y-auto" style="min-height: 200px;">
+                
+                <!-- TIR -->
                 <div id="moduleSaisieTir" class="tir-container" style="display:none;">
                     <div class="tir-row">
                         <div class="tir-target">
@@ -196,6 +280,7 @@
                     </div>
                 </div>
 
+                <!-- PÉNALITÉ -->
                 <div id="modulePenalite" class="hidden flex-col items-center">
                     <div class="text-center font-bold text-lg">Pénalités à effectuer</div>
                     <div class="penlaps" id="penlapsRow"></div>
@@ -204,6 +289,7 @@
                 </div>
             </div>
 
+            <!-- KILL BILL -->
             <div id="moduleKillBill" class="hidden flex-1 flex-col gap-3 mt-2">
                 <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-center">
                     <div class="text-sm font-bold text-slate-400">Adversaire : <span id="adversaireLabel" class="text-white">--</span></div>
@@ -230,6 +316,7 @@
                 <button onclick="annulerDuel()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler</button>
             </div>
 
+            <!-- MILLE -->
             <div id="moduleMille" class="hidden flex-1 flex-col items-center justify-center gap-4">
                 <div id="chrono18s" class="text-8xl font-mono font-black text-emerald-400 bg-black px-12 py-8 rounded-3xl border-4 border-slate-700">18</div>
                 <button id="btnStart18" onclick="startTimer18()" class="btn-tap bg-blue-600 px-12 py-6 rounded-2xl font-black text-3xl uppercase border-4 border-blue-400 shadow-xl">Top Départ</button>
@@ -238,6 +325,9 @@
     </div>
 
     <script>
+        // =====================================================================
+        // CONFIG & STATE
+        // =====================================================================
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
@@ -249,9 +339,15 @@
         let modeActuel = "sprint";
         let nbFlechesActuel = 2;
         let currentPhase = 'course';
-        let phaseStartTime = null, phaseAccum = 0, globalAccum = 0, isRunning = false, tickHandle = null;
+        let startTime = 0, elapsed = 0, running = false, frameHandle = null;
+        let phaseAccum = 0, globalAccum = 0;
         let lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 };
         let effetCarte = null;
+        let handicapMs = 0;
+        let departSignalReceived = false;
+        let departCountdown = null;
+        let departPanelTimeout = null;
+
         const cartesRelais = [
             { nom: "Tir mauvaise main !", effet: () => { nbFlechesActuel = 1; updateInfoFleches(); } },
             { nom: "1 tour effacé !", effet: () => {} },
@@ -262,8 +358,8 @@
         ];
         let killBillState = { equipeAdverse: "", scoreNous: 0, scoreEux: 0, tirsNous: 0, tirsEux: 0, maxTirs: 2 };
         let timer18Interval = null;
-        let toastTimeout = null;
 
+        let toastTimeout = null;
         function showToast(message, duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -273,23 +369,7 @@
         }
 
         // =====================================================================
-        // ÉCOUTE DU DÉPART CENTRALISÉ
-        // =====================================================================
-        db.ref('arcathlon/commandes/depart').on('value', snap => {
-            const data = snap.val();
-            if (data && data.actif && data.timestamp) {
-                // Ignore si l'ordre a plus de 10 secondes (évite les lancements fantômes au rafraîchissement)
-                if (Date.now() - data.timestamp < 10000) {
-                    if (currentPhase === 'course' && !isRunning && modeActuel !== 'mille' && modeActuel !== 'killbill') {
-                        startTimer();
-                        showToast("🚦 Départ centralisé !", 2500);
-                    }
-                }
-            }
-        });
-
-        // =====================================================================
-        // CONFIG FIREBASE
+        // FIREBASE LISTENER - CONFIG
         // =====================================================================
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
@@ -301,58 +381,132 @@
                 nbSeries: config.nbSeries || 3,
                 nbFleches: config.nbFleches || 2,
                 vmaReference: config.vmaReference || {},
-                handicaps: config.handicaps || {} // Récupération des handicaps
+                longueurPenalite: config.longueurPenalite || 30,
+                handicaps: config.handicaps || {}
             };
             document.getElementById('labelModeActuel').textContent = modeActuel;
             document.getElementById('seanceInfo').textContent = seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : '--';
             document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
             document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
 
+            // Réinitialiser les scores
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
-                    scoresCoureur[`${eq}-${m.maillot}`] = { series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })), complet: false };
+                    scoresCoureur[`${eq}-${m.maillot}`] = {
+                        series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
+                        complet: false
+                    };
                 });
             });
 
-            const sel = document.getElementById('selEquipe');
-            const valActuelle = sel.value;
-            sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
-            if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
-            if (currentEq) { initJugeSelector(); buildCoureursGrid(); }
-        });
-
-        db.ref('arcathlon/live/passages').on('value', snap => {
-            const passages = snap.val() || {};
-            scoresCoureur = {};
-            Object.keys(equipesConfig).forEach(eq => {
-                (equipesConfig[eq].membres || []).forEach(m => {
-                    scoresCoureur[`${eq}-${m.maillot}`] = { series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })), complet: false };
-                });
-            });
-            Object.values(passages).forEach(p => {
-                const key = `${p.equipe}-${p.maillot}`;
-                if (scoresCoureur[key]) {
-                    const idx = p.serie - 1;
-                    if (idx >= 0 && idx < scoresCoureur[key].series.length) {
-                        scoresCoureur[key].series[idx] = { course: p.ptsVMA || 0, tir: p.ptsTir || 0, temps: p.temps || 0, vitesse: p.vitesse || 0 };
+            // Restaurer les passages existants
+            db.ref('arcathlon/live/passages').once('value', snapPass => {
+                const passages = snapPass.val() || {};
+                Object.values(passages).forEach(p => {
+                    const key = `${p.equipe}-${p.maillot}`;
+                    if (scoresCoureur[key]) {
+                        const idx = p.serie - 1;
+                        if (idx >= 0 && idx < scoresCoureur[key].series.length) {
+                            scoresCoureur[key].series[idx] = {
+                                course: p.ptsVMA || 0,
+                                tir: p.ptsTir || 0,
+                                temps: p.temps || 0,
+                                vitesse: p.vitesse || 0
+                            };
+                        }
                     }
+                });
+                Object.keys(scoresCoureur).forEach(k => {
+                    const data = scoresCoureur[k];
+                    const allDone = data.series.every((s, i) => {
+                        if (s.course === 0) return false;
+                        if (i === seanceConfig.nbSeries - 1) return true;
+                        return s.tir > 0;
+                    });
+                    if (allDone) data.complet = true;
+                });
+                const sel = document.getElementById('selEquipe');
+                const valActuelle = sel.value;
+                sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+                if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
+                if (currentEq && currentMaillot) {
+                    initJugeSelector();
+                    buildCoureursGrid();
+                } else if (currentEq) {
+                    initJugeSelector();
+                    buildCoureursGrid();
                 }
             });
-            Object.keys(scoresCoureur).forEach(k => {
-                const data = scoresCoureur[k];
-                const allDone = data.series.every((s, i) => {
-                    if (s.course === 0) return false;
-                    if (i === seanceConfig.nbSeries - 1) return true;
-                    return s.tir > 0;
-                });
-                if (allDone) data.complet = true;
-            });
-            if (currentEq) { initJugeSelector(); buildCoureursGrid(); }
         });
 
         // =====================================================================
-        // LOGIN ET LOGIQUE DE BASE (Identique à l'original)
+        // ÉCOUTE DU DÉPART CENTRALISÉ (avec compte à rebours)
+        // =====================================================================
+        db.ref('arcathlon/commandes/depart').on('value', snap => {
+            const data = snap.val();
+            if (!data || !data.timestamp) {
+                document.getElementById('departPanel').classList.remove('active');
+                if (departPanelTimeout) clearTimeout(departPanelTimeout);
+                if (departCountdown) clearInterval(departCountdown);
+                return;
+            }
+
+            const panel = document.getElementById('departPanel');
+            const chrono = document.getElementById('departChrono');
+            const handicapEl = document.getElementById('departHandicap');
+            
+            const now = Date.now();
+            const delai = data.delai || 0;
+            const departTimestamp = data.timestamp + (delai * 1000);
+            const remaining = Math.max(0, Math.round((departTimestamp - now) / 1000));
+
+            if (remaining > 0) {
+                panel.classList.add('active');
+                chrono.textContent = remaining + 's';
+                chrono.className = 'depart-chrono';
+                handicapEl.textContent = handicapMs > 0 ? `Handicap : +${(handicapMs/1000).toFixed(1)}s` : '';
+                if (departCountdown) clearInterval(departCountdown);
+                departCountdown = setInterval(() => {
+                    const newRemaining = Math.max(0, Math.round((departTimestamp - Date.now()) / 1000));
+                    if (newRemaining > 0) {
+                        chrono.textContent = newRemaining + 's';
+                    } else {
+                        clearInterval(departCountdown);
+                        chrono.textContent = 'GO ! 🚀';
+                        chrono.className = 'depart-go';
+                        if (!departSignalReceived) {
+                            departSignalReceived = true;
+                            startTimer();
+                        }
+                        departPanelTimeout = setTimeout(() => {
+                            panel.classList.remove('active');
+                            chrono.textContent = '--';
+                            chrono.className = 'depart-chrono';
+                            handicapEl.textContent = '';
+                        }, 2000);
+                    }
+                }, 200);
+            } else {
+                panel.classList.add('active');
+                chrono.textContent = 'GO ! 🚀';
+                chrono.className = 'depart-go';
+                handicapEl.textContent = handicapMs > 0 ? `Handicap : +${(handicapMs/1000).toFixed(1)}s` : '';
+                if (!departSignalReceived) {
+                    departSignalReceived = true;
+                    startTimer();
+                }
+                departPanelTimeout = setTimeout(() => {
+                    panel.classList.remove('active');
+                    chrono.textContent = '--';
+                    chrono.className = 'depart-chrono';
+                    handicapEl.textContent = '';
+                }, 2000);
+            }
+        });
+
+        // =====================================================================
+        // LOGIN / GRILLE
         // =====================================================================
         window.checkTeamSelection = function() {
             const val = document.getElementById('selEquipe').value;
@@ -367,17 +521,26 @@
                 document.getElementById('ecranCoureurs').classList.remove('hidden');
                 document.getElementById('ecranCoureurs').classList.add('flex');
                 document.getElementById('titreEquipe').textContent = `Équipe ${currentEq}`;
-                initJugeSelector(); buildCoureursGrid();
+                initJugeSelector();
+                buildCoureursGrid();
             } else { alert("Code PIN incorrect."); clearPin(); }
         };
-        window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
+        window.resetLogin = function() { stopTimer(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
+        // =====================================================================
+        // SÉLECTEUR DU JUGE iPad
+        // =====================================================================
         function initJugeSelector() {
             const container = document.getElementById('jugeSelector');
             const membres = equipesConfig[currentEq]?.membres || [];
             const presents = membres.filter(m => !m.absent);
-            if (presents.length === 0) { container.innerHTML = '<span class="text-xs text-red-400">Aucun membre présent</span>'; return; }
-            if (currentJuge && !presents.some(m => (m.code || `${currentEq} - ${m.maillot}`) === currentJuge)) currentJuge = '';
+            if (presents.length === 0) {
+                container.innerHTML = '<span class="text-xs text-red-400">Aucun membre présent</span>';
+                return;
+            }
+            if (currentJuge && !presents.some(m => (m.code || `${currentEq} - ${m.maillot}`) === currentJuge)) {
+                currentJuge = '';
+            }
             let html = '';
             presents.forEach(m => {
                 const code = m.code || `${currentEq} - ${m.maillot}`;
@@ -390,54 +553,101 @@
         window.selectJuge = function(code) {
             currentJuge = code;
             const btns = document.querySelectorAll('.juge-btn');
-            btns.forEach(btn => { btn.classList.remove('selected'); if (btn.textContent === code) btn.classList.add('selected'); });
+            btns.forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.textContent === code) {
+                    btn.classList.add('selected');
+                }
+            });
             buildCoureursGrid();
             showToast(`Juge sélectionné : ${code}`, 1500);
         };
 
+        // =====================================================================
+        // GRILLE (avec affichage du temps bonifié)
+        // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
             const membres = equipesConfig[currentEq]?.membres || [];
             let html = "";
-            const colorMap = { 'Rouge': 'bg-red-950/80 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400', 'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400', 'Vert': 'bg-green-950/80 border-green-600 text-green-400' };
+            const colorMap = {
+                'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
+                'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
+                'Vert': 'bg-green-950/80 border-green-600 text-green-400'
+            };
             membres.forEach(m => {
                 if (m.absent) return;
                 const key = `${currentEq}-${m.maillot}`;
                 const data = scoresCoureur[key];
                 if (!data) return;
-                const complet = data.complet || data.series.every((s, idx) => { if (s.course === 0) return false; if (idx === seanceConfig.nbSeries - 1) return true; return s.tir > 0; });
+                const complet = data.complet || data.series.every((s, idx) => {
+                    if (s.course === 0) return false;
+                    if (idx === seanceConfig.nbSeries - 1) return true;
+                    return s.tir > 0;
+                });
                 if (complet) data.complet = true;
 
-                let totalPoints = 0, tempsBonifieCumule = 0, seriesValides = 0, feedback = '';
-                const vma = m.vma || 12;
+                let totalPoints = 0;
+                data.series.forEach(s => { totalPoints += (s.course || 0) + (s.tir || 0); });
+
+                let tempsBonifieCumule = 0;
+                let seriesValides = 0;
                 data.series.forEach((s, idx) => {
-                    totalPoints += (s.course || 0) + (s.tir || 0);
                     if (s.course === 0) return;
                     const temps = s.temps ? s.temps / 1000 : 0;
                     const ptsTir = s.tir || 0;
-                    let bonus = (ptsTir < 7) ? 0 : (ptsTir < 12) ? -10 : (ptsTir < 16) ? -15 : -20;
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
                     tempsBonifieCumule += temps + bonus;
                     seriesValides++;
+                });
 
+                let feedback = '';
+                const vma = m.vma || 12;
+                data.series.forEach((s, idx) => {
+                    if (s.course === 0) return;
+                    const temps = s.temps ? (s.temps / 1000).toFixed(1) : '?';
                     const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
-                    const alerteHtml = (parseFloat(vitesse) > 25 || parseFloat(vitesse) > vma * 1.5) ? '<span class="alerte">⚠️ Vitesse suspecte</span>' : '';
-                    feedback += `<div class="serie-line">S${idx+1}: ${temps.toFixed(1)}s | ${vitesse} km/h | VMA: ${s.course||0} pts ${alerteHtml}</div>`;
+                    const ptsVMA = s.course || 0;
+                    const ptsTir = s.tir || 0;
+                    const vitesseNum = parseFloat(vitesse);
+                    const alerte = (vitesseNum > 25 || vitesseNum > vma * 1.5);
+                    const alerteHtml = alerte ? '<span class="alerte">⚠️ Vitesse suspecte – Le professeur en est informé.</span>' : '';
+                    let ligne1 = `S${idx+1}: ${temps}s | ${vitesse} km/h | VMA: ${ptsVMA} pts`;
+                    if (alerteHtml) ligne1 += ` ${alerteHtml}`;
+                    feedback += `<div class="serie-line">${ligne1}</div>`;
                     if (idx < seanceConfig.nbSeries - 1) {
+                        let bonus = 0;
+                        if (ptsTir < 7) bonus = 0;
+                        else if (ptsTir < 12) bonus = -10;
+                        else if (ptsTir < 16) bonus = -15;
+                        else bonus = -20;
+                        const tempsBonifie = (temps !== '?') ? (parseFloat(temps) + bonus).toFixed(1) : '?';
                         const bonusStr = bonus < 0 ? `-${Math.abs(bonus)}s` : `${bonus}s`;
-                        feedback += `<div class="serie-line-2">Tir: ${ptsTir} pts | Bonus: ${bonusStr} | T.bonifié: <span class="bonifie">${(temps + bonus).toFixed(1)}s</span></div>`;
+                        let ligne2 = `Tir: ${ptsTir} pts | Bonus: ${bonusStr} | Temps bonifié: <span class="bonifie">${tempsBonifie}s</span>`;
+                        feedback += `<div class="serie-line-2">${ligne2}</div>`;
                     }
                 });
 
-                const tempsCumuleHtml = seriesValides > 0 ? `<div class="coureur-temps-cumule">⏱ Temps cumulé bonifié : ${tempsBonifieCumule.toFixed(1)}s</div>` : '';
+                let tempsCumuleHtml = '';
+                if (seriesValides > 0) {
+                    tempsCumuleHtml = `<div class="coureur-temps-cumule">⏱ Temps cumulé bonifié : ${tempsBonifieCumule.toFixed(1)}s</div>`;
+                }
+
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
                 const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
                 const jugeOk = (currentJuge !== '');
                 const clickHandler = (complet || !jugeOk) ? '' : `openAction('${m.maillot}')`;
-                
                 html += `
-                    <button onclick="${clickHandler}" class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                    <button onclick="${clickHandler}" 
+                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}"
+                            ${!jugeOk && !complet ? 'title="Veuillez d\'abord sélectionner un juge iPad"' : ''}>
                         <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
-                        <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${vma}</span>
+                        <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
                         ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
                         ${!complet && !jugeOk ? `<div class="text-xs font-bold text-yellow-400 mt-1">👤 Choisir juge d'abord</div>` : ''}
                         <div class="coureur-points">${totalPoints} pts</div>
@@ -446,41 +656,85 @@
                     </button>
                 `;
             });
-            grid.innerHTML = html; updateTeamTotal(); updateTeamRanking();
+            grid.innerHTML = html;
+            updateTeamTotal();
+            updateTeamRanking();
         }
 
         function updateTeamTotal() {
-            let total = 0, count = 0;
-            (equipesConfig[currentEq]?.membres || []).forEach(m => {
+            const membres = equipesConfig[currentEq]?.membres || [];
+            let totalPoints = 0;
+            let nbCoureurs = 0;
+            membres.forEach(m => {
                 if (m.absent) return;
-                const d = scoresCoureur[`${currentEq}-${m.maillot}`];
-                if (d) { let pts = 0; d.series.forEach(s => pts += (s.course||0)+(s.tir||0)); if (pts > 0 || d.complet) { total += pts; count++; } }
+                const key = `${currentEq}-${m.maillot}`;
+                const data = scoresCoureur[key];
+                if (data) {
+                    let pts = 0;
+                    data.series.forEach(s => { pts += (s.course || 0) + (s.tir || 0); });
+                    if (pts > 0 || data.complet) {
+                        totalPoints += pts;
+                        nbCoureurs++;
+                    }
+                }
             });
-            document.getElementById('teamTotal').textContent = `🏆 Moyenne équipe : ${count > 0 ? (total/count).toFixed(1) : 0} pts/coureur`;
+            const moyenne = nbCoureurs > 0 ? (totalPoints / nbCoureurs).toFixed(1) : 0;
+            document.getElementById('teamTotal').textContent = `🏆 Moyenne équipe : ${moyenne} pts/coureur`;
         }
 
         function updateTeamRanking() {
-            const ranking = Object.keys(equipesConfig).map(eqId => {
-                let total = 0, count = 0;
-                (equipesConfig[eqId]?.membres || []).forEach(m => {
+            const equipes = Object.keys(equipesConfig);
+            const ranking = equipes.map(eqId => {
+                let totalPoints = 0;
+                let nbCoureurs = 0;
+                const membres = equipesConfig[eqId]?.membres || [];
+                membres.forEach(m => {
                     if (m.absent) return;
-                    const d = scoresCoureur[`${eqId}-${m.maillot}`];
-                    if (d) { let pts = 0; d.series.forEach(s => pts += (s.course||0)+(s.tir||0)); if (pts > 0 || d.complet) { total += pts; count++; } }
+                    const key = `${eqId}-${m.maillot}`;
+                    const data = scoresCoureur[key];
+                    if (data) {
+                        let pts = 0;
+                        data.series.forEach(s => { pts += (s.course || 0) + (s.tir || 0); });
+                        if (pts > 0 || data.complet) {
+                            totalPoints += pts;
+                            nbCoureurs++;
+                        }
+                    }
                 });
-                return { id: eqId, points: count > 0 ? total/count : 0 };
-            }).sort((a, b) => b.points - a.points);
-            document.getElementById('rankingContainer').innerHTML = ranking.map((r, i) => `<div class="ranking-item"><span class="rank">${i+1}. ${r.id}</span><span class="points">${r.points.toFixed(1)} pts</span></div>`).join('');
+                const moyenne = nbCoureurs > 0 ? totalPoints / nbCoureurs : 0;
+                return { id: eqId, points: moyenne };
+            });
+            ranking.sort((a, b) => b.points - a.points);
+            const container = document.getElementById('rankingContainer');
+            container.innerHTML = ranking.map((r, i) => `
+                <div class="ranking-item">
+                    <span class="rank">${i+1}. ${r.id}</span>
+                    <span class="points">${r.points.toFixed(1)} pts</span>
+                </div>
+            `).join('');
         }
 
         // =====================================================================
-        // GESTION ACTION & HANDICAP
+        // OPEN ACTION (avec gestion du handicap)
         // =====================================================================
         window.openAction = function(maillot) {
-            if (!currentJuge) return showToast("⚠️ Veuillez d'abord sélectionner un juge iPad !", 2500);
+            if (!currentJuge) {
+                showToast("⚠️ Veuillez d'abord sélectionner un juge iPad !", 2500);
+                return;
+            }
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
             currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
-            if (currentSerie === -1) return alert("Toutes les séries sont déjà terminées.");
+            if (currentSerie === -1) {
+                alert("Toutes les séries sont déjà terminées.");
+                return;
+            }
+
+            handicapMs = 0;
+            const handicapKey = `${currentEq}-${maillot}`;
+            if (seanceConfig.handicaps && seanceConfig.handicaps[handicapKey]) {
+                handicapMs = seanceConfig.handicaps[handicapKey] || 0;
+            }
 
             document.getElementById('ecranCoureurs').classList.add('hidden');
             document.getElementById('ecranAction').classList.remove('hidden');
@@ -492,118 +746,704 @@
             document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
             document.getElementById('currentSerieChip').textContent = currentSerie + 1;
 
-            // Affichage du handicap en mode Poursuite
-            const hDisplay = document.getElementById('handicapDisplay');
-            if (modeActuel === 'poursuite' && seanceConfig.handicaps && seanceConfig.handicaps[currentEq] && seanceConfig.handicaps[currentEq][currentMaillot] !== undefined) {
-                hDisplay.classList.remove('hidden');
-                document.getElementById('handicapVal').textContent = seanceConfig.handicaps[currentEq][currentMaillot];
+            const handicapDisplay = document.getElementById('handicapDisplay');
+            if (handicapMs > 0) {
+                handicapDisplay.classList.remove('hidden');
+                handicapDisplay.textContent = `Handicap: +${(handicapMs/1000).toFixed(1)}s`;
             } else {
-                hDisplay.classList.add('hidden');
+                handicapDisplay.classList.add('hidden');
             }
 
-            resetLap(); currentPhase = 'course'; nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches; effetCarte = null; updateInfoFleches();
-            document.getElementById('moduleSaisieTir').style.display = 'none'; document.getElementById('modulePenalite').classList.add('hidden'); document.getElementById('moduleKillBill').classList.add('hidden'); document.getElementById('moduleMille').classList.add('hidden'); document.getElementById('moduleRelais').classList.add('hidden');
+            resetLap();
+            currentPhase = 'course';
+            nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches;
+            effetCarte = null;
+            updateInfoFleches();
 
-            if (modeActuel === 'relais') { document.getElementById('moduleRelais').classList.remove('hidden'); document.getElementById('moduleRelais').classList.add('flex'); document.getElementById('btnTirerCarte').classList.remove('hidden'); document.getElementById('carteAffichee').classList.add('hidden'); }
-            if (modeActuel === 'mille') { document.getElementById('moduleMille').classList.remove('hidden'); document.getElementById('moduleMille').classList.add('flex'); document.getElementById('chrono18s').textContent = "18"; document.getElementById('btnStart18').classList.remove('hidden'); document.getElementById('giantActionBtn').style.display = 'none'; } 
-            else if (modeActuel === 'killbill') { document.getElementById('moduleKillBill').classList.remove('hidden'); document.getElementById('moduleKillBill').classList.add('flex'); initKillBill(); document.getElementById('giantActionBtn').style.display = 'none'; } 
-            else { document.getElementById('giantActionBtn').style.display = 'block'; setPhase('course'); document.getElementById('giantActionBtn').textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`; }
+            document.getElementById('moduleSaisieTir').style.display = 'none';
+            document.getElementById('modulePenalite').classList.add('hidden');
+            document.getElementById('moduleKillBill').classList.add('hidden');
+            document.getElementById('moduleMille').classList.add('hidden');
+            document.getElementById('moduleRelais').classList.add('hidden');
+
+            if (modeActuel === 'relais') {
+                document.getElementById('moduleRelais').classList.remove('hidden');
+                document.getElementById('moduleRelais').classList.add('flex');
+                document.getElementById('btnTirerCarte').classList.remove('hidden');
+                document.getElementById('carteAffichee').classList.add('hidden');
+            }
+
+            if (modeActuel === 'mille') {
+                document.getElementById('moduleMille').classList.remove('hidden');
+                document.getElementById('moduleMille').classList.add('flex');
+                document.getElementById('chrono18s').textContent = "18";
+                document.getElementById('btnStart18').classList.remove('hidden');
+                document.getElementById('giantActionBtn').style.display = 'none';
+            } else if (modeActuel === 'killbill') {
+                document.getElementById('moduleKillBill').classList.remove('hidden');
+                document.getElementById('moduleKillBill').classList.add('flex');
+                initKillBill();
+                document.getElementById('giantActionBtn').style.display = 'none';
+            } else {
+                document.getElementById('giantActionBtn').style.display = 'block';
+                setPhase('course');
+                if (modeActuel === 'poursuite') {
+                    document.getElementById('giantActionBtn').textContent = '⏳ Attente du départ...';
+                    document.getElementById('giantActionBtn').className = 'btn-action waiting';
+                    document.getElementById('giantActionBtn').disabled = true;
+                    departSignalReceived = false;
+                } else {
+                    document.getElementById('giantActionBtn').textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                    document.getElementById('giantActionBtn').className = 'btn-action course';
+                    document.getElementById('giantActionBtn').disabled = false;
+                }
+            }
             document.getElementById('phasePanel').classList.remove('hidden');
         };
 
-        window.retourCoureurs = function() { stopAllTimers(); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.remove('hidden'); document.getElementById('ecranCoureurs').classList.add('flex'); initJugeSelector(); buildCoureursGrid(); };
-
-        function setPhase(phase) {
-            currentPhase = phase; const panel = document.getElementById('phasePanel'); const name = document.getElementById('phaseName'); const clock = document.getElementById('phaseClock'); const giant = document.getElementById('giantActionBtn');
-            phaseAccum = 0; phaseStartTime = isRunning ? Date.now() : null; clock.textContent = '00:00.00';
-            panel.className = 'phase-panel';
-            if (phase === 'course') { panel.classList.add('panel-course'); name.textContent = 'COURSE'; giant.style.display = 'block'; giant.textContent = isRunning ? 'Arrivée' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`; giant.className = 'btn-action course'; document.getElementById('moduleSaisieTir').style.display = 'none'; document.getElementById('modulePenalite').classList.add('hidden'); document.getElementById('errorMessage').style.display = 'none'; } 
-            else if (phase === 'tir') { panel.classList.add('panel-tir'); name.textContent = 'TIR'; giant.style.display = 'none'; document.getElementById('moduleSaisieTir').style.display = 'flex'; document.getElementById('modulePenalite').classList.add('hidden'); genererZonesFleches(); } 
-            else if (phase === 'penalite') { panel.classList.add('panel-pen'); name.textContent = 'PÉNALITÉ'; giant.style.display = 'block'; giant.textContent = 'Effectuer les pénalités'; giant.className = 'btn-action pen'; document.getElementById('moduleSaisieTir').style.display = 'none'; document.getElementById('modulePenalite').classList.remove('hidden'); document.getElementById('modulePenalite').classList.add('flex'); renderPenalites(); document.getElementById('errorMessage').style.display = 'none'; }
-            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
-        }
-
-        function resetLap() { lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 }; globalAccum = 0; phaseAccum = 0; isRunning = false; if (tickHandle) cancelAnimationFrame(tickHandle); tickHandle = null; document.getElementById('phaseClock').textContent = '00:00.00'; document.getElementById('giantActionBtn').textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`; document.getElementById('giantActionBtn').className = 'btn-action course'; genererZonesFleches(); document.getElementById('errorMessage').style.display = 'none'; }
-        
-        function startTimer() { if (isRunning) return; phaseStartTime = Date.now(); isRunning = true; tickLoop(); updateGiantButton(); }
-        function stopTimer() { if (!isRunning) return; if (phaseStartTime) phaseAccum += (Date.now() - phaseStartTime); phaseStartTime = null; isRunning = false; if (tickHandle) cancelAnimationFrame(tickHandle); tickHandle = null; updateGiantButton(); }
-        
-        function tickLoop() {
-            const update = () => { if (!isRunning) return; const now = Date.now(); let phaseElapsed = phaseAccum + (phaseStartTime ? (now - phaseStartTime) : 0); document.getElementById('phaseClock').textContent = formatTime(phaseElapsed); if (currentPhase === 'course') lapData.courseMs = phaseElapsed; else if (currentPhase === 'tir') lapData.tirMs = phaseElapsed; else if (currentPhase === 'penalite') lapData.penaliteMs = phaseElapsed; tickHandle = requestAnimationFrame(update); };
-            tickHandle = requestAnimationFrame(update);
-        }
-        function formatTime(ms) { ms = Math.max(0, Math.round(ms)); const cs = Math.floor((ms % 1000) / 10), s = Math.floor(ms / 1000) % 60, m = Math.floor(ms / 60000); const pad = (n, l = 2) => String(n).padStart(l, '0'); return `${pad(m)}:${pad(s)}.${pad(cs)}`; }
-        function stopAllTimers() { if (isRunning) stopTimer(); if (tickHandle) cancelAnimationFrame(tickHandle); tickHandle = null; }
-        
-        function updateGiantButton() { const btn = document.getElementById('giantActionBtn'); if (currentPhase === 'course') { btn.textContent = isRunning ? 'Arrivée' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`; btn.className = 'btn-action course'; btn.style.display = 'block'; } else if (currentPhase === 'tir') btn.style.display = 'none'; else if (currentPhase === 'penalite') { btn.textContent = 'Effectuer les pénalités'; btn.className = 'btn-action pen'; btn.style.display = 'block'; } }
-
-        window.onGiantAction = function() {
-            if (modeActuel === 'mille' || modeActuel === 'killbill') return;
-            if (currentPhase === 'course') { if (!isRunning) startTimer(); else { stopTimer(); lapData.courseMs = phaseAccum; if (currentSerie === seanceConfig.nbSeries - 1) finishLap(); else setPhase('tir'); } } 
-            else if (currentPhase === 'penalite') { document.getElementById('errorMessage').textContent = "Cliquez sur chaque tour de pénalité effectué."; document.getElementById('errorMessage').style.display = 'block'; }
+        window.retourCoureurs = function() {
+            stopTimer();
+            document.getElementById('ecranAction').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('hidden');
+            document.getElementById('ecranCoureurs').classList.add('flex');
+            initJugeSelector();
+            buildCoureursGrid();
         };
 
         // =====================================================================
-        // SAISIE DE TIR (inchangé)
+        // PHASE MANAGEMENT
         // =====================================================================
-        function genererZonesFleches() { const container = document.getElementById('flechesContainer'); container.innerHTML = Array.from({length: nbFlechesActuel}, (_, i) => `<div class="shot-box">Flèche ${i+1} : <span id="shotLabel${i+1}" class="shot-score">--</span></div>`).join(''); document.getElementById('resultatTirSpecifique').textContent = ""; lapData.shots = []; document.getElementById('btnValider').disabled = true; document.getElementById('btnValider').classList.add('opacity-40'); document.getElementById('btnValider').textContent = 'Valider le tir'; document.getElementById('errorMessage').style.display = 'none'; }
-        window.marquerTir = function(pts) { if (lapData.shots.length >= nbFlechesActuel) return; if (effetCarte === 'halfScore') pts = Math.floor(pts / 2); lapData.shots.push(pts); const label = document.getElementById(`shotLabel${lapData.shots.length}`); if (label) label.textContent = pts; updateTirUI(); };
-        window.annulerTir = function() { if (lapData.shots.length === 0) return; const idx = lapData.shots.length; lapData.shots.pop(); const label = document.getElementById(`shotLabel${idx}`); if (label) label.textContent = '--'; updateTirUI(); };
-        function updateTirUI() { const btn = document.getElementById('btnValider'); const errorDiv = document.getElementById('errorMessage'); if (lapData.shots.length === nbFlechesActuel) { btn.disabled = false; btn.classList.remove('opacity-40'); errorDiv.style.display = 'none'; const ptsTir = lapData.shots.reduce((a, b) => a + b, 0); const resDiv = document.getElementById('resultatTirSpecifique'); if (modeActuel === 'poursuite' || modeActuel === 'relais') { let pen = (ptsTir < 7) ? 3 : (ptsTir < 12) ? 2 : (ptsTir < 16) ? 1 : 0; if (effetCarte === 'noPenalty' && ptsTir > 10) pen = 0; lapData.penReq = pen; resDiv.innerHTML = `Pénalité : <span class="text-red-400 text-lg">${pen} tour(s)</span>`; btn.textContent = pen > 0 ? 'Valider & pénalités' : 'Valider le tir'; } else if (modeActuel === 'sprint') { let bonus = (ptsTir < 7) ? 0 : (ptsTir < 12) ? 10 : (ptsTir < 16) ? 15 : 20; resDiv.innerHTML = `Bonus : <span class="text-emerald-400 text-lg">-${bonus} sec</span>`; btn.textContent = 'Valider le tir'; } else { resDiv.innerHTML = `Total : <span class="text-blue-400 text-lg">${ptsTir} pts</span>`; btn.textContent = 'Valider le tir'; } } else { btn.disabled = true; btn.classList.add('opacity-40'); document.getElementById('resultatTirSpecifique').textContent = ""; btn.textContent = 'Valider le tir'; errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider.`; errorDiv.style.display = 'block'; } }
-        window.validerTir = function() { const errorDiv = document.getElementById('errorMessage'); errorDiv.style.display = 'none'; if (lapData.shots.length !== nbFlechesActuel) { errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider.`; errorDiv.style.display = 'block'; return; } if (isRunning) stopTimer(); lapData.tirMs = phaseAccum; if (modeActuel === 'mille') { finishMille(); return; } if (lapData.penReq > 0 && (modeActuel === 'poursuite' || modeActuel === 'relais')) { setPhase('penalite'); renderPenalites(); return; } finishLap(); };
+        function setPhase(phase) {
+            currentPhase = phase;
+            const panel = document.getElementById('phasePanel');
+            const name = document.getElementById('phaseName');
+            const clock = document.getElementById('phaseClock');
+            const giant = document.getElementById('giantActionBtn');
 
-        function finishLap() {
-            const errorDiv = document.getElementById('errorMessage'); errorDiv.style.display = 'none';
-            try {
-                const totalLap = lapData.courseMs + lapData.tirMs + lapData.penaliteMs;
+            phaseAccum = 0;
+            startTime = running ? performance.now() : 0;
+            clock.textContent = '00:00.00';
+
+            panel.className = 'phase-panel';
+            if (phase === 'course') {
+                panel.classList.add('panel-course');
+                name.textContent = 'COURSE';
+                giant.style.display = 'block';
+                if (modeActuel === 'poursuite' && !running) {
+                    giant.textContent = '⏳ Attente du départ...';
+                    giant.className = 'btn-action waiting';
+                    giant.disabled = true;
+                } else if (running) {
+                    giant.textContent = 'Arrivée';
+                    giant.className = 'btn-action course';
+                    giant.disabled = false;
+                } else {
+                    giant.textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                    giant.className = 'btn-action course';
+                    giant.disabled = false;
+                }
+                document.getElementById('moduleSaisieTir').style.display = 'none';
+                document.getElementById('modulePenalite').classList.add('hidden');
+                document.getElementById('errorMessage').style.display = 'none';
+            } else if (phase === 'tir') {
+                panel.classList.add('panel-tir');
+                name.textContent = 'TIR';
+                giant.style.display = 'none';
+                document.getElementById('moduleSaisieTir').style.display = 'flex';
+                document.getElementById('modulePenalite').classList.add('hidden');
+                genererZonesFleches();
+            } else if (phase === 'penalite') {
+                panel.classList.add('panel-pen');
+                name.textContent = 'PÉNALITÉ';
+                giant.style.display = 'block';
+                giant.textContent = 'Effectuer les pénalités';
+                giant.className = 'btn-action pen';
+                giant.disabled = false;
+                document.getElementById('moduleSaisieTir').style.display = 'none';
+                document.getElementById('modulePenalite').classList.remove('hidden');
+                document.getElementById('modulePenalite').classList.add('flex');
+                renderPenalites();
+                document.getElementById('errorMessage').style.display = 'none';
+            }
+            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+        }
+
+        function resetLap() {
+            lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 };
+            globalAccum = 0; phaseAccum = 0; running = false;
+            if (frameHandle) cancelAnimationFrame(frameHandle);
+            frameHandle = null;
+            document.getElementById('phaseClock').textContent = '00:00.00';
+            const btn = document.getElementById('giantActionBtn');
+            if (modeActuel === 'poursuite') {
+                btn.textContent = '⏳ Attente du départ...';
+                btn.className = 'btn-action waiting';
+                btn.disabled = true;
+            } else {
+                btn.textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                btn.className = 'btn-action course';
+                btn.disabled = false;
+            }
+            genererZonesFleches();
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // =====================================================================
+        // Chronométrage avec performance.now()
+        // =====================================================================
+        function startTimer() {
+            if (running) return;
+            startTime = performance.now();
+            running = true;
+            tick();
+        }
+
+        function stopTimer() {
+            if (!running) return;
+            running = false;
+            if (frameHandle) cancelAnimationFrame(frameHandle);
+            frameHandle = null;
+            phaseAccum += elapsed;
+            elapsed = 0;
+            updateGiantButton();
+        }
+
+        function tick() {
+            if (!running) return;
+            const now = performance.now();
+            elapsed = now - startTime;
+            let total = phaseAccum + elapsed;
+            document.getElementById('phaseClock').textContent = formatTime(total);
+            if (currentPhase === 'course') lapData.courseMs = total;
+            else if (currentPhase === 'tir') lapData.tirMs = total;
+            else if (currentPhase === 'penalite') lapData.penaliteMs = total;
+            frameHandle = requestAnimationFrame(tick);
+        }
+
+        function formatTime(ms) {
+            ms = Math.max(0, Math.round(ms));
+            const cs = Math.floor((ms % 1000) / 10);
+            const s = Math.floor(ms / 1000) % 60;
+            const m = Math.floor(ms / 60000);
+            const pad = (n, l = 2) => String(n).padStart(l, '0');
+            return `${pad(m)}:${pad(s)}.${pad(cs)}`;
+        }
+
+        function stopAllTimers() {
+            if (running) stopTimer();
+            if (frameHandle) cancelAnimationFrame(frameHandle);
+            frameHandle = null;
+        }
+
+        function updateGiantButton() {
+            const btn = document.getElementById('giantActionBtn');
+            if (currentPhase === 'course') {
+                if (modeActuel === 'poursuite' && !running) {
+                    btn.textContent = '⏳ Attente du départ...';
+                    btn.className = 'btn-action waiting';
+                    btn.disabled = true;
+                } else if (running) {
+                    btn.textContent = 'Arrivée';
+                    btn.className = 'btn-action course';
+                    btn.disabled = false;
+                } else {
+                    btn.textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                    btn.className = 'btn-action course';
+                    btn.disabled = false;
+                }
+                btn.style.display = 'block';
+            } else if (currentPhase === 'tir') {
+                btn.style.display = 'none';
+            } else if (currentPhase === 'penalite') {
+                btn.textContent = 'Effectuer les pénalités';
+                btn.className = 'btn-action pen';
+                btn.disabled = false;
+                btn.style.display = 'block';
+            }
+        }
+
+        window.onGiantAction = function() {
+            if (modeActuel === 'mille' || modeActuel === 'killbill') return;
+            if (currentPhase === 'course') {
+                if (!running) {
+                    if (modeActuel === 'poursuite') {
+                        showToast("⏳ Attendez le départ depuis l'iPad du professeur.", 2000);
+                        return;
+                    }
+                    startTimer();
+                } else {
+                    stopTimer();
+                    lapData.courseMs = phaseAccum + elapsed;
+                    if (currentSerie === seanceConfig.nbSeries - 1) {
+                        finishLap();
+                    } else {
+                        setPhase('tir');
+                    }
+                }
+            } else if (currentPhase === 'penalite') {
+                document.getElementById('errorMessage').textContent = "Cliquez sur chaque tour de pénalité effectué.";
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        };
+
+        // =====================================================================
+        // TIR MODULE
+        // =====================================================================
+        function genererZonesFleches() {
+            const container = document.getElementById('flechesContainer');
+            let html = '';
+            for (let i = 0; i < nbFlechesActuel; i++) {
+                html += `<div class="shot-box">Flèche ${i+1} : <span id="shotLabel${i+1}" class="shot-score">--</span></div>`;
+            }
+            container.innerHTML = html;
+            document.getElementById('resultatTirSpecifique').textContent = "";
+            lapData.shots = [];
+            document.getElementById('btnValider').disabled = true;
+            document.getElementById('btnValider').classList.add('opacity-40');
+            document.getElementById('btnValider').textContent = 'Valider le tir';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        window.marquerTir = function(pts) {
+            if (lapData.shots.length >= nbFlechesActuel) return;
+            if (effetCarte === 'halfScore') pts = Math.floor(pts / 2);
+            lapData.shots.push(pts);
+            const label = document.getElementById(`shotLabel${lapData.shots.length}`);
+            if (label) label.textContent = pts;
+            updateTirUI();
+        };
+
+        window.annulerTir = function() {
+            if (lapData.shots.length === 0) return;
+            const idx = lapData.shots.length;
+            lapData.shots.pop();
+            const label = document.getElementById(`shotLabel${idx}`);
+            if (label) label.textContent = '--';
+            updateTirUI();
+        };
+
+        function updateTirUI() {
+            const btn = document.getElementById('btnValider');
+            const errorDiv = document.getElementById('errorMessage');
+            
+            if (lapData.shots.length === nbFlechesActuel) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-40');
+                errorDiv.style.display = 'none';
                 const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
-                let vitesse = 0, ptsVMA = 0; const key = `${currentEq}-${currentMaillot}`; const vmaRef = seanceConfig.vmaReference[key] || 12;
-                if (lapData.courseMs > 0) { const distanceKm = seanceConfig.distanceTotale / 1000, tempsHeures = (lapData.courseMs / 1000) / 3600; if (tempsHeures > 0) { vitesse = distanceKm / tempsHeures; ptsVMA = (vitesse >= vmaRef + 1) ? 3 : (vitesse >= vmaRef - 0.5) ? 2 : (vitesse >= vmaRef - 1) ? 1 : 0; } }
-                if (!isFinite(vitesse)) vitesse = 0; if (!isFinite(ptsVMA)) ptsVMA = 0;
-                let alerteTriche = (vitesse > 0 && (vitesse > 25 || vitesse > vmaRef * 1.5));
-                if (alerteTriche) showToast("⚠️ Vitesse suspecte – Le professeur en est informé.", 4000);
-
-                const passageData = { equipe: currentEq, maillot: currentMaillot, juge: currentJuge, ptsVMA: Math.round(ptsVMA), ptsTir: Math.round(ptsTir), vitesse: Math.round(vitesse * 10) / 10, temps: Math.round(totalLap), courseMs: Math.round(lapData.courseMs), tirMs: Math.round(lapData.tirMs), penaliteMs: Math.round(lapData.penaliteMs), shots: lapData.shots.map(s => Math.round(s)), penReq: lapData.penReq, penDone: lapData.penDone, serie: currentSerie + 1, timestamp: Date.now(), mode: modeActuel, alerteTriche: alerteTriche };
-                db.ref('arcathlon/live/passages').push().set(passageData).then(() => {
-                    if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie] = { course: passageData.ptsVMA, tir: passageData.ptsTir, temps: passageData.temps, vitesse: passageData.vitesse };
-                    const nextSerie = currentSerie + 1;
-                    if (nextSerie < seanceConfig.nbSeries) { currentSerie = nextSerie; document.getElementById('currentSerieChip').textContent = currentSerie + 1; document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`; resetLap(); setPhase('course'); startTimer(); } 
-                    else { if (scoresCoureur[key]) scoresCoureur[key].complet = true; passageActuel++; retourCoureurs(); }
-                }).catch(() => { errorDiv.textContent = "❌ Erreur réseau."; errorDiv.style.display = 'block'; setTimeout(() => retourCoureurs(), 2000); });
-            } catch (e) { errorDiv.textContent = "❌ Erreur interne."; errorDiv.style.display = 'block'; setTimeout(() => retourCoureurs(), 2000); }
+                const resDiv = document.getElementById('resultatTirSpecifique');
+                if (modeActuel === 'poursuite' || modeActuel === 'relais') {
+                    let pen = (ptsTir < 7) ? 3 : (ptsTir < 12) ? 2 : (ptsTir < 16) ? 1 : 0;
+                    if (effetCarte === 'noPenalty' && ptsTir > 10) pen = 0;
+                    lapData.penReq = pen;
+                    resDiv.innerHTML = `Pénalité : <span class="text-red-400 text-lg">${pen} tour(s)</span>`;
+                    btn.textContent = pen > 0 ? 'Valider & pénalités' : 'Valider le tir';
+                } else if (modeActuel === 'sprint') {
+                    let bonus = (ptsTir < 7) ? 0 : (ptsTir < 12) ? 10 : (ptsTir < 16) ? 15 : 20;
+                    resDiv.innerHTML = `Bonus : <span class="text-emerald-400 text-lg">-${bonus} sec</span>`;
+                    btn.textContent = 'Valider le tir';
+                } else {
+                    resDiv.innerHTML = `Total : <span class="text-blue-400 text-lg">${ptsTir} pts</span>`;
+                    btn.textContent = 'Valider le tir';
+                }
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-40');
+                document.getElementById('resultatTirSpecifique').textContent = "";
+                btn.textContent = 'Valider le tir';
+                errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider. (Actuellement : ${lapData.shots.length})`;
+                errorDiv.style.display = 'block';
+            }
         }
 
-        function finishMille() {
-            const errorDiv = document.getElementById('errorMessage'); errorDiv.style.display = 'none';
+        window.validerTir = function() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+
+            if (lapData.shots.length !== nbFlechesActuel) {
+                errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider. (Actuellement : ${lapData.shots.length})`;
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (running) stopTimer();
+            lapData.tirMs = phaseAccum + elapsed;
+
+            if (modeActuel === 'mille') {
+                finishMille();
+                return;
+            }
+
+            if (lapData.penReq > 0 && (modeActuel === 'poursuite' || modeActuel === 'relais')) {
+                setPhase('penalite');
+                renderPenalites();
+                return;
+            }
+
+            finishLap();
+        };
+
+        // =====================================================================
+        // FINISH LAP (avec handicap)
+        // =====================================================================
+        function finishLap() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
             try {
-                const ptsTir = lapData.shots.reduce((a, b) => a + b, 0); const totalLap = 18000 + lapData.tirMs + lapData.penaliteMs;
-                const passageData = { equipe: currentEq, maillot: currentMaillot, juge: currentJuge, ptsVMA: 0, ptsTir: Math.round(ptsTir), vitesse: 0, temps: Math.round(totalLap), courseMs: 18000, tirMs: Math.round(lapData.tirMs), penaliteMs: Math.round(lapData.penaliteMs), shots: lapData.shots.map(s => Math.round(s)), penReq: 0, penDone: 0, serie: currentSerie + 1, timestamp: Date.now(), mode: 'mille', alerteTriche: false };
-                db.ref('arcathlon/live/passages').push().set(passageData).then(() => {
-                    const key = `${currentEq}-${currentMaillot}`;
-                    if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie] = { course: 0, tir: ptsTir, temps: totalLap, vitesse: 0 };
-                    const nextSerie = currentSerie + 1;
-                    if (nextSerie < seanceConfig.nbSeries) { currentSerie = nextSerie; document.getElementById('currentSerieChip').textContent = currentSerie + 1; document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`; resetLap(); setPhase('course'); startTimer(); } 
-                    else { if (scoresCoureur[key]) scoresCoureur[key].complet = true; passageActuel++; retourCoureurs(); }
-                }).catch(() => { errorDiv.textContent = "❌ Erreur réseau."; errorDiv.style.display = 'block'; setTimeout(() => retourCoureurs(), 2000); });
-            } catch (e) { errorDiv.textContent = "❌ Erreur interne."; errorDiv.style.display = 'block'; setTimeout(() => retourCoureurs(), 2000); }
+                const totalLap = lapData.courseMs + lapData.tirMs + lapData.penaliteMs + handicapMs;
+                const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+                let vitesse = 0, ptsVMA = 0;
+                const key = `${currentEq}-${currentMaillot}`;
+                const vmaRef = seanceConfig.vmaReference[key] || 12;
+                if (lapData.courseMs > 0) {
+                    const distanceKm = seanceConfig.distanceTotale / 1000;
+                    const tempsHeures = (lapData.courseMs / 1000) / 3600;
+                    if (tempsHeures > 0) {
+                        vitesse = distanceKm / tempsHeures;
+                        ptsVMA = (vitesse >= vmaRef + 1) ? 3 : (vitesse >= vmaRef - 0.5) ? 2 : (vitesse >= vmaRef - 1) ? 1 : 0;
+                    }
+                }
+                if (!isFinite(vitesse)) vitesse = 0;
+                if (!isFinite(ptsVMA)) ptsVMA = 0;
+
+                let alerteTriche = false;
+                if (vitesse > 0) {
+                    const vitesseNum = parseFloat(vitesse);
+                    alerteTriche = (vitesseNum > 25 || vitesseNum > vmaRef * 1.5);
+                }
+
+                if (alerteTriche) {
+                    showToast("⚠️ Vitesse suspecte – Le professeur en est informé.", 4000);
+                }
+
+                const passageData = {
+                    equipe: currentEq,
+                    maillot: currentMaillot,
+                    juge: currentJuge,
+                    ptsVMA: Math.round(ptsVMA),
+                    ptsTir: Math.round(ptsTir),
+                    vitesse: Math.round(vitesse * 10) / 10,
+                    temps: Math.round(totalLap),
+                    courseMs: Math.round(lapData.courseMs),
+                    tirMs: Math.round(lapData.tirMs),
+                    penaliteMs: Math.round(lapData.penaliteMs),
+                    shots: lapData.shots.map(s => Math.round(s)),
+                    penReq: lapData.penReq,
+                    penDone: lapData.penDone,
+                    serie: currentSerie + 1,
+                    timestamp: Date.now(),
+                    mode: modeActuel,
+                    alerteTriche: alerteTriche,
+                    handicap: handicapMs
+                };
+
+                db.ref('arcathlon/live/passages').push().set(passageData)
+                    .then(() => {
+                        if (scoresCoureur[key]) {
+                            scoresCoureur[key].series[currentSerie] = {
+                                course: passageData.ptsVMA,
+                                tir: passageData.ptsTir,
+                                temps: passageData.temps,
+                                vitesse: passageData.vitesse
+                            };
+                        }
+                        const nextSerie = currentSerie + 1;
+                        if (nextSerie < seanceConfig.nbSeries) {
+                            currentSerie = nextSerie;
+                            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            resetLap();
+                            setPhase('course');
+                            if (modeActuel === 'poursuite') {
+                                document.getElementById('giantActionBtn').textContent = '⏳ Attente du départ...';
+                                document.getElementById('giantActionBtn').className = 'btn-action waiting';
+                                document.getElementById('giantActionBtn').disabled = true;
+                                departSignalReceived = false;
+                            } else {
+                                startTimer();
+                            }
+                        } else {
+                            if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                            passageActuel++;
+                            retourCoureurs();
+                        }
+                    })
+                    .catch(() => {
+                        errorDiv.textContent = "❌ Erreur réseau. Retour à la grille.";
+                        errorDiv.style.display = 'block';
+                        setTimeout(() => retourCoureurs(), 2000);
+                    });
+            } catch (e) {
+                errorDiv.textContent = "❌ Erreur interne. Retour à la grille.";
+                errorDiv.style.display = 'block';
+                setTimeout(() => retourCoureurs(), 2000);
+            }
         }
 
-        function renderPenalites() { const row = document.getElementById('penlapsRow'); row.innerHTML = ''; for (let i = 0; i < lapData.penReq; i++) { const btn = document.createElement('button'); btn.className = 'penlap' + (i < lapData.penDone ? ' done' : ''); btn.textContent = `Tour ${i+1}`; btn.onclick = () => clickPenalty(i); row.appendChild(btn); } document.getElementById('penReq').textContent = lapData.penReq; document.getElementById('penDone').textContent = lapData.penDone; if (!isRunning) startTimer(); document.getElementById('giantActionBtn').textContent = 'Effectuer les pénalités'; document.getElementById('giantActionBtn').className = 'btn-action pen'; document.getElementById('giantActionBtn').style.display = 'block'; document.getElementById('errorMessage').style.display = 'none'; }
-        function clickPenalty(index) { const btns = document.querySelectorAll('#penlapsRow .penlap'); if (index >= btns.length || btns[index].classList.contains('done')) return; btns[index].classList.add('done'); lapData.penDone++; document.getElementById('penDone').textContent = lapData.penDone; if (lapData.penDone >= lapData.penReq) { if (isRunning) stopTimer(); lapData.penaliteMs = phaseAccum; finishLap(); } }
+        // =====================================================================
+        // FINISH MILLE
+        // =====================================================================
+        function finishMille() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+            try {
+                const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+                const totalLap = 18000 + lapData.tirMs + lapData.penaliteMs + handicapMs;
+                const passageData = {
+                    equipe: currentEq,
+                    maillot: currentMaillot,
+                    juge: currentJuge,
+                    ptsVMA: 0,
+                    ptsTir: Math.round(ptsTir),
+                    vitesse: 0,
+                    temps: Math.round(totalLap),
+                    courseMs: 18000,
+                    tirMs: Math.round(lapData.tirMs),
+                    penaliteMs: Math.round(lapData.penaliteMs),
+                    shots: lapData.shots.map(s => Math.round(s)),
+                    penReq: 0,
+                    penDone: 0,
+                    serie: currentSerie + 1,
+                    timestamp: Date.now(),
+                    mode: 'mille',
+                    alerteTriche: false,
+                    handicap: handicapMs
+                };
+                db.ref('arcathlon/live/passages').push().set(passageData)
+                    .then(() => {
+                        const key = `${currentEq}-${currentMaillot}`;
+                        if (scoresCoureur[key]) {
+                            scoresCoureur[key].series[currentSerie] = { course: 0, tir: ptsTir, temps: totalLap, vitesse: 0 };
+                        }
+                        const nextSerie = currentSerie + 1;
+                        if (nextSerie < seanceConfig.nbSeries) {
+                            currentSerie = nextSerie;
+                            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            resetLap();
+                            setPhase('course');
+                            if (modeActuel === 'poursuite') {
+                                document.getElementById('giantActionBtn').textContent = '⏳ Attente du départ...';
+                                document.getElementById('giantActionBtn').className = 'btn-action waiting';
+                                document.getElementById('giantActionBtn').disabled = true;
+                                departSignalReceived = false;
+                            } else {
+                                startTimer();
+                            }
+                        } else {
+                            if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                            passageActuel++;
+                            retourCoureurs();
+                        }
+                    })
+                    .catch(() => {
+                        errorDiv.textContent = "❌ Erreur réseau. Retour à la grille.";
+                        errorDiv.style.display = 'block';
+                        setTimeout(() => retourCoureurs(), 2000);
+                    });
+            } catch (e) {
+                errorDiv.textContent = "❌ Erreur interne. Retour à la grille.";
+                errorDiv.style.display = 'block';
+                setTimeout(() => retourCoureurs(), 2000);
+            }
+        }
 
-        window.tirerCarteRelais = function() { const carte = cartesRelais[Math.floor(Math.random() * cartesRelais.length)]; document.getElementById('btnTirerCarte').classList.add('hidden'); const affichage = document.getElementById('carteAffichee'); affichage.textContent = carte.nom; affichage.classList.remove('hidden'); if (carte.effet) carte.effet(); };
-        function updateInfoFleches() { let span = document.getElementById('infoFleches'); if (!span) { span = document.createElement('span'); span.id = 'infoFleches'; span.className = 'text-xs font-bold text-slate-400 ml-2'; document.getElementById('infoSerieVMA').appendChild(span); } span.textContent = `Flèches : ${nbFlechesActuel}`; }
+        // =====================================================================
+        // PENALITE
+        // =====================================================================
+        function renderPenalites() {
+            const row = document.getElementById('penlapsRow');
+            row.innerHTML = '';
+            for (let i = 0; i < lapData.penReq; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'penlap' + (i < lapData.penDone ? ' done' : '');
+                btn.textContent = `Tour ${i+1}`;
+                btn.onclick = () => clickPenalty(i);
+                row.appendChild(btn);
+            }
+            document.getElementById('penReq').textContent = lapData.penReq;
+            document.getElementById('penDone').textContent = lapData.penDone;
+            if (!running) startTimer();
+            document.getElementById('giantActionBtn').textContent = 'Effectuer les pénalités';
+            document.getElementById('giantActionBtn').className = 'btn-action pen';
+            document.getElementById('giantActionBtn').style.display = 'block';
+            document.getElementById('giantActionBtn').disabled = false;
+            document.getElementById('errorMessage').style.display = 'none';
+        }
 
-        window.startTimer18 = function() { let timeLeft = 18; document.getElementById('btnStart18').classList.add('hidden'); const display = document.getElementById('chrono18s'); display.textContent = timeLeft; display.classList.replace('text-emerald-400', 'text-yellow-400'); timer18Interval = setInterval(() => { timeLeft--; display.textContent = timeLeft; if (timeLeft <= 5) display.classList.replace('text-yellow-400', 'text-red-500'); if (timeLeft <= 0) { clearInterval(timer18Interval); display.classList.replace('text-red-500', 'text-emerald-400'); display.textContent = "TIR !"; document.getElementById('moduleMille').classList.add('hidden'); currentPhase = 'tir'; document.getElementById('moduleSaisieTir').style.display = 'flex'; genererZonesFleches(); const panel = document.getElementById('phasePanel'); panel.className = 'phase-panel panel-tir'; document.getElementById('phaseName').textContent = 'TIR'; document.getElementById('phaseClock').textContent = '00:00.00'; phaseAccum = 0; phaseStartTime = Date.now(); isRunning = true; tickLoop(); document.getElementById('giantActionBtn').style.display = 'none'; document.getElementById('btnValider').textContent = 'Valider le tir (Mille)'; document.getElementById('errorMessage').style.display = 'none'; } }, 1000); };
+        function clickPenalty(index) {
+            const btns = document.querySelectorAll('#penlapsRow .penlap');
+            if (index >= btns.length || btns[index].classList.contains('done')) return;
+            btns[index].classList.add('done');
+            lapData.penDone++;
+            document.getElementById('penDone').textContent = lapData.penDone;
+            if (lapData.penDone >= lapData.penReq) {
+                if (running) stopTimer();
+                lapData.penaliteMs = phaseAccum + elapsed;
+                finishLap();
+            }
+        }
 
-        function initKillBill() { const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq); killBillState.equipeAdverse = autres.length ? autres[0] : 'Équipe X'; document.getElementById('adversaireLabel').textContent = killBillState.equipeAdverse; killBillState.scoreNous = 0; killBillState.scoreEux = 0; killBillState.tirsNous = 0; killBillState.tirsEux = 0; killBillState.maxTirs = seanceConfig.nbFleches || 2; document.getElementById('scoreNous').textContent = '0'; document.getElementById('scoreEux').textContent = '0'; document.getElementById('messageDuel').textContent = `Tire une flèche pour ton équipe (1/${killBillState.maxTirs})`; document.getElementById('btnValiderDuel').disabled = true; document.getElementById('btnValiderDuel').classList.add('opacity-40'); document.getElementById('errorMessage').style.display = 'none'; }
-        window.tirerDuel = function(pts) { if (killBillState.tirsNous < killBillState.maxTirs) { killBillState.scoreNous += pts; killBillState.tirsNous++; document.getElementById('scoreNous').textContent = killBillState.scoreNous; document.getElementById('messageDuel').textContent = killBillState.tirsNous < killBillState.maxTirs ? `Tire une flèche pour ton équipe (${killBillState.tirsNous+1}/${killBillState.maxTirs})` : `Tire maintenant pour l'équipe adverse (1/${killBillState.maxTirs})`; } else if (killBillState.tirsEux < killBillState.maxTirs) { killBillState.scoreEux += pts; killBillState.tirsEux++; document.getElementById('scoreEux').textContent = killBillState.scoreEux; document.getElementById('messageDuel').textContent = killBillState.tirsEux < killBillState.maxTirs ? `Tire pour l'adversaire (${killBillState.tirsEux+1}/${killBillState.maxTirs})` : "Duel terminé ! Clique sur Valider"; if (killBillState.tirsEux >= killBillState.maxTirs) { document.getElementById('btnValiderDuel').disabled = false; document.getElementById('btnValiderDuel').classList.remove('opacity-40'); } } };
+        // =====================================================================
+        // RELAIS CARTES
+        // =====================================================================
+        window.tirerCarteRelais = function() {
+            const carte = cartesRelais[Math.floor(Math.random() * cartesRelais.length)];
+            document.getElementById('btnTirerCarte').classList.add('hidden');
+            const affichage = document.getElementById('carteAffichee');
+            affichage.textContent = carte.nom;
+            affichage.classList.remove('hidden');
+            if (carte.effet) carte.effet();
+        };
+
+        function updateInfoFleches() {
+            let span = document.getElementById('infoFleches');
+            if (!span) { span = document.createElement('span'); span.id = 'infoFleches'; span.className = 'text-xs font-bold text-slate-400 ml-2'; document.getElementById('infoSerieVMA').appendChild(span); }
+            span.textContent = `Flèches : ${nbFlechesActuel}`;
+        }
+
+        // =====================================================================
+        // MILLE (18s)
+        // =====================================================================
+        window.startTimer18 = function() {
+            let timeLeft = 18;
+            document.getElementById('btnStart18').classList.add('hidden');
+            const display = document.getElementById('chrono18s');
+            display.textContent = timeLeft;
+            display.classList.replace('text-emerald-400', 'text-yellow-400');
+            timer18Interval = setInterval(() => {
+                timeLeft--;
+                display.textContent = timeLeft;
+                if (timeLeft <= 5) display.classList.replace('text-yellow-400', 'text-red-500');
+                if (timeLeft <= 0) {
+                    clearInterval(timer18Interval);
+                    display.classList.replace('text-red-500', 'text-emerald-400');
+                    display.textContent = "TIR !";
+                    document.getElementById('moduleMille').classList.add('hidden');
+                    currentPhase = 'tir';
+                    document.getElementById('moduleSaisieTir').style.display = 'flex';
+                    genererZonesFleches();
+                    const panel = document.getElementById('phasePanel');
+                    panel.className = 'phase-panel panel-tir';
+                    document.getElementById('phaseName').textContent = 'TIR';
+                    document.getElementById('phaseClock').textContent = '00:00.00';
+                    phaseAccum = 0;
+                    startTime = performance.now();
+                    running = true;
+                    tick();
+                    document.getElementById('giantActionBtn').style.display = 'none';
+                    document.getElementById('btnValider').textContent = 'Valider le tir (Mille)';
+                    document.getElementById('errorMessage').style.display = 'none';
+                }
+            }, 1000);
+        };
+
+        // =====================================================================
+        // KILL BILL
+        // =====================================================================
+        function initKillBill() {
+            const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
+            killBillState.equipeAdverse = autres.length ? autres[0] : 'Équipe X';
+            document.getElementById('adversaireLabel').textContent = killBillState.equipeAdverse;
+            killBillState.scoreNous = 0; killBillState.scoreEux = 0; killBillState.tirsNous = 0; killBillState.tirsEux = 0;
+            killBillState.maxTirs = seanceConfig.nbFleches || 2;
+            document.getElementById('scoreNous').textContent = '0'; document.getElementById('scoreEux').textContent = '0';
+            document.getElementById('messageDuel').textContent = `Tire une flèche pour ton équipe (1/${killBillState.maxTirs})`;
+            document.getElementById('btnValiderDuel').disabled = true;
+            document.getElementById('btnValiderDuel').classList.add('opacity-40');
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        window.tirerDuel = function(pts) {
+            if (killBillState.tirsNous < killBillState.maxTirs) {
+                killBillState.scoreNous += pts; killBillState.tirsNous++;
+                document.getElementById('scoreNous').textContent = killBillState.scoreNous;
+                document.getElementById('messageDuel').textContent = killBillState.tirsNous < killBillState.maxTirs ? 
+                    `Tire une flèche pour ton équipe (${killBillState.tirsNous+1}/${killBillState.maxTirs})` : 
+                    `Tire maintenant pour l'équipe adverse (1/${killBillState.maxTirs})`;
+            } else if (killBillState.tirsEux < killBillState.maxTirs) {
+                killBillState.scoreEux += pts; killBillState.tirsEux++;
+                document.getElementById('scoreEux').textContent = killBillState.scoreEux;
+                document.getElementById('messageDuel').textContent = killBillState.tirsEux < killBillState.maxTirs ? 
+                    `Tire pour l'adversaire (${killBillState.tirsEux+1}/${killBillState.maxTirs})` : 
+                    "Duel terminé ! Clique sur Valider";
+                if (killBillState.tirsEux >= killBillState.maxTirs) {
+                    document.getElementById('btnValiderDuel').disabled = false;
+                    document.getElementById('btnValiderDuel').classList.remove('opacity-40');
+                }
+            }
+        };
+
         window.annulerDuel = function() { initKillBill(); };
-        window.validerDuel = function() { const diff = killBillState.scoreNous - killBillState.scoreEux; let penalite = (diff < 0) ? (Math.abs(diff) < 5 ? 2 : 3) : (diff > 0 ? (diff < 5 ? 0 : 1) : 0); const ptsTir = killBillState.scoreNous; const passageData = { equipe: currentEq, maillot: currentMaillot, juge: currentJuge, ptsVMA: 0, ptsTir: ptsTir, penalites: penalite, vitesse: 0, temps: 0, serie: currentSerie + 1, timestamp: Date.now(), mode: 'killbill', alerteTriche: false }; db.ref('arcathlon/live/passages').push().set(passageData).then(() => { const key = `${currentEq}-${currentMaillot}`; if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir; const nextSerie = currentSerie + 1; if (nextSerie < seanceConfig.nbSeries) { currentSerie = nextSerie; document.getElementById('currentSerieChip').textContent = currentSerie + 1; document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`; resetLap(); setPhase('course'); startTimer(); } else { if (scoresCoureur[key]) scoresCoureur[key].complet = true; passageActuel++; retourCoureurs(); } }).catch(() => { alert("Erreur réseau. Retour à la grille."); retourCoureurs(); }); };
 
-        db.ref('.info/connected').on('value', snap => { document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500"); document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne"; });
+        window.validerDuel = function() {
+            const diff = killBillState.scoreNous - killBillState.scoreEux;
+            let penalite = (diff < 0) ? (Math.abs(diff) < 5 ? 2 : 3) : (diff > 0 ? (diff < 5 ? 0 : 1) : 0);
+            const ptsTir = killBillState.scoreNous;
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                juge: currentJuge,
+                ptsVMA: 0,
+                ptsTir: ptsTir,
+                penalites: penalite,
+                vitesse: 0,
+                temps: 0,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                mode: 'killbill',
+                alerteTriche: false,
+                handicap: handicapMs
+            };
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    const key = `${currentEq}-${currentMaillot}`;
+                    if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
+                    const nextSerie = currentSerie + 1;
+                    if (nextSerie < seanceConfig.nbSeries) {
+                        currentSerie = nextSerie;
+                        document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                        document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                        resetLap();
+                        setPhase('course');
+                        if (modeActuel === 'poursuite') {
+                            document.getElementById('giantActionBtn').textContent = '⏳ Attente du départ...';
+                            document.getElementById('giantActionBtn').className = 'btn-action waiting';
+                            document.getElementById('giantActionBtn').disabled = true;
+                            departSignalReceived = false;
+                        } else {
+                            startTimer();
+                        }
+                    } else {
+                        if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                        passageActuel++;
+                        retourCoureurs();
+                    }
+                })
+                .catch(() => { alert("Erreur réseau. Retour à la grille."); retourCoureurs(); });
+        };
 
-        document.addEventListener('DOMContentLoaded', function() { const info = document.getElementById('infoSerieVMA'); const span = document.createElement('span'); span.id = 'infoFleches'; span.className = 'text-xs font-bold text-slate-400 ml-2'; span.textContent = 'Flèches : 2'; info.appendChild(span); document.getElementById('phasePanel').classList.add('hidden'); });
+        // =====================================================================
+        // CONNEXION
+        // =====================================================================
+        db.ref('.info/connected').on('value', snap => {
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
+        });
+
+        // =====================================================================
+        // INIT
+        // =====================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const info = document.getElementById('infoSerieVMA');
+            const span = document.createElement('span');
+            span.id = 'infoFleches';
+            span.className = 'text-xs font-bold text-slate-400 ml-2';
+            span.textContent = 'Flèches : 2';
+            info.appendChild(span);
+            document.getElementById('phasePanel').classList.add('hidden');
+        });
+        console.log("✅ Arcathlon élève - version avec performance.now(), départ centralisé paramétrable, temps bonifié affiché");
     </script>
 </body>
 </html>
