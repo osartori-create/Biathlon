@@ -65,9 +65,10 @@
         .tir-shots .shot-box { background: #111827; padding: 8px; border-radius: 12px; border: 1px solid #1f2937; text-align: center; font-weight: bold; font-size: 1rem; }
         .shot-box .shot-score { color: #60a5fa; }
         .valid-btn { margin-top: 8px; }
-        /* Feedback des coureurs */
+
+        /* FEEDBACK DES COUREURS - EN BLANC */
         .coureur-feedback {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: #ffffff;
             margin-top: 4px;
             line-height: 1.6;
@@ -80,12 +81,39 @@
         .coureur-feedback .serie-line {
             white-space: nowrap;
         }
+        .coureur-feedback .serie-line-2 {
+            white-space: nowrap;
+            font-weight: 400;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        .coureur-feedback .bonifie {
+            font-weight: 700;
+            color: #facc15;
+        }
+        .coureur-feedback .alerte {
+            color: #ef4444;
+            font-weight: 700;
+        }
+
         .coureur-points {
             font-size: 2.2rem;
             font-weight: 900;
             color: #facc15;
             margin-top: 2px;
             text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
+        }
+        .coureur-moyenne {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #34d399;
+            margin-top: 0px;
+        }
+        .coureur-temps-cumule {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-top: 2px;
         }
         #teamTotal {
             font-size: 1.8rem;
@@ -154,7 +182,7 @@
         <div id="ecranCoureurs" class="hidden flex-col flex-1 overflow-y-auto">
             <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
             <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-2">Équipe X</h2>
-            <div id="teamTotal" class="text-2xl font-black text-emerald-400 text-center mb-4">🏆 Total équipe : 0 pts</div>
+            <div id="teamTotal" class="text-2xl font-black text-emerald-400 text-center mb-4">🏆 Moyenne équipe : 0 pts/coureur</div>
             <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-start"></div>
             <div id="rankingContainer" class="mt-6 space-y-2"></div>
         </div>
@@ -313,7 +341,6 @@
             document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
             document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
 
-            // Réinitialiser les scores
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
@@ -324,7 +351,7 @@
                 });
             });
 
-            // Restaurer les passages existants (persistance)
+            // Restaurer les passages existants
             db.ref('arcathlon/live/passages').once('value', snapPass => {
                 const passages = snapPass.val() || {};
                 Object.values(passages).forEach(p => {
@@ -341,7 +368,6 @@
                         }
                     }
                 });
-                // Marquer les coureurs complets
                 Object.keys(scoresCoureur).forEach(k => {
                     const data = scoresCoureur[k];
                     const allDone = data.series.every((s, i) => {
@@ -351,16 +377,12 @@
                     });
                     if (allDone) data.complet = true;
                 });
-                // Mettre à jour le sélecteur et la grille
                 const sel = document.getElementById('selEquipe');
                 const valActuelle = sel.value;
                 sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
                 if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
                 if (currentEq && currentMaillot) buildCoureursGrid();
-                else if (currentEq) {
-                    // Si on est sur la grille mais qu'on a perdu le maillot, on rebuild
-                    buildCoureursGrid();
-                }
+                else if (currentEq) buildCoureursGrid();
             });
         });
 
@@ -386,130 +408,168 @@
         window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
-        // GRILLE AVEC FEEDBACK, POINTS, TOTAL ÉQUIPE ET CLASSEMENT
+        // GRILLE AVEC FEEDBACK, POINTS, MOYENNE, TEMPS CUMULÉ
         // =====================================================================
         function buildCoureursGrid() {
-    const grid = document.getElementById('maillotsGrid');
-    const membres = equipesConfig[currentEq]?.membres || [];
-    let html = "";
-    const colorMap = {
-        'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
-        'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
-        'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
-        'Vert': 'bg-green-950/80 border-green-600 text-green-400'
-    };
-    membres.forEach(m => {
-        if (m.absent) return;
-        const key = `${currentEq}-${m.maillot}`;
-        const data = scoresCoureur[key];
-        if (!data) return;
-        const complet = data.complet || data.series.every((s, idx) => {
-            if (s.course === 0) return false;
-            if (idx === seanceConfig.nbSeries - 1) return true;
-            return s.tir > 0;
-        });
-        if (complet) data.complet = true;
+            const grid = document.getElementById('maillotsGrid');
+            const membres = equipesConfig[currentEq]?.membres || [];
+            let html = "";
+            const colorMap = {
+                'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
+                'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
+                'Vert': 'bg-green-950/80 border-green-600 text-green-400'
+            };
+            membres.forEach(m => {
+                if (m.absent) return;
+                const key = `${currentEq}-${m.maillot}`;
+                const data = scoresCoureur[key];
+                if (!data) return;
+                const complet = data.complet || data.series.every((s, idx) => {
+                    if (s.course === 0) return false;
+                    if (idx === seanceConfig.nbSeries - 1) return true;
+                    return s.tir > 0;
+                });
+                if (complet) data.complet = true;
 
-        // Calcul des points du coureur
-        let totalPoints = 0;
-        data.series.forEach(s => {
-            totalPoints += (s.course || 0) + (s.tir || 0);
-        });
+                // Calcul des points du coureur
+                let totalPoints = 0;
+                data.series.forEach(s => {
+                    totalPoints += (s.course || 0) + (s.tir || 0);
+                });
 
-        // --- Feedback avec deux lignes par série ---
-        let feedback = '';
-        const vma = m.vma || 12;
-        data.series.forEach((s, idx) => {
-            if (s.course === 0) return; // série non réalisée
+                // Calcul du temps bonifié cumulé
+                let tempsBonifieCumule = 0;
+                let seriesValides = 0;
+                data.series.forEach((s, idx) => {
+                    if (s.course === 0) return;
+                    const temps = s.temps ? s.temps / 1000 : 0;
+                    const ptsTir = s.tir || 0;
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
+                    tempsBonifieCumule += temps + bonus;
+                    seriesValides++;
+                });
 
-            const temps = s.temps ? (s.temps / 1000).toFixed(1) : '?';
-            const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
-            const ptsVMA = s.course || 0;
-            const ptsTir = s.tir || 0;
+                // Feedback
+                let feedback = '';
+                const vma = m.vma || 12;
+                data.series.forEach((s, idx) => {
+                    if (s.course === 0) return;
 
-            // Détection de triche
-            const vitesseNum = parseFloat(vitesse);
-            const alerte = (vitesseNum > 25 || vitesseNum > vma * 1.5);
-            const alerteSymbol = alerte ? ' ⚠️' : '';
+                    const temps = s.temps ? (s.temps / 1000).toFixed(1) : '?';
+                    const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
+                    const ptsVMA = s.course || 0;
+                    const ptsTir = s.tir || 0;
 
-            // Ligne 1 : temps, vitesse, points VMA
-            let ligne1 = `S${idx+1}: ${temps}s | ${vitesse} km/h${alerteSymbol} | VMA: ${ptsVMA} pts`;
-            feedback += `<div class="serie-line">${ligne1}</div>`;
+                    // Détection de triche
+                    const vitesseNum = parseFloat(vitesse);
+                    const alerte = (vitesseNum > 25 || vitesseNum > vma * 1.5);
+                    const alerteHtml = alerte ? '<span class="alerte">⚠️ Vitesse suspecte – Le professeur en est informé.</span>' : '';
 
-            // Ligne 2 : tir et bonus (sauf dernière série)
-            if (idx < seanceConfig.nbSeries - 1) {
-                // Calcul du bonus
-                let bonus = 0;
-                if (ptsTir < 7) bonus = 0;
-                else if (ptsTir < 12) bonus = -10;
-                else if (ptsTir < 16) bonus = -15;
-                else bonus = -20;
+                    // Ligne 1 : temps, vitesse, points VMA
+                    let ligne1 = `S${idx+1}: ${temps}s | ${vitesse} km/h | VMA: ${ptsVMA} pts`;
+                    if (alerteHtml) {
+                        ligne1 += ` ${alerteHtml}`;
+                    }
+                    feedback += `<div class="serie-line">${ligne1}</div>`;
 
-                const tempsBonifie = (temps !== '?') ? (parseFloat(temps) + bonus).toFixed(1) : '?';
-                const bonusStr = bonus < 0 ? `-${Math.abs(bonus)}s` : `${bonus}s`;
+                    // Ligne 2 : tir et bonus (sauf dernière série)
+                    if (idx < seanceConfig.nbSeries - 1) {
+                        let bonus = 0;
+                        if (ptsTir < 7) bonus = 0;
+                        else if (ptsTir < 12) bonus = -10;
+                        else if (ptsTir < 16) bonus = -15;
+                        else bonus = -20;
 
-                let ligne2 = `Tir: ${ptsTir} pts | Bonus: ${bonusStr} | Temps bonifié: ${tempsBonifie}s`;
-                // Mettre le temps bonifié en évidence (gras)
-                ligne2 = ligne2.replace(/Temps bonifié: .+?s/, match => `<strong>${match}</strong>`);
-                feedback += `<div class="serie-line" style="font-weight:400; font-size:0.85rem; opacity:0.9;">${ligne2}</div>`;
-            }
-        });
+                        const tempsBonifie = (temps !== '?') ? (parseFloat(temps) + bonus).toFixed(1) : '?';
+                        const bonusStr = bonus < 0 ? `-${Math.abs(bonus)}s` : `${bonus}s`;
 
-        const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
-        const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
-        html += `
-            <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" 
-                    class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
-                <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
-                <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
-                ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
-                <div class="coureur-points">${totalPoints} pts</div>
-                ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
-            </button>
-        `;
-    });
-    grid.innerHTML = html;
-    updateTeamTotal();
-    updateTeamRanking();
-}
+                        let ligne2 = `Tir: ${ptsTir} pts | Bonus: ${bonusStr} | Temps bonifié: <span class="bonifie">${tempsBonifie}s</span>`;
+                        feedback += `<div class="serie-line-2">${ligne2}</div>`;
+                    }
+                });
 
+                // Affichage du temps cumulé
+                let tempsCumuleHtml = '';
+                if (seriesValides > 0) {
+                    tempsCumuleHtml = `<div class="coureur-temps-cumule">⏱ Temps cumulé bonifié : ${tempsBonifieCumule.toFixed(1)}s</div>`;
+                }
+
+                const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
+                html += `
+                    <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" 
+                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                        <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                        <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
+                        ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
+                        <div class="coureur-points">${totalPoints} pts</div>
+                        ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
+                        ${tempsCumuleHtml}
+                    </button>
+                `;
+            });
+            grid.innerHTML = html;
+            updateTeamTotal();
+            updateTeamRanking();
+        }
+
+        // =====================================================================
+        // TEAM TOTAL (MOYENNE) ET RANKING
+        // =====================================================================
         function updateTeamTotal() {
             const membres = equipesConfig[currentEq]?.membres || [];
-            let teamTotal = 0;
+            let totalPoints = 0;
+            let nbCoureurs = 0;
             membres.forEach(m => {
+                if (m.absent) return;
                 const key = `${currentEq}-${m.maillot}`;
                 const data = scoresCoureur[key];
                 if (data) {
-                    data.series.forEach(s => {
-                        teamTotal += (s.course || 0) + (s.tir || 0);
-                    });
+                    let pts = 0;
+                    data.series.forEach(s => { pts += (s.course || 0) + (s.tir || 0); });
+                    if (pts > 0 || data.complet) {
+                        totalPoints += pts;
+                        nbCoureurs++;
+                    }
                 }
             });
-            document.getElementById('teamTotal').textContent = `🏆 Total équipe : ${teamTotal} pts`;
+            const moyenne = nbCoureurs > 0 ? (totalPoints / nbCoureurs).toFixed(1) : 0;
+            document.getElementById('teamTotal').textContent = `🏆 Moyenne équipe : ${moyenne} pts/coureur`;
         }
 
         function updateTeamRanking() {
             const equipes = Object.keys(equipesConfig);
             const ranking = equipes.map(eqId => {
-                let total = 0;
+                let totalPoints = 0;
+                let nbCoureurs = 0;
                 const membres = equipesConfig[eqId]?.membres || [];
                 membres.forEach(m => {
+                    if (m.absent) return;
                     const key = `${eqId}-${m.maillot}`;
                     const data = scoresCoureur[key];
                     if (data) {
-                        data.series.forEach(s => {
-                            total += (s.course || 0) + (s.tir || 0);
-                        });
+                        let pts = 0;
+                        data.series.forEach(s => { pts += (s.course || 0) + (s.tir || 0); });
+                        if (pts > 0 || data.complet) {
+                            totalPoints += pts;
+                            nbCoureurs++;
+                        }
                     }
                 });
-                return { id: eqId, points: total };
+                const moyenne = nbCoureurs > 0 ? totalPoints / nbCoureurs : 0;
+                return { id: eqId, points: moyenne };
             });
             ranking.sort((a, b) => b.points - a.points);
             const container = document.getElementById('rankingContainer');
             container.innerHTML = ranking.map((r, i) => `
                 <div class="ranking-item">
                     <span class="rank">${i+1}. ${r.id}</span>
-                    <span class="points">${r.points} pts</span>
+                    <span class="points">${r.points.toFixed(1)} pts</span>
                 </div>
             `).join('');
         }
@@ -826,9 +886,9 @@
         };
 
         // =====================================================================
-        // FINISH LAP (avec enchaînement automatique)
+        // FINISH LAP (avec alerte triche)
         // =====================================================================
-                function finishLap() {
+        function finishLap() {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.style.display = 'none';
             try {
@@ -848,7 +908,7 @@
                 if (!isFinite(vitesse)) vitesse = 0;
                 if (!isFinite(ptsVMA)) ptsVMA = 0;
 
-                // --- Détection de triche ---
+                // Détection de triche
                 let alerteTriche = false;
                 if (vitesse > 0) {
                     const vitesseNum = parseFloat(vitesse);
@@ -871,7 +931,7 @@
                     serie: currentSerie + 1,
                     timestamp: Date.now(),
                     mode: modeActuel,
-                    alerteTriche: alerteTriche   // <-- NOUVEAU CHAMP
+                    alerteTriche: alerteTriche
                 };
 
                 db.ref('arcathlon/live/passages').push().set(passageData)
@@ -926,7 +986,8 @@
                     courseMs: 18000, tirMs: Math.round(lapData.tirMs), penaliteMs: Math.round(lapData.penaliteMs),
                     shots: lapData.shots.map(s => Math.round(s)),
                     penReq: 0, penDone: 0,
-                    serie: currentSerie + 1, timestamp: Date.now(), mode: 'mille'
+                    serie: currentSerie + 1, timestamp: Date.now(), mode: 'mille',
+                    alerteTriche: false
                 };
                 db.ref('arcathlon/live/passages').push().set(passageData)
                     .then(() => {
@@ -961,7 +1022,7 @@
         }
 
         // =====================================================================
-        // PENALITE
+        // PENALITE (inchangé)
         // =====================================================================
         function renderPenalites() {
             const row = document.getElementById('penlapsRow');
@@ -1014,7 +1075,7 @@
         }
 
         // =====================================================================
-        // MILLE
+        // MILLE (18s)
         // =====================================================================
         window.startTimer18 = function() {
             let timeLeft = 18;
@@ -1096,7 +1157,8 @@
                 ptsVMA: 0, ptsTir: ptsTir,
                 penalites: penalite,
                 vitesse: 0, temps: 0,
-                serie: currentSerie + 1, timestamp: Date.now(), mode: 'killbill'
+                serie: currentSerie + 1, timestamp: Date.now(), mode: 'killbill',
+                alerteTriche: false
             };
             db.ref('arcathlon/live/passages').push().set(passageData)
                 .then(() => {
@@ -1139,7 +1201,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version finale avec persistance et classement");
+        console.log("✅ Arcathlon élève - version finale avec moyenne, alerte triche, temps cumulé");
     </script>
 </body>
 </html>

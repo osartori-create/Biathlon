@@ -16,10 +16,32 @@
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
         .nav-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .photo-preview { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+        .photo-thumb { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 8px; }
         .alerte-triche { background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem; }
+        .alerte-ok { background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem; }
         .stats-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
-        .serie-detail { font-size: 0.75rem; color: #94a3b8; line-height: 1.4; }
+        .btn-xs { padding: 2px 8px; font-size: 0.65rem; border-radius: 4px; }
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: none; align-items: center; justify-content: center; padding: 12px; z-index: 1000;
+        }
+        .modal { width: min(520px, 96vw); background: linear-gradient(180deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
+        .modal .hd { padding: 14px 16px; border-bottom: 1px solid #334155; font-weight: 800; }
+        .modal .bd { padding: 16px; }
+        .modal .ft { padding: 12px 16px; border-top: 1px solid #334155; display: flex; justify-content: flex-end; gap: 8px; }
+        .show { display: flex; }
+        .input-field { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: white; margin-bottom: 8px; }
+        .input-field:focus { outline: 2px solid #3b82f6; border-color: transparent; }
+        .btn { padding: 8px 16px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-warning { background: #f59e0b; color: #1b1200; }
+        .btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #334155; }
+        .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+        .action-cell { display: flex; gap: 4px; flex-wrap: wrap; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col">
@@ -28,7 +50,7 @@
     <header class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-3">
             <h1 class="text-2xl font-black italic text-blue-500">Arcathlon</h1>
-            <span class="text-[10px] font-black uppercase text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full bg-slate-900">Espace Professeur (RGPD-Local)</span>
+            <span class="text-[10px] font-black uppercase text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full bg-slate-900">Espace Professeur</span>
         </div>
         <div class="flex items-center gap-3">
             <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
@@ -42,11 +64,11 @@
 
     <!-- Navigation -->
     <nav class="nav-scroll flex border-b border-slate-800 mb-4 font-bold text-xs uppercase tracking-widest shrink-0">
-        <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves (Local)</button>
-        <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Composition & Lancement</button>
+        <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves</button>
+        <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Équipes & Lancement</button>
         <button id="btnTab3" onclick="switchTab('live')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📊 Résultats Direct</button>
-        <button id="btnTab4" onclick="switchTab('statistiques')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📈 Statistiques détaillées</button>
-        <button id="btnTab5" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique Séances</button>
+        <button id="btnTab4" onclick="switchTab('statistiques')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📈 Statistiques</button>
+        <button id="btnTab5" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique</button>
     </nav>
 
     <div class="flex-1 overflow-hidden relative">
@@ -59,40 +81,39 @@
                 <button onclick="document.getElementById('zipFile').click()" class="bg-indigo-600 px-4 py-2 rounded-xl font-bold text-xs border border-indigo-400">📸 Import ZIP Photos</button>
                 <input type="file" id="zipFile" accept=".zip" class="hidden">
                 <button onclick="addManualEleve()" class="bg-slate-700 px-3 py-2 rounded-xl font-bold text-xs border border-slate-500">+ Élève</button>
-                <button onclick="purgeEleves()" class="bg-red-950/60 text-red-400 px-3 py-2 rounded-xl font-bold text-xs border border-red-800">🗑 Purger Classe</button>
-                <button onclick="exportData()" class="bg-slate-800 px-3 py-2 rounded-xl font-bold text-xs border border-slate-600">💾 Sauvegarde Prof</button>
-                <button onclick="document.getElementById('importDataInput').click()" class="bg-slate-800 px-3 py-2 rounded-xl font-bold text-xs border border-slate-600">📥 Restaurer Prof</button>
+                <button onclick="purgeEleves()" class="bg-red-950/60 text-red-400 px-3 py-2 rounded-xl font-bold text-xs border border-red-800">🗑 Purger</button>
+                <button onclick="exportData()" class="bg-slate-800 px-3 py-2 rounded-xl font-bold text-xs border border-slate-600">💾 Sauvegarde</button>
+                <button onclick="document.getElementById('importDataInput').click()" class="bg-slate-800 px-3 py-2 rounded-xl font-bold text-xs border border-slate-600">📥 Restaurer</button>
                 <input type="file" id="importDataInput" accept=".json" class="hidden">
             </div>
             <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 overflow-y-auto pb-6 pr-1 content-start flex-1"></div>
         </div>
 
-        <!-- ONGLET 2 : ÉQUIPES & CONFIG SÉANCE -->
+        <!-- ONGLET 2 : ÉQUIPES & CONFIG -->
         <div id="viewEquipes" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
             <div class="flex flex-wrap items-center justify-between mb-4 gap-3 border-b border-slate-800 pb-3 shrink-0">
                 <div class="flex items-center gap-3">
-                    <button onclick="generateTeams()" class="bg-orange-600 px-5 py-2.5 rounded-xl font-black uppercase text-xs border border-orange-400">🔄 Générer Équipes (3 coureurs)</button>
+                    <button onclick="generateTeams()" class="bg-orange-600 px-5 py-2.5 rounded-xl font-black uppercase text-xs border border-orange-400">🔄 Générer Équipes</button>
                     <span class="text-xs text-slate-400">(par défaut 3 par équipe)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-slate-400">Coureurs/équipe :</label>
+                    <input type="number" id="nbCoureursEquipe" value="3" min="2" max="4" class="bg-slate-900 border border-slate-700 rounded w-12 text-center font-bold text-emerald-400">
                 </div>
             </div>
 
-            <!-- Paramétrage Multimode -->
             <div class="bg-slate-800/80 p-5 rounded-2xl border-2 border-slate-700 mb-6 shadow-lg">
-                <h3 class="font-black text-blue-400 uppercase text-sm mb-4">🚀 Configuration & Lancement de l'Épreuve</h3>
+                <h3 class="font-black text-blue-400 uppercase text-sm mb-4">🚀 Configuration & Lancement</h3>
                 <div class="flex flex-wrap gap-4 mb-4">
                     <div class="flex-1 min-w-[200px]">
                         <label class="block font-bold text-slate-400 uppercase text-xs mb-1">Mode d'épreuve :</label>
                         <select id="modeEpreuve" class="w-full bg-slate-900 border-2 border-slate-600 rounded-xl p-3 text-sm font-bold text-white outline-none">
                             <option value="sprint">🏃 Sprint (Standard)</option>
-                            <option value="poursuite">⏱️ Poursuite Inversée (Handicap)</option>
-                            <option value="relais">🃏 Relais (Cartes Bonus/Malus)</option>
-                            <option value="mille">🎯 Dans le 1000 (18 secondes)</option>
-                            <option value="killbill">⚔️ Kill Bill (Duel 2v2)</option>
+                            <option value="poursuite">⏱️ Poursuite Inversée</option>
+                            <option value="relais">🃏 Relais (Cartes)</option>
+                            <option value="mille">🎯 Dans le 1000 (18s)</option>
+                            <option value="killbill">⚔️ Kill Bill (Duel)</option>
                         </select>
-                    </div>
-                    <div class="flex-1 min-w-[150px]">
-                        <label class="block font-bold text-slate-400 uppercase text-xs mb-1">Coureurs par équipe</label>
-                        <input type="number" id="nbCoureursEquipe" value="3" min="2" max="4" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-4">
@@ -130,15 +151,15 @@
         <!-- ONGLET 3 : LIVE -->
         <div id="viewLive" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
-                <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode Actuel : <span id="liveModeBadge" class="text-white">--</span></div>
+                <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode : <span id="liveModeBadge" class="text-white">--</span></div>
                 <div class="flex gap-2">
-                    <button onclick="exportResults()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs uppercase border border-emerald-400">📤 Exporter CSV</button>
-                    <button onclick="purgeLive()" class="bg-red-950/60 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚠️ Purger le Live</button>
+                    <button onclick="exportResults()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs uppercase border border-emerald-400">📤 Export CSV</button>
+                    <button onclick="purgeLive()" class="bg-red-950/60 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚠️ Purger</button>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto pr-1 space-y-6">
                 <div>
-                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Classement par Équipe</h3>
+                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Classement par Équipe (moyenne)</h3>
                     <div id="grosGlobe" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"></div>
                 </div>
                 <div>
@@ -151,8 +172,8 @@
         <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES -->
         <div id="viewStatistiques" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
             <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
-                <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger les stats de la séance</button>
-                <button onclick="exportStatsCSV()" class="bg-emerald-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">📥 Exporter CSV détaillé</button>
+                <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger</button>
+                <button onclick="exportStatsCSV()" class="bg-emerald-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">📥 Export CSV détaillé</button>
             </div>
             <div class="stats-card">
                 <div class="stats-grid" id="statsSummary"></div>
@@ -164,10 +185,10 @@
                 <table class="w-full text-xs" id="statsDetailTable">
                     <thead>
                         <tr>
-                            <th>Équipe</th><th>Maillot</th><th>Série</th>
+                            <th>Photo</th><th>Nom</th><th>Équipe</th><th>Maillot</th><th>Série</th>
                             <th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
-                            <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié (s)</th>
-                            <th>Total pts</th><th>Alerte</th>
+                            <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié</th>
+                            <th>Total pts</th><th>Alerte</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -181,12 +202,67 @@
                 <select id="selectSeance" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none flex-1 max-w-xs">
                     <option value="">-- Sélectionner une séance --</option>
                 </select>
-                <select id="filterEquipe" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none">
-                    <option value="all">Toutes les équipes</option>
-                </select>
                 <button onclick="loadHistorique()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Consulter</button>
             </div>
             <div class="flex-1 overflow-y-auto pr-1"><div id="historiqueContainer" class="space-y-4"></div></div>
+        </div>
+    </div>
+
+    <!-- MODAL ÉDITION ÉLÈVE -->
+    <div id="editModal" class="modal-backdrop">
+        <div class="modal">
+            <div class="hd">✏️ Modifier l'élève</div>
+            <div class="bd">
+                <input type="text" id="editPrenom" class="input-field" placeholder="Prénom">
+                <input type="text" id="editNom" class="input-field" placeholder="Nom">
+                <input type="number" id="editVMA" class="input-field" placeholder="VMA" step="0.1">
+                <select id="editSexe" class="input-field">
+                    <option value="M">Masculin</option>
+                    <option value="F">Féminin</option>
+                </select>
+                <input type="hidden" id="editIndex">
+            </div>
+            <div class="ft">
+                <button onclick="closeEditModal()" class="btn btn-ghost">Annuler</button>
+                <button onclick="saveEleveEdit()" class="btn btn-primary">💾 Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ACTION SUR PASSAGE -->
+    <div id="actionModal" class="modal-backdrop">
+        <div class="modal">
+            <div class="hd">⚙️ Action sur le passage</div>
+            <div class="bd">
+                <p class="text-sm text-slate-400 mb-4">Que souhaitez-vous faire ?</p>
+                <div class="flex flex-col gap-3">
+                    <button onclick="applyMalus(300)" class="btn btn-warning w-full">⏱️ Appliquer malus 5 min (+300s)</button>
+                    <button onclick="applyMalus(60)" class="btn btn-warning w-full">⏱️ Appliquer malus 1 min (+60s)</button>
+                    <button onclick="disqualifyPassage()" class="btn btn-danger w-full">🚫 Disqualifier ce passage</button>
+                    <button onclick="editTirPoints()" class="btn btn-primary w-full">🎯 Modifier les points de tir</button>
+                    <button onclick="closeActionModal()" class="btn btn-ghost w-full">Annuler</button>
+                </div>
+                <input type="hidden" id="actionPassageId">
+                <input type="hidden" id="actionPassageKey">
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ÉDITION TIR -->
+    <div id="tirModal" class="modal-backdrop">
+        <div class="modal">
+            <div class="hd">🎯 Modifier les points de tir</div>
+            <div class="bd">
+                <p class="text-sm text-slate-400 mb-2">Points de tir actuels : <span id="tirCurrentPts" class="font-bold text-yellow-400"></span></p>
+                <input type="number" id="tirNewPts" class="input-field" placeholder="Nouveaux points" min="0" max="20">
+                <div class="text-xs text-slate-400 mt-2">Entrez la nouvelle valeur (0 à 20). Le bonus sera recalculé automatiquement.</div>
+                <input type="hidden" id="tirPassageKey">
+                <input type="hidden" id="tirPassageId">
+            </div>
+            <div class="ft">
+                <button onclick="closeTirModal()" class="btn btn-ghost">Annuler</button>
+                <button onclick="saveTirEdit()" class="btn btn-primary">💾 Enregistrer</button>
+            </div>
         </div>
     </div>
 
@@ -201,7 +277,7 @@
         // =====================================================================
         // STATE
         // =====================================================================
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v9')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v10')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -218,7 +294,7 @@
         };
         request.onerror = e => console.error("IndexedDB error", e);
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v9', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v10', JSON.stringify(state)); }
         function savePhoto(id, blob) {
             if (!dbPhotos) return;
             const tx = dbPhotos.transaction("eleves", "readwrite");
@@ -245,6 +321,10 @@
             s = s.replace(/[^a-zA-Z\s\-]/g, '');
             return s.trim();
         }
+
+        // Variables pour les modals
+        let currentPassageKey = null;
+        let currentPassageData = null;
 
         // =====================================================================
         // INIT UI
@@ -306,22 +386,24 @@
             const prenom = prompt("Prénom ?");
             const nom = prompt("Nom ?");
             const vma = parseFloat(prompt("VMA ?"));
+            const sexe = prompt("Sexe (M/F) ?") || "M";
             if (prenom && nom && vma) {
                 const id = clePhoto(nom, prenom);
-                state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, idPhoto: id });
+                state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: sexe.toUpperCase(), idPhoto: id });
                 saveToLocal();
                 renderEleves();
             }
         };
         window.removeEleve = function(idx) {
             if (!state.activeCl) return;
+            if (!confirm("Supprimer cet élève ?")) return;
             state.classes[state.activeCl].splice(idx, 1);
             saveToLocal();
             renderEleves();
         };
 
         // =====================================================================
-        // RENDER ELEVES
+        // RENDER ELEVES (avec bouton d'édition)
         // =====================================================================
         async function renderEleves() {
             const container = document.getElementById('elevesGrid');
@@ -335,15 +417,64 @@
                 html += `
                     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-3 flex flex-col items-center relative">
                         <button onclick="removeEleve(${i})" class="absolute top-2 right-2 text-slate-500 hover:text-red-400 font-bold">&times;</button>
+                        <button onclick="openEditModal(${i})" class="absolute top-2 left-2 text-slate-500 hover:text-blue-400 text-xs font-bold">✏️</button>
                         ${photoHtml}
                         <p class="font-black text-sm mt-2 text-center leading-tight">${e.Prenom}</p>
                         <p class="text-[9px] text-slate-400 uppercase font-bold">${e.Nom}</p>
                         <span class="mt-2 text-[10px] font-bold text-emerald-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">VMA: ${e.VMA}</span>
+                        <span class="text-[9px] text-slate-500">${e.Sexe || 'M'}</span>
                     </div>
                 `;
             }
             container.innerHTML = html;
         }
+
+        // =====================================================================
+        // MODAL ÉDITION ÉLÈVE
+        // =====================================================================
+        window.openEditModal = function(idx) {
+            const eleves = state.classes[state.activeCl] || [];
+            const e = eleves[idx];
+            if (!e) return;
+            document.getElementById('editIndex').value = idx;
+            document.getElementById('editPrenom').value = e.Prenom || '';
+            document.getElementById('editNom').value = e.Nom || '';
+            document.getElementById('editVMA').value = e.VMA || '';
+            document.getElementById('editSexe').value = e.Sexe || 'M';
+            document.getElementById('editModal').classList.add('show');
+        };
+
+        window.closeEditModal = function() {
+            document.getElementById('editModal').classList.remove('show');
+        };
+
+        window.saveEleveEdit = function() {
+            const idx = parseInt(document.getElementById('editIndex').value);
+            const eleves = state.classes[state.activeCl] || [];
+            if (idx < 0 || idx >= eleves.length) return;
+            const prenom = document.getElementById('editPrenom').value.trim();
+            const nom = document.getElementById('editNom').value.trim().toUpperCase();
+            const vma = parseFloat(document.getElementById('editVMA').value);
+            const sexe = document.getElementById('editSexe').value;
+            if (!prenom || !nom || isNaN(vma)) {
+                alert("Veuillez remplir tous les champs correctement.");
+                return;
+            }
+            eleves[idx].Prenom = prenom;
+            eleves[idx].Nom = nom;
+            eleves[idx].VMA = vma;
+            eleves[idx].Sexe = sexe;
+            // Mettre à jour l'idPhoto si le nom/prénom changent
+            const newId = clePhoto(nom, prenom);
+            if (eleves[idx].idPhoto !== newId) {
+                // On garde l'ancienne photo mais on change l'id
+                eleves[idx].idPhoto = newId;
+            }
+            saveToLocal();
+            closeEditModal();
+            renderEleves();
+            renderTeams();
+        };
 
         // =====================================================================
         // IMPORT CSV
@@ -365,7 +496,7 @@
                         const cle = clePhoto(nom, prenom);
                         let existing = state.classes[state.activeCl].find(el => clePhoto(el.Nom, el.Prenom) === cle);
                         if (existing) existing.VMA = vma;
-                        else state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, idPhoto: cle });
+                        else state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: 'M', idPhoto: cle });
                     });
                     saveToLocal();
                     renderEleves();
@@ -449,6 +580,7 @@
                         prenom: m.Prenom,
                         nom: m.Nom,
                         vma: m.VMA,
+                        sexe: m.Sexe || 'M',
                         maillot: couleurs[j % couleurs.length],
                         style: styleMap[couleurs[j % couleurs.length]] || 'bg-slate-800 border-slate-600 text-white',
                         idPhoto: m.idPhoto || clePhoto(m.Nom, m.Prenom),
@@ -557,37 +689,124 @@
             const globe = document.getElementById('grosGlobe');
             if (!container) return;
             const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
-            container.innerHTML = entries.slice(0, 20).map(([key, p]) => {
+            container.innerHTML = entries.slice(0, 30).map(([key, p]) => {
                 const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '';
+                const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '<span class="alerte-ok">✓ OK</span>';
+                const actionBtn = `<button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>`;
                 return `
-                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm">
+                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm flex-wrap gap-2">
                         <span class="text-slate-500 font-mono">${h}</span>
-                        <span class="font-bold text-slate-200">${p.equipe} — Maillot ${p.maillot}</span>
-                        <span class="font-bold text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
+                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
+                        <span class="text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
                         ${alerte}
+                        ${actionBtn}
                     </div>
                 `;
             }).join('');
 
+            // Classement par moyenne
             const scoresEquipes = {};
-            (state.equipes[state.activeCl] || []).forEach(eq => { scoresEquipes[eq.id] = 0; });
+            const nbCoureurs = {};
+            (state.equipes[state.activeCl] || []).forEach(eq => { 
+                scoresEquipes[eq.id] = 0; 
+                nbCoureurs[eq.id] = 0;
+            });
             entries.forEach(([key, p]) => {
                 if (scoresEquipes[p.equipe] !== undefined) {
                     scoresEquipes[p.equipe] += (p.ptsVMA + p.ptsTir);
+                    nbCoureurs[p.equipe]++;
                 }
             });
-            const sorted = Object.entries(scoresEquipes).sort((a, b) => b[1] - a[1]);
-            globe.innerHTML = sorted.map(([eqId, score], idx) => `
+            const sorted = Object.keys(scoresEquipes).map(eqId => ({
+                id: eqId,
+                moyenne: nbCoureurs[eqId] > 0 ? scoresEquipes[eqId] / nbCoureurs[eqId] : 0
+            })).sort((a, b) => b.moyenne - a.moyenne);
+
+            globe.innerHTML = sorted.map((r, idx) => `
                 <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-                    <span class="font-black text-slate-300 text-base">${idx+1}. ${eqId}</span>
-                    <span class="text-emerald-400 font-black text-xl">${score} pts</span>
+                    <span class="font-black text-slate-300 text-base">${idx+1}. ${r.id}</span>
+                    <span class="text-emerald-400 font-black text-xl">${r.moyenne.toFixed(1)} pts</span>
                 </div>
             `).join('');
         }
 
         window.purgeLive = function() {
             if (confirm("Réinitialiser le direct ?")) db.ref('arcathlon/live').remove();
+        };
+
+        // =====================================================================
+        // MODAL ACTION SUR PASSAGE
+        // =====================================================================
+        window.openActionModal = function(key) {
+            currentPassageKey = key;
+            document.getElementById('actionPassageKey').value = key;
+            document.getElementById('actionModal').classList.add('show');
+        };
+
+        window.closeActionModal = function() {
+            document.getElementById('actionModal').classList.remove('show');
+            currentPassageKey = null;
+        };
+
+        window.applyMalus = function(secondes) {
+            if (!currentPassageKey) return;
+            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
+            ref.once('value', snap => {
+                const data = snap.val() || {};
+                const tempsActuel = data.temps || 0;
+                const nouveauTemps = tempsActuel + (secondes * 1000);
+                ref.update({ temps: nouveauTemps, malus: secondes, modifiePar: 'professeur' })
+                    .then(() => {
+                        alert(`✅ Malus de ${secondes}s appliqué.`);
+                        closeActionModal();
+                    })
+                    .catch(err => { alert("Erreur : " + err.message); });
+            });
+        };
+
+        window.disqualifyPassage = function() {
+            if (!currentPassageKey) return;
+            if (!confirm("⚠️ Confirmer la disqualification de ce passage ?")) return;
+            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
+            ref.update({ disqualifie: true, modifiePar: 'professeur' })
+                .then(() => {
+                    alert("✅ Passage disqualifié.");
+                    closeActionModal();
+                })
+                .catch(err => { alert("Erreur : " + err.message); });
+        };
+
+        window.editTirPoints = function() {
+            if (!currentPassageKey) return;
+            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
+            ref.once('value', snap => {
+                const data = snap.val() || {};
+                document.getElementById('tirCurrentPts').textContent = data.ptsTir || 0;
+                document.getElementById('tirPassageKey').value = currentPassageKey;
+                document.getElementById('tirModal').classList.add('show');
+                closeActionModal();
+            });
+        };
+
+        window.closeTirModal = function() {
+            document.getElementById('tirModal').classList.remove('show');
+        };
+
+        window.saveTirEdit = function() {
+            const key = document.getElementById('tirPassageKey').value;
+            const newPts = parseInt(document.getElementById('tirNewPts').value);
+            if (isNaN(newPts) || newPts < 0 || newPts > 20) {
+                alert("Entrez une valeur entre 0 et 20.");
+                return;
+            }
+            const ref = db.ref(`arcathlon/live/passages/${key}`);
+            ref.update({ ptsTir: newPts, modifiePar: 'professeur' })
+                .then(() => {
+                    alert("✅ Points de tir modifiés.");
+                    closeTirModal();
+                    document.getElementById('tirNewPts').value = '';
+                })
+                .catch(err => { alert("Erreur : " + err.message); });
         };
 
         // =====================================================================
@@ -598,14 +817,30 @@
         window.loadStats = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
-                const data = Object.values(passages);
+                const data = Object.values(passages).filter(p => !p.disqualifie);
                 if (!data.length) { alert("Aucune donnée."); return; }
 
+                // Enrichir avec les noms et photos
+                const enriched = data.map(p => {
+                    let prenom = "", nom = "", photoUrl = null, sexe = "";
+                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
+                    if (eqProf) {
+                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
+                        if (mProf) { 
+                            prenom = mProf.prenom; 
+                            nom = mProf.nom;
+                            sexe = mProf.sexe || 'M';
+                            photoUrl = mProf.idPhoto ? getPhotoUrl(mProf.idPhoto) : null;
+                        }
+                    }
+                    return { ...p, prenom, nom, photoUrl: photoUrl || null, sexe };
+                });
+
                 // Summary
-                const totalLaps = data.length;
-                const totalPts = data.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
-                const totalTirPts = data.reduce((s, p) => s + p.ptsTir, 0);
-                const totalCoursePts = data.reduce((s, p) => s + p.ptsVMA, 0);
+                const totalLaps = enriched.length;
+                const totalPts = enriched.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
+                const totalTirPts = enriched.reduce((s, p) => s + p.ptsTir, 0);
+                const totalCoursePts = enriched.reduce((s, p) => s + p.ptsVMA, 0);
                 document.getElementById('statsSummary').innerHTML = `
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Passages</span><br><span class="text-2xl font-bold">${totalLaps}</span></div>
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Total pts</span><br><span class="text-2xl font-bold">${totalPts}</span></div>
@@ -613,22 +848,25 @@
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
                 `;
 
-                // Table détaillée avec temps et bonus
+                // Table avec photo et nom
                 const tbody = document.querySelector('#statsDetailTable tbody');
-                tbody.innerHTML = data.map(p => {
+                tbody.innerHTML = await Promise.all(enriched.map(async (p) => {
                     const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
                     const ptsTir = p.ptsTir || 0;
-                    // Calcul bonus selon les règles du sprint
                     let bonus = 0;
                     if (ptsTir < 7) bonus = 0;
                     else if (ptsTir < 12) bonus = -10;
                     else if (ptsTir < 16) bonus = -15;
                     else bonus = -20;
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    const alerte = p.alerteTriche ? '⚠️' : '';
+                    const alerte = p.alerteTriche ? '⚠️' : '✓';
+                    const photo = p.photoUrl ? await p.photoUrl : null;
+                    const photoHtml = photo ? `<img src="${photo}" class="photo-thumb">` : `<div class="w-8 h-8 rounded-full bg-slate-700 inline-block"></div>`;
                     return `
                         <tr>
+                            <td>${photoHtml}</td>
+                            <td><strong>${p.prenom} ${p.nom ? p.nom.charAt(0)+'.' : ''}</strong></td>
                             <td>${p.equipe}</td>
                             <td>${p.maillot}</td>
                             <td>${p.serie || 1}</td>
@@ -637,18 +875,25 @@
                             <td>${p.ptsVMA || 0}</td>
                             <td>${ptsTir}</td>
                             <td>${bonus}</td>
-                            <td><strong>${tempsBonifie}</strong></td>
+                            <td><strong class="text-emerald-400">${tempsBonifie}</strong></td>
                             <td>${(p.ptsVMA||0) + ptsTir}</td>
                             <td>${alerte}</td>
+                            <td>
+                                <button onclick="openActionModalFromStats('${p.equipe}','${p.maillot}',${p.serie||1})" class="btn btn-ghost btn-xs">⚙️</button>
+                            </td>
                         </tr>
                     `;
-                }).join('');
+                }));
+                // Re-attacher les événements après le rendu
+                tbody.querySelectorAll('tr').forEach((tr, i) => {
+                    // déjà géré
+                });
 
                 // Chart
                 const ctx = document.getElementById('statsChart').getContext('2d');
                 if (statsChart) statsChart.destroy();
-                const labels = data.map((_, i) => `#${i+1}`);
-                const tempsData = data.map(p => p.temps ? p.temps/1000 : 0);
+                const labels = enriched.map((_, i) => `#${i+1}`);
+                const tempsData = enriched.map(p => p.temps ? p.temps/1000 : 0);
                 statsChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -667,13 +912,38 @@
             });
         };
 
+        // Action depuis les statistiques
+        window.openActionModalFromStats = function(equipe, maillot, serie) {
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                const passages = snap.val() || {};
+                let foundKey = null;
+                for (const [key, p] of Object.entries(passages)) {
+                    if (p.equipe === equipe && p.maillot === maillot && p.serie === serie) {
+                        foundKey = key;
+                        break;
+                    }
+                }
+                if (foundKey) {
+                    openActionModal(foundKey);
+                } else {
+                    alert("Passage non trouvé.");
+                }
+            });
+        };
+
         window.exportStatsCSV = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
-                const data = Object.values(passages);
+                const data = Object.values(passages).filter(p => !p.disqualifie);
                 if (!data.length) return alert("Aucune donnée.");
-                let csv = "Équipe;Maillot;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte\n";
+                let csv = "Équipe;Maillot;Prénom;Nom;Sexe;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
                 data.forEach(p => {
+                    let prenom = "", nom = "", sexe = "";
+                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
+                    if (eqProf) {
+                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
+                        if (mProf) { prenom = mProf.prenom; nom = mProf.nom; sexe = mProf.sexe || 'M'; }
+                    }
                     const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
                     const ptsTir = p.ptsTir || 0;
@@ -684,7 +954,9 @@
                     else bonus = -20;
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
                     const alerte = p.alerteTriche ? 'Oui' : 'Non';
-                    csv += `${p.equipe};${p.maillot};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte}\n`;
+                    const malus = p.malus || 0;
+                    const disqualifie = p.disqualifie ? 'Oui' : 'Non';
+                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${sexe};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
@@ -708,7 +980,6 @@
 
         window.loadHistorique = function() {
             const seanceId = document.getElementById('selectSeance').value;
-            const filterEq = document.getElementById('filterEquipe').value;
             const container = document.getElementById('historiqueContainer');
             if (!seanceId || !state.seances[seanceId]) {
                 container.innerHTML = "<p class='text-slate-500 text-sm'>Sélectionnez une séance.</p>";
@@ -736,24 +1007,26 @@
         window.exportResults = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
-                let csv = "Équipe;Maillot;Prénom (Prof);Nom (Prof);Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps total;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Horodatage\n";
-                Object.values(passages).forEach(p => {
-                    let prenom = "", nom = "";
+                const data = Object.values(passages).filter(p => !p.disqualifie);
+                let csv = "Équipe;Maillot;Prénom;Nom;Sexe;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Horodatage\n";
+                data.forEach(p => {
+                    let prenom = "", nom = "", sexe = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
                     if (eqProf) {
                         const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) { prenom = mProf.prenom; nom = mProf.nom; }
+                        if (mProf) { prenom = mProf.prenom; nom = mProf.nom; sexe = mProf.sexe || 'M'; }
                     }
+                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const ptsTir = p.ptsTir || 0;
                     let bonus = 0;
                     if (ptsTir < 7) bonus = 0;
                     else if (ptsTir < 12) bonus = -10;
                     else if (ptsTir < 16) bonus = -15;
                     else bonus = -20;
-                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
                     const alerte = p.alerteTriche ? 'Oui' : 'Non';
-                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${p.serie};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${p.temps ? (p.temps/1000).toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${new Date(p.timestamp).toLocaleString()}\n`;
+                    const malus = p.malus || 0;
+                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${sexe};${p.serie||1};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${new Date(p.timestamp).toLocaleString()}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
@@ -804,7 +1077,7 @@
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("Arcathlon professeur chargé - Version avec alertes, 3 coureurs, temps bonifié");
+        console.log("✅ Arcathlon professeur - version complète");
     </script>
 </body>
 </html>
