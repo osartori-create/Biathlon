@@ -9,6 +9,7 @@ export class DashboardUI {
         this._config = null;
         this._unsubscribeState = null;
         this._cleanup = null;
+        this._refreshInterval = null;
     }
 
     render(config) {
@@ -43,12 +44,15 @@ export class DashboardUI {
 
         this._renderMaillots(equipeConfig);
 
-        // Écouter les changements d'état pour rafraîchir
+        // Écouter les changements d'état
         if (this._unsubscribeState) this._unsubscribeState();
         this._unsubscribeState = appState.subscribe(() => {
-            // Rafraîchir le classement
             this._updateRanking();
         });
+
+        // Mise à jour périodique toutes les 5 secondes
+        if (this._refreshInterval) clearInterval(this._refreshInterval);
+        this._refreshInterval = setInterval(() => this._updateRanking(), 5000);
     }
 
     async _renderMaillots(equipeConfig) {
@@ -56,7 +60,6 @@ export class DashboardUI {
         const membres = equipeConfig.membres || [];
         const state = appState.getState();
 
-        // ✅ Promise.all pour les photos
         const photoPromises = membres.map(async (m) => {
             const url = await photoService.getPhotoByCode(m.code);
             return { maillot: m.maillot, url, statut: m.statut };
@@ -95,64 +98,104 @@ export class DashboardUI {
         });
         grid.innerHTML = html;
 
-        // Mettre à jour les points
+        // Mettre à jour les points immédiatement
         this._updateRanking();
     }
 
     _updateRanking() {
-        // Récupérer les passages depuis Firebase et calculer les points
-        // Pour l'instant, affichage simplifié
-        const container = document.getElementById('rankingContainer');
-        if (container) {
-            container.innerHTML = `
-                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                    <div class="text-xs text-slate-400">⏳ Classement en cours de chargement...</div>
-                </div>
-            `;
-        }
+        const state = appState.getState();
+        if (!state.equipe) return;
+
+        const grid = document.getElementById('maillotsGrid');
+        if (!grid) return;
+
+        // Récupérer les passages depuis Firebase
+        firebase.database().ref('arcathlon/live/passages').once('value', snap => {
+            const passages = snap.val() || {};
+            const scores = {};
+
+            // Calculer les points par équipe + maillot
+            Object.values(passages).forEach(p => {
+                const key = `${p.equipe}-${p.maillot}`;
+                if (!scores[key]) scores[key] = 0;
+                scores[key] += (p.ptsVMA || 0) + (p.ptsTir || 0);
+            });
+
+            // Mettre à jour chaque carte
+            grid.querySelectorAll('.bg-red-950\\/80, .bg-yellow-950\\/80, .bg-blue-950\\/80, .bg-green-950\\/80, .bg-slate-800')
+                .forEach(card => {
+                    const span = card.querySelector('.font-black.text-2xl');
+                    if (!span) return;
+                    const maillot = span.textContent.trim();
+                    const key = `${state.equipe}-${maillot}`;
+                    const pts = scores[key] || 0;
+                    const ptsEl = card.querySelector('.text-xl.font-bold');
+                    if (ptsEl) ptsEl.textContent = `${pts} pts`;
+                });
+
+            // Mettre à jour la moyenne de l'équipe
+            const totalTeam = Object.keys(scores)
+                .filter(k => k.startsWith(`${state.equipe}-`))
+                .reduce((sum, k) => sum + scores[k], 0);
+            const nbMembres = Object.keys(scores)
+                .filter(k => k.startsWith(`${state.equipe}-`)).length;
+            const moyenne = nbMembres > 0 ? (totalTeam / nbMembres).toFixed(1) : 0;
+            const teamTotalEl = document.getElementById('teamTotal');
+            if (teamTotalEl) teamTotalEl.textContent = `🏆 Moyenne : ${moyenne} pts/coureur`;
+
+            // Classement global (simplifié)
+            const container = document.getElementById('rankingContainer');
+            if (container) {
+                const totalPts = Object.values(scores).reduce((a, b) => a + b, 0);
+                container.innerHTML = `
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <div class="text-xs text-slate-400">📊 Total des points : <span class="text-emerald-400 font-bold">${totalPts}</span></div>
+                    </div>
+                `;
+            }
+        });
     }
 
     selectJuge() {
-    const membres = this._config?.equipes[appState.getState().equipe]?.membres || [];
-    const presents = membres.filter(m => m.statut === 'present');
-    
-    if (presents.length === 0) {
-        toast.show('⚠️ Aucun membre présent pour être juge.', 2000, 'error');
-        return;
+        const membres = this._config?.equipes[appState.getState().equipe]?.membres || [];
+        const presents = membres.filter(m => m.statut === 'present');
+        
+        if (presents.length === 0) {
+            toast.show('⚠️ Aucun membre présent pour être juge.', 2000, 'error');
+            return;
+        }
+
+        let message = '👤 Choisissez le juge (entrez le numéro) :\n';
+        presents.forEach((m, i) => {
+            message += `  ${i+1}. ${m.code}\n`;
+        });
+        message += '\n👉 Tapez le numéro (1, 2, 3...)';
+
+        const choix = prompt(message);
+        if (choix === null) return;
+
+        const idx = parseInt(choix) - 1;
+        if (idx >= 0 && idx < presents.length) {
+            const jugeSelectionne = presents[idx].code;
+            appState.setState({ juge: jugeSelectionne });
+            toast.success(`👤 Juge : ${jugeSelectionne}`);
+            this.render(this._config);
+        } else {
+            toast.error('❌ Numéro invalide. Entrez 1, 2, 3 ou 4.');
+            setTimeout(() => this.selectJuge(), 500);
+        }
     }
-
-    // Version avec numérotation
-    let message = '👤 Choisissez le juge (entrez le numéro) :\n';
-    presents.forEach((m, i) => {
-        message += `  ${i+1}. ${m.code}\n`;
-    });
-    message += '\n👉 Tapez le numéro (1, 2, 3...)';
-
-    const choix = prompt(message);
-    if (choix === null) return;
-
-    const idx = parseInt(choix) - 1;
-    if (idx >= 0 && idx < presents.length) {
-        const jugeSelectionne = presents[idx].code;
-        appState.setState({ juge: jugeSelectionne });
-        toast.success(`👤 Juge : ${jugeSelectionne}`);
-        this.render(this._config);
-    } else {
-        toast.error('❌ Numéro invalide. Entrez 1, 2, 3 ou 4.');
-        // Proposer de réessayer
-        setTimeout(() => this.selectJuge(), 500);
-    }
-}
 
     openAction(maillot) {
-    if (window.app && typeof window.app.startAction === 'function') {
-        window.app.startAction(maillot);
-    } else {
-        toast.error('Erreur : application non initialisée.');
+        if (window.app && typeof window.app.startAction === 'function') {
+            window.app.startAction(maillot);
+        } else {
+            toast.error('Erreur : application non initialisée.');
+        }
     }
-}
 
     logout() {
+        if (this._refreshInterval) clearInterval(this._refreshInterval);
         appState.reset();
         firebaseService.cleanup();
         if (this._unsubscribeState) this._unsubscribeState();
