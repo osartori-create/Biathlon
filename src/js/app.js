@@ -67,13 +67,14 @@ class App {
 
     // Point d'entrée pour l'UI d'action (appelé par DashboardUI)
     startAction(maillot) {
-    const mode = this._config?.mode || 'sprint';
-    const controller = mode === 'poursuite' ? this.poursuite : this.sprint;
-    if (controller && this._config) {
-        controller.init(this._config);
-        this.action.render(maillot, controller);
-    } else {
-        toast.error('Erreur : configuration non chargée');
+        const mode = this._config?.mode || 'sprint';
+        const controller = mode === 'poursuite' ? this.poursuite : this.sprint;
+        if (controller && this._config) {
+            controller.init(this._config);
+            this.action.render(maillot, controller);
+        } else {
+            toast.error('Erreur : configuration non chargée');
+        }
     }
 }
 
