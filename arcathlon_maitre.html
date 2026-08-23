@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes" />
     <title>Arcathlon | Maître (Professeur)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
@@ -48,10 +48,7 @@
         .journal-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-right: 6px; }
         .statut-ok { color: #22c55e; }
         .statut-malus { color: #f59e0b; }
-        .statut-disqualifie { color: #ef4444; }
-        .zoom-controls { display: flex; gap: 4px; align-items: center; }
-        .zoom-controls button { background: #1e293b; border: 1px solid #334155; color: white; padding: 2px 10px; border-radius: 4px; font-size: 1rem; cursor: pointer; }
-        .zoom-controls button:active { transform: scale(0.95); }
+        .statut-disq { color: #ef4444; text-decoration: line-through; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col">
@@ -69,11 +66,6 @@
                 <option value="">-- Classe --</option>
             </select>
             <button onclick="addClasse()" class="bg-blue-600 px-3 py-1 rounded text-xs font-black uppercase">+ Classe</button>
-            <!-- Contrôles zoom -->
-            <div class="zoom-controls">
-                <button onclick="zoomIn()">🔍+</button>
-                <button onclick="zoomOut()">🔍-</button>
-            </div>
         </div>
     </header>
 
@@ -81,9 +73,8 @@
     <nav class="nav-scroll flex border-b border-slate-800 mb-4 font-bold text-xs uppercase tracking-widest shrink-0">
         <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves</button>
         <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Équipes & Lancement</button>
-        <button id="btnTab3" onclick="switchTab('live')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📊 Résultats Direct</button>
-        <button id="btnTab4" onclick="switchTab('statistiques')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📈 Statistiques</button>
-        <button id="btnTab5" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique</button>
+        <button id="btnTab3" onclick="switchTab('live')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📊 Résultats & Statistiques</button>
+        <button id="btnTab4" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique</button>
     </nav>
 
     <div class="flex-1 overflow-hidden relative">
@@ -163,13 +154,14 @@
             <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6 content-start"></div>
         </div>
 
-        <!-- ONGLET 3 : LIVE -->
+        <!-- ONGLET 3 : RÉSULTATS & STATISTIQUES (fusionné) -->
         <div id="viewLive" class="h-full flex flex-col hidden absolute inset-0">
-            <div class="flex justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
+            <div class="flex justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700 flex-wrap gap-2">
                 <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode : <span id="liveModeBadge" class="text-white">--</span></div>
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
                     <button onclick="exportResults()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs uppercase border border-emerald-400">📤 Export CSV</button>
                     <button onclick="purgeLive()" class="bg-red-950/60 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚠️ Purger</button>
+                    <button onclick="loadStats()" class="bg-blue-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">📊 Rafraîchir</button>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto pr-1 space-y-6">
@@ -178,42 +170,39 @@
                     <div id="grosGlobe" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"></div>
                 </div>
                 <div>
-                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Journal des Passages</h3>
+                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Statistiques détaillées</h3>
+                    <div class="stats-card">
+                        <div class="stats-grid" id="statsSummary"></div>
+                    </div>
+                    <div style="height: 250px; margin-bottom: 16px;">
+                        <canvas id="statsChart"></canvas>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs" id="statsDetailTable">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="selectAllStats" onchange="toggleAllStats(this.checked)"></th>
+                                    <th>Photo</th><th>Code</th><th>Équipe</th><th>Maillot</th><th>Statut</th>
+                                    <th>Série</th><th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
+                                    <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié</th>
+                                    <th>Total pts</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="mt-3 flex gap-2 flex-wrap">
+                            <button onclick="massAction()" class="bg-yellow-600 px-4 py-2 rounded-xl font-bold text-xs">⚙️ Action en masse</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Journal des passages</h3>
                     <div id="journalPassages" class="flex flex-col gap-2"></div>
                 </div>
             </div>
         </div>
 
-        <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES -->
-        <div id="viewStatistiques" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
-            <div class="flex flex-wrap items-center gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
-                <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger</button>
-                <button onclick="exportStatsCSV()" class="bg-emerald-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">📥 Export CSV détaillé</button>
-                <button onclick="massAction()" class="bg-yellow-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">⚙️ Action en masse</button>
-            </div>
-            <div class="stats-card">
-                <div class="stats-grid" id="statsSummary"></div>
-            </div>
-            <div style="height: 300px; margin-bottom: 20px;">
-                <canvas id="statsChart"></canvas>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs" id="statsDetailTable">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAllStats" onchange="toggleAllStats(this.checked)"></th>
-                            <th>Photo</th><th>Code</th><th>Équipe</th><th>Maillot</th><th>Série</th>
-                            <th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
-                            <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié</th>
-                            <th>Total pts</th><th>Statut</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- ONGLET 5 : HISTORIQUE -->
+        <!-- ONGLET 4 : HISTORIQUE -->
         <div id="viewHistorique" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <select id="selectSeance" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none flex-1 max-w-xs">
@@ -294,7 +283,7 @@
         // =====================================================================
         // STATE
         // =====================================================================
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v12')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v13')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -311,7 +300,7 @@
         };
         request.onerror = e => console.error("IndexedDB error", e);
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v12', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v13', JSON.stringify(state)); }
         function savePhoto(id, blob) {
             if (!dbPhotos) return;
             const tx = dbPhotos.transaction("eleves", "readwrite");
@@ -350,18 +339,8 @@
         }
 
         let currentPassageKey = null;
-
-        // =====================================================================
-        // ZOOM
-        // =====================================================================
-        function zoomIn() {
-            let fs = parseFloat(getComputedStyle(document.body).fontSize);
-            document.body.style.fontSize = (fs + 2) + 'px';
-        }
-        function zoomOut() {
-            let fs = parseFloat(getComputedStyle(document.body).fontSize);
-            if (fs > 10) document.body.style.fontSize = (fs - 2) + 'px';
-        }
+        let currentPassageData = null;
+        let statsChart = null;
 
         // =====================================================================
         // INIT UI
@@ -770,7 +749,7 @@
         };
 
         // =====================================================================
-        // LIVE (avec statut visuel)
+        // LIVE & STATISTIQUES (fusionnés)
         // =====================================================================
         async function updateLiveScores(passages) {
             const container = document.getElementById('journalPassages');
@@ -778,6 +757,7 @@
             if (!container) return;
             const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
             
+            // Journal
             let journalHtml = '';
             for (let i = 0; i < Math.min(entries.length, 30); i++) {
                 const [key, p] = entries[i];
@@ -785,10 +765,11 @@
                 const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '<span class="alerte-ok">✓ OK</span>';
                 const actionBtn = `<button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>`;
                 
-                // Statut visuel
-                let statutHtml = '✅';
-                if (p.disqualifie) statutHtml = '<span class="statut-disqualifie">🚫 Disqualifié</span>';
-                else if (p.malus && p.malus > 0) statutHtml = `<span class="statut-malus">⏱️ +${p.malus}s</span>`;
+                // Statut
+                let statut = '✅';
+                let statutClass = 'statut-ok';
+                if (p.disqualifie) { statut = '🚫'; statutClass = 'statut-disq'; }
+                else if (p.malus && p.malus > 0) { statut = '⏱️ +' + p.malus + 's'; statutClass = 'statut-malus'; }
                 
                 let photoHtml = '';
                 const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -811,8 +792,8 @@
                         </div>
                         <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
                         <span class="text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
+                        <span class="${statutClass}">${statut}</span>
                         ${alerte}
-                        ${statutHtml}
                         ${actionBtn}
                     </div>
                 `;
@@ -827,7 +808,7 @@
                 nbCoureurs[eq.id] = 0;
             });
             entries.forEach(([key, p]) => {
-                if (scoresEquipes[p.equipe] !== undefined && !p.disqualifie) {
+                if (scoresEquipes[p.equipe] !== undefined) {
                     scoresEquipes[p.equipe] += (p.ptsVMA + p.ptsTir);
                     nbCoureurs[p.equipe]++;
                 }
@@ -843,6 +824,9 @@
                     <span class="text-emerald-400 font-black text-xl">${r.moyenne.toFixed(1)} pts</span>
                 </div>
             `).join('');
+
+            // Mettre à jour les statistiques détaillées
+            loadStats();
         }
 
         window.purgeLive = function() {
@@ -850,74 +834,19 @@
         };
 
         // =====================================================================
-        // MODAL ACTION
+        // STATISTIQUES DÉTAILLÉES
         // =====================================================================
-        window.openActionModal = function(key) {
-            currentPassageKey = key;
-            document.getElementById('actionPassageKey').value = key;
-            document.getElementById('actionModal').classList.add('show');
-        };
-        window.closeActionModal = function() {
-            document.getElementById('actionModal').classList.remove('show');
-            currentPassageKey = null;
-        };
-        window.applyMalus = function(secondes) {
-            if (!currentPassageKey) return;
-            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
-            ref.once('value', snap => {
-                const data = snap.val() || {};
-                const tempsActuel = data.temps || 0;
-                const nouveauTemps = tempsActuel + (secondes * 1000);
-                ref.update({ temps: nouveauTemps, malus: secondes, modifiePar: 'professeur' })
-                    .then(() => { alert(`✅ Malus de ${secondes}s appliqué.`); closeActionModal(); })
-                    .catch(err => { alert("Erreur : " + err.message); });
-            });
-        };
-        window.disqualifyPassage = function() {
-            if (!currentPassageKey) return;
-            if (!confirm("⚠️ Confirmer la disqualification de ce passage ?")) return;
-            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
-            ref.update({ disqualifie: true, modifiePar: 'professeur' })
-                .then(() => { alert("✅ Passage disqualifié."); closeActionModal(); })
-                .catch(err => { alert("Erreur : " + err.message); });
-        };
-        window.editTirPoints = function() {
-            if (!currentPassageKey) return;
-            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
-            ref.once('value', snap => {
-                const data = snap.val() || {};
-                document.getElementById('tirCurrentPts').textContent = data.ptsTir || 0;
-                document.getElementById('tirPassageKey').value = currentPassageKey;
-                document.getElementById('tirModal').classList.add('show');
-                closeActionModal();
-            });
-        };
-        window.closeTirModal = function() { document.getElementById('tirModal').classList.remove('show'); };
-        window.saveTirEdit = function() {
-            const key = document.getElementById('tirPassageKey').value;
-            const newPts = parseInt(document.getElementById('tirNewPts').value);
-            if (isNaN(newPts) || newPts < 0 || newPts > 20) {
-                alert("Entrez une valeur entre 0 et 20.");
-                return;
-            }
-            const ref = db.ref(`arcathlon/live/passages/${key}`);
-            ref.update({ ptsTir: newPts, modifiePar: 'professeur' })
-                .then(() => { alert("✅ Points de tir modifiés."); closeTirModal(); document.getElementById('tirNewPts').value = ''; })
-                .catch(err => { alert("Erreur : " + err.message); });
-        };
-
-        // =====================================================================
-        // STATISTIQUES DÉTAILLÉES (avec cases à cocher et statut)
-        // =====================================================================
-        let statsChart = null;
-
         window.loadStats = function() {
             db.ref('arcathlon/live/passages').once('value', async (snap) => {
                 const passages = snap.val() || {};
-                const data = Object.values(passages);
-                if (!data.length) { alert("Aucune donnée."); return; }
+                const data = Object.values(passages); // On garde même les disqualifiés pour les afficher
+                if (!data.length) { 
+                    document.querySelector('#statsDetailTable tbody').innerHTML = '<tr><td colspan="15" class="text-center text-slate-500 py-4">Aucun passage</td></tr>';
+                    return; 
+                }
 
-                const enriched = await Promise.all(data.map(async (p, index) => {
+                // Enrichir avec les données locales
+                const enriched = await Promise.all(data.map(async (p) => {
                     let prenom = "", nom = "", photoUrl = null, sexe = "", code = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
                     if (eqProf) {
@@ -931,9 +860,7 @@
                             if (idPhoto) photoUrl = await getPhotoUrl(idPhoto);
                         }
                     }
-                    // Générer une clé unique pour la checkbox
-                    const key = Object.keys(passages)[index] || `passage_${Date.now()}_${index}`;
-                    return { ...p, prenom, nom, photoUrl, sexe, code, key };
+                    return { ...p, prenom, nom, photoUrl, sexe, code };
                 }));
 
                 // Summary
@@ -949,9 +876,10 @@
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
                 `;
 
+                // Table
                 const tbody = document.querySelector('#statsDetailTable tbody');
                 let rows = '';
-                enriched.forEach((p, idx) => {
+                enriched.forEach((p, index) => {
                     const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
                     const ptsTir = p.ptsTir || 0;
@@ -961,12 +889,16 @@
                     else if (ptsTir < 16) bonus = -15;
                     else bonus = -20;
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    let statutHtml = '✅';
-                    if (p.disqualifie) statutHtml = '<span class="statut-disqualifie">🚫 Disqualifié</span>';
-                    else if (p.malus && p.malus > 0) statutHtml = `<span class="statut-malus">⏱️ +${p.malus}s</span>`;
                     const alerte = p.alerteTriche ? '⚠️' : '✓';
                     const photoHtml = p.photoUrl ? `<img src="${p.photoUrl}" class="photo-thumb">` : `<div class="w-8 h-8 rounded-full bg-slate-700 inline-block"></div>`;
-                    const key = p.key || `passage_${idx}`;
+                    
+                    // Statut
+                    let statut = '✅';
+                    let statutClass = 'statut-ok';
+                    if (p.disqualifie) { statut = '🚫'; statutClass = 'statut-disq'; }
+                    else if (p.malus && p.malus > 0) { statut = '⏱️ +' + p.malus + 's'; statutClass = 'statut-malus'; }
+                    
+                    const key = Object.keys(passages).filter(k => passages[k] === p)[0] || 'key-' + index;
                     rows += `
                         <tr>
                             <td><input type="checkbox" class="stats-checkbox" data-key="${key}"></td>
@@ -974,6 +906,7 @@
                             <td><strong>${p.code || p.maillot}</strong></td>
                             <td>${p.equipe}</td>
                             <td>${p.maillot}</td>
+                            <td class="${statutClass}">${statut}</td>
                             <td>${p.serie || 1}</td>
                             <td>${temps}</td>
                             <td>${vitesse}</td>
@@ -982,7 +915,6 @@
                             <td>${bonus}</td>
                             <td><strong class="text-emerald-400">${tempsBonifie}</strong></td>
                             <td>${(p.ptsVMA||0) + ptsTir}</td>
-                            <td>${statutHtml}</td>
                             <td>
                                 <button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>
                             </td>
@@ -996,21 +928,23 @@
                 if (statsChart) statsChart.destroy();
                 const labels = actifs.map((_, i) => `#${i+1}`);
                 const tempsData = actifs.map(p => p.temps ? p.temps/1000 : 0);
-                statsChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { label: 'Temps (s)', data: tempsData, backgroundColor: '#4f46e5' },
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Temps (s)' } } },
-                        plugins: { legend: { position: 'top' } }
-                    }
-                });
+                if (labels.length > 0) {
+                    statsChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'Temps (s)', data: tempsData, backgroundColor: '#4f46e5' },
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: { y: { beginAtZero: true, title: { display: true, text: 'Temps (s)' } } },
+                            plugins: { legend: { position: 'top' } }
+                        }
+                    });
+                }
             });
         };
 
@@ -1043,41 +977,59 @@
             Object.entries(updates).forEach(([key, data]) => {
                 db.ref(`arcathlon/live/passages/${key}`).update(data);
             });
-            alert("Action en masse appliquée !");
+            alert("✅ Action en masse appliquée !");
         };
 
         // =====================================================================
-        // HISTORIQUE
+        // MODAL ACTION
         // =====================================================================
-        function updateSeancesList() {
-            const select = document.getElementById('selectSeance');
-            select.innerHTML = '<option value="">-- Sélectionner une séance --</option>' +
-                Object.entries(state.seances || {})
-                .sort((a, b) => new Date(b[1].date) - new Date(a[1].date))
-                .map(([id, s]) => `<option value="${id}">${new Date(s.date).toLocaleString('fr-FR')}</option>`)
-                .join('');
-        }
-        window.loadHistorique = function() {
-            const seanceId = document.getElementById('selectSeance').value;
-            const container = document.getElementById('historiqueContainer');
-            if (!seanceId || !state.seances[seanceId]) {
-                container.innerHTML = "<p class='text-slate-500 text-sm'>Sélectionnez une séance.</p>";
+        window.openActionModal = function(key) {
+            currentPassageKey = key;
+            document.getElementById('actionPassageKey').value = key;
+            document.getElementById('actionModal').classList.add('show');
+        };
+        window.closeActionModal = function() {
+            document.getElementById('actionModal').classList.remove('show');
+            currentPassageKey = null;
+        };
+        window.applyMalus = function(secondes) {
+            if (!currentPassageKey) return;
+            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
+            ref.update({ malus: secondes, modifiePar: 'professeur' })
+                .then(() => { alert(`✅ Malus de ${secondes}s appliqué.`); closeActionModal(); })
+                .catch(err => { alert("Erreur : " + err.message); });
+        };
+        window.disqualifyPassage = function() {
+            if (!currentPassageKey) return;
+            if (!confirm("⚠️ Confirmer la disqualification de ce passage ?")) return;
+            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
+            ref.update({ disqualifie: true, modifiePar: 'professeur' })
+                .then(() => { alert("✅ Passage disqualifié."); closeActionModal(); })
+                .catch(err => { alert("Erreur : " + err.message); });
+        };
+        window.editTirPoints = function() {
+            if (!currentPassageKey) return;
+            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
+            ref.once('value', snap => {
+                const data = snap.val() || {};
+                document.getElementById('tirCurrentPts').textContent = data.ptsTir || 0;
+                document.getElementById('tirPassageKey').value = currentPassageKey;
+                document.getElementById('tirModal').classList.add('show');
+                closeActionModal();
+            });
+        };
+        window.closeTirModal = function() { document.getElementById('tirModal').classList.remove('show'); };
+        window.saveTirEdit = function() {
+            const key = document.getElementById('tirPassageKey').value;
+            const newPts = parseInt(document.getElementById('tirNewPts').value);
+            if (isNaN(newPts) || newPts < 0 || newPts > 20) {
+                alert("Entrez une valeur entre 0 et 20.");
                 return;
             }
-            const data = state.seances[seanceId].configObj;
-            let html = `<div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <h4 class="font-bold text-blue-400">${seanceId}</h4>
-                <p class="text-xs text-slate-400">Mode: ${data.mode} | Séries: ${data.nbSeries} | Flèches: ${data.nbFleches}</p>
-                <div class="mt-2 text-xs">
-                    <strong>Équipes :</strong>
-                    ${Object.keys(data.equipes).map(eqId => {
-                        const eq = data.equipes[eqId];
-                        const membres = eq.membres.map(m => `${m.maillot} (VMA ${m.vma})`).join(', ');
-                        return `<div>${eqId} (PIN ${eq.pin}) : ${membres}</div>`;
-                    }).join('')}
-                </div>
-            </div>`;
-            container.innerHTML = html;
+            const ref = db.ref(`arcathlon/live/passages/${key}`);
+            ref.update({ ptsTir: newPts, modifiePar: 'professeur' })
+                .then(() => { alert("✅ Points de tir modifiés."); closeTirModal(); document.getElementById('tirNewPts').value = ''; })
+                .catch(err => { alert("Erreur : " + err.message); });
         };
 
         // =====================================================================
@@ -1116,39 +1068,38 @@
             });
         };
 
-        window.exportStatsCSV = function() {
-            db.ref('arcathlon/live/passages').once('value', snap => {
-                const passages = snap.val() || {};
-                const data = Object.values(passages);
-                if (!data.length) return alert("Aucune donnée.");
-                let csv = "Équipe;Maillot;Code;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
-                data.forEach(p => {
-                    let code = p.maillot;
-                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
-                    if (eqProf) {
-                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) code = mProf.code || `${p.equipe} - ${p.maillot}`;
-                    }
-                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
-                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
-                    const ptsTir = p.ptsTir || 0;
-                    let bonus = 0;
-                    if (ptsTir < 7) bonus = 0;
-                    else if (ptsTir < 12) bonus = -10;
-                    else if (ptsTir < 16) bonus = -15;
-                    else bonus = -20;
-                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
-                    const malus = p.malus || 0;
-                    const disqualifie = p.disqualifie ? 'Oui' : 'Non';
-                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
-                });
-                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `Arcathlon_stats_${Date.now()}.csv`;
-                a.click();
-            });
+        // =====================================================================
+        // HISTORIQUE
+        // =====================================================================
+        function updateSeancesList() {
+            const select = document.getElementById('selectSeance');
+            select.innerHTML = '<option value="">-- Sélectionner une séance --</option>' +
+                Object.entries(state.seances || {})
+                .sort((a, b) => new Date(b[1].date) - new Date(a[1].date))
+                .map(([id, s]) => `<option value="${id}">${new Date(s.date).toLocaleString('fr-FR')}</option>`)
+                .join('');
+        }
+        window.loadHistorique = function() {
+            const seanceId = document.getElementById('selectSeance').value;
+            const container = document.getElementById('historiqueContainer');
+            if (!seanceId || !state.seances[seanceId]) {
+                container.innerHTML = "<p class='text-slate-500 text-sm'>Sélectionnez une séance.</p>";
+                return;
+            }
+            const data = state.seances[seanceId].configObj;
+            let html = `<div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <h4 class="font-bold text-blue-400">${seanceId}</h4>
+                <p class="text-xs text-slate-400">Mode: ${data.mode} | Séries: ${data.nbSeries} | Flèches: ${data.nbFleches}</p>
+                <div class="mt-2 text-xs">
+                    <strong>Équipes :</strong>
+                    ${Object.keys(data.equipes).map(eqId => {
+                        const eq = data.equipes[eqId];
+                        const membres = eq.membres.map(m => `${m.maillot} (VMA ${m.vma})`).join(', ');
+                        return `<div>${eqId} (PIN ${eq.pin}) : ${membres}</div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+            container.innerHTML = html;
         };
 
         // =====================================================================
@@ -1176,23 +1127,22 @@
         // SWITCH TABS
         // =====================================================================
         window.switchTab = function(t) {
-            ['viewImport', 'viewEquipes', 'viewLive', 'viewStatistiques', 'viewHistorique'].forEach(id =>
+            ['viewImport', 'viewEquipes', 'viewLive', 'viewHistorique'].forEach(id =>
                 document.getElementById(id).classList.add('hidden')
             );
-            ['btnTab1', 'btnTab2', 'btnTab3', 'btnTab4', 'btnTab5'].forEach(id => {
+            ['btnTab1', 'btnTab2', 'btnTab3', 'btnTab4'].forEach(id => {
                 document.getElementById(id).classList.remove('tab-active', 'text-blue-500');
                 document.getElementById(id).classList.add('text-slate-500');
             });
-            const map = { 'import': '1', 'equipes': '2', 'live': '3', 'statistiques': '4', 'historique': '5' };
+            const map = { 'import': '1', 'equipes': '2', 'live': '3', 'historique': '4' };
             document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
             document.getElementById('btnTab' + map[t]).classList.add('tab-active', 'text-blue-500');
-            if (t === 'statistiques') loadStats();
         };
 
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version complète avec zoom, statuts et actions en masse");
+        console.log("✅ Arcathlon professeur - version fusionnée avec actions en masse");
     </script>
 </body>
 </html>
