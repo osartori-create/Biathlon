@@ -2,14 +2,14 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes" />
     <title>Arcathlon | Élève</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
         * { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
-        body { background: #0f172a; font-family: sans-serif; }
+        body { background: #0f172a; font-family: system-ui, -apple-system, sans-serif; font-size: 16px; }
         .btn-tap:active { transform: scale(0.96); }
         .cible-circle { cursor: pointer; transition: opacity 0.15s; }
         .cible-circle:active { opacity: 0.6; }
@@ -67,35 +67,43 @@
         .valid-btn { margin-top: 8px; }
 
         .coureur-feedback {
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             color: #ffffff;
             margin-top: 4px;
-            line-height: 1.8;
+            line-height: 1.4;
             font-weight: 500;
             width: 100%;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
         }
         .coureur-feedback .serie-line {
-    white-space: normal;
-    word-break: break-word;
-    text-align: left;
-    margin-bottom: 2px;
-    width: 100%;
-}
-.coureur-feedback .serie-line-2 {
-    white-space: normal;
-    word-break: break-word;
-    text-align: left;
-    font-weight: 400;
-    font-size: 0.85rem;
-    opacity: 0.9;
-    margin-bottom: 6px;
-    width: 100%;
-}
-        .coureur-feedback .bonifie { font-weight: 700; color: #facc15; }
-        .coureur-feedback .alerte { color: #ef4444; font-weight: 700; }
+            white-space: normal;
+            word-break: break-word;
+            text-align: left;
+            margin-bottom: 2px;
+            width: 100%;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+        .coureur-feedback .serie-line-2 {
+            white-space: normal;
+            word-break: break-word;
+            text-align: left;
+            font-weight: 400;
+            font-size: 0.75rem;
+            opacity: 0.9;
+            margin-bottom: 6px;
+            width: 100%;
+        }
+        .coureur-feedback .bonifie {
+            font-weight: 700;
+            color: #facc15;
+        }
+        .coureur-feedback .alerte {
+            color: #ef4444;
+            font-weight: 700;
+        }
 
         .coureur-points { font-size: 2.2rem; font-weight: 900; color: #facc15; margin-top: 2px; text-shadow: 0 0 10px rgba(250,204,21,0.3); }
         .coureur-moyenne { font-size: 1.2rem; font-weight: 700; color: #34d399; margin-top: 0px; }
@@ -307,56 +315,89 @@
         }
 
         // =====================================================================
-        // FIREBASE LISTENER
+        // FIREBASE LISTENER (temps réel)
         // =====================================================================
-        // Au lieu de .once, on utilise .on
-// Au lieu de .once, on utilise .on
-db.ref('arcathlon/live/passages').on('value', snapPass => {
-    const passages = snapPass.val() || {};
-    // Réinitialiser les scores
-    scoresCoureur = {};
-    Object.keys(equipesConfig).forEach(eq => {
-        (equipesConfig[eq].membres || []).forEach(m => {
-            scoresCoureur[`${eq}-${m.maillot}`] = {
-                series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
-                complet: false
+        db.ref('arcathlon/config').on('value', snap => {
+            const config = snap.val() || {};
+            equipesConfig = config.equipes || {};
+            modeActuel = config.mode || "sprint";
+            seanceConfig = {
+                seanceId: config.seanceId,
+                distanceTotale: config.distanceTotale || 1200,
+                nbSeries: config.nbSeries || 3,
+                nbFleches: config.nbFleches || 2,
+                vmaReference: config.vmaReference || {}
             };
-        });
-    });
-    // Remplir avec les passages
-    Object.values(passages).forEach(p => {
-        const key = `${p.equipe}-${p.maillot}`;
-        if (scoresCoureur[key]) {
-            const idx = p.serie - 1;
-            if (idx >= 0 && idx < scoresCoureur[key].series.length) {
-                scoresCoureur[key].series[idx] = {
-                    course: p.ptsVMA || 0,
-                    tir: p.ptsTir || 0,
-                    temps: p.temps || 0,
-                    vitesse: p.vitesse || 0
-                };
+            document.getElementById('labelModeActuel').textContent = modeActuel;
+            document.getElementById('seanceInfo').textContent = seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : '--';
+            document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
+            document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
+
+            // Réinitialiser les scores (sera rempli par les passages)
+            scoresCoureur = {};
+            Object.keys(equipesConfig).forEach(eq => {
+                (equipesConfig[eq].membres || []).forEach(m => {
+                    scoresCoureur[`${eq}-${m.maillot}`] = {
+                        series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
+                        complet: false
+                    };
+                });
+            });
+
+            // Mise à jour du sélecteur d'équipe
+            const sel = document.getElementById('selEquipe');
+            const valActuelle = sel.value;
+            sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+            if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
+
+            // Si l'équipe a changé, réinitialiser le juge
+            if (currentEq && !equipesConfig[currentEq]) {
+                currentEq = "";
+                currentJuge = "";
             }
-        }
-    });
-    // Marquer les complets
-    Object.keys(scoresCoureur).forEach(k => {
-        const data = scoresCoureur[k];
-        const allDone = data.series.every((s, i) => {
-            if (s.course === 0) return false;
-            if (i === seanceConfig.nbSeries - 1) return true;
-            return s.tir > 0;
+            if (currentEq) {
+                initJugeSelector();
+                buildCoureursGrid();
+            }
         });
-        if (allDone) data.complet = true;
-    });
-    // Rafraîchir la grille
-    if (currentEq && currentMaillot) {
-        initJugeSelector();
-        buildCoureursGrid();
-    } else if (currentEq) {
-        initJugeSelector();
-        buildCoureursGrid();
-    }
-});
+
+        // Écoute en temps réel des passages (pour synchronisation)
+        db.ref('arcathlon/live/passages').on('value', snap => {
+            const passages = snap.val() || {};
+            // Réinitialiser les scores (mais garder les données)
+            Object.keys(scoresCoureur).forEach(key => {
+                scoresCoureur[key].series = Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 }));
+                scoresCoureur[key].complet = false;
+            });
+            Object.values(passages).forEach(p => {
+                const key = `${p.equipe}-${p.maillot}`;
+                if (scoresCoureur[key]) {
+                    const idx = p.serie - 1;
+                    if (idx >= 0 && idx < scoresCoureur[key].series.length) {
+                        scoresCoureur[key].series[idx] = {
+                            course: p.ptsVMA || 0,
+                            tir: p.ptsTir || 0,
+                            temps: p.temps || 0,
+                            vitesse: p.vitesse || 0
+                        };
+                    }
+                }
+            });
+            // Marquer les complets
+            Object.keys(scoresCoureur).forEach(k => {
+                const data = scoresCoureur[k];
+                const allDone = data.series.every((s, i) => {
+                    if (s.course === 0) return false;
+                    if (i === seanceConfig.nbSeries - 1) return true;
+                    return s.tir > 0;
+                });
+                if (allDone) data.complet = true;
+            });
+            if (currentEq) {
+                initJugeSelector();
+                buildCoureursGrid();
+            }
+        });
 
         // =====================================================================
         // LOGIN / GRILLE
@@ -381,7 +422,7 @@ db.ref('arcathlon/live/passages').on('value', snapPass => {
         window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
-        // SÉLECTEUR DU JUGE iPad (utilise m.code)
+        // SÉLECTEUR DU JUGE iPad (corrigé : utilise m.code)
         // =====================================================================
         function initJugeSelector() {
             const container = document.getElementById('jugeSelector');
@@ -418,7 +459,7 @@ db.ref('arcathlon/live/passages').on('value', snapPass => {
         };
 
         // =====================================================================
-        // GRILLE
+        // GRILLE AVEC FEEDBACK
         // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
@@ -1217,7 +1258,7 @@ db.ref('arcathlon/live/passages').on('value', snapPass => {
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version anonymisée (code)");
+        console.log("✅ Arcathlon élève - version corrigée (code)");
     </script>
 </body>
 </html>
