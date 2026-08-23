@@ -66,7 +66,6 @@
         .shot-box .shot-score { color: #60a5fa; }
         .valid-btn { margin-top: 8px; }
 
-        /* FEEDBACK DES COUREURS */
         .coureur-feedback {
             font-size: 0.95rem;
             color: #ffffff;
@@ -78,132 +77,43 @@
             flex-direction: column;
             align-items: center;
         }
-        .coureur-feedback .serie-line {
-            white-space: nowrap;
-            margin-bottom: 2px;
-        }
-        .coureur-feedback .serie-line-2 {
-            white-space: nowrap;
-            font-weight: 400;
-            font-size: 0.85rem;
-            opacity: 0.9;
-            margin-bottom: 6px;
-        }
-        .coureur-feedback .bonifie {
-            font-weight: 700;
-            color: #facc15;
-        }
-        .coureur-feedback .alerte {
-            color: #ef4444;
-            font-weight: 700;
-        }
+        .coureur-feedback .serie-line { white-space: nowrap; margin-bottom: 2px; }
+        .coureur-feedback .serie-line-2 { white-space: nowrap; font-weight: 400; font-size: 0.85rem; opacity: 0.9; margin-bottom: 6px; }
+        .coureur-feedback .bonifie { font-weight: 700; color: #facc15; }
+        .coureur-feedback .alerte { color: #ef4444; font-weight: 700; }
 
-        .coureur-points {
-            font-size: 2.2rem;
-            font-weight: 900;
-            color: #facc15;
-            margin-top: 2px;
-            text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
-        }
-        .coureur-moyenne {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #34d399;
-            margin-top: 0px;
-        }
-        .coureur-temps-cumule {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #60a5fa;
-            margin-top: 2px;
-        }
-        #teamTotal {
-            font-size: 1.8rem;
-            font-weight: 900;
-            color: #34d399;
-            text-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
-        }
-        .ranking-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #1e293b;
-            padding: 10px 14px;
-            border-radius: 12px;
-            border: 1px solid #334155;
-        }
-        .ranking-item .rank {
-            font-weight: 700;
-            color: #e2e8f0;
-            font-size: 1.1rem;
-        }
-        .ranking-item .points {
-            color: #34d399;
-            font-weight: 900;
-            font-size: 1.6rem;
-        }
+        .coureur-points { font-size: 2.2rem; font-weight: 900; color: #facc15; margin-top: 2px; text-shadow: 0 0 10px rgba(250,204,21,0.3); }
+        .coureur-moyenne { font-size: 1.2rem; font-weight: 700; color: #34d399; margin-top: 0px; }
+        .coureur-temps-cumule { font-size: 1rem; font-weight: 600; color: #60a5fa; margin-top: 2px; }
+        #teamTotal { font-size: 1.8rem; font-weight: 900; color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.3); }
+        .ranking-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px 14px; border-radius: 12px; border: 1px solid #334155; }
+        .ranking-item .rank { font-weight: 700; color: #e2e8f0; font-size: 1.1rem; }
+        .ranking-item .points { color: #34d399; font-weight: 900; font-size: 1.6rem; }
 
-        /* TOAST */
         #toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #ef4444;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 1.1rem;
-            z-index: 9999;
-            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4);
-            display: none;
-            text-align: center;
-            max-width: 90%;
-            border: 2px solid #fca5a5;
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #ef4444; color: white; padding: 12px 24px; border-radius: 12px;
+            font-weight: 700; font-size: 1.1rem; z-index: 9999;
+            box-shadow: 0 8px 30px rgba(239,68,68,0.4); display: none;
+            text-align: center; max-width: 90%; border: 2px solid #fca5a5;
         }
-        #toast.show {
-            display: block;
-            animation: fadeInDown 0.3s ease-out;
-        }
-        @keyframes fadeInDown {
-            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
-            100% { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
+        #toast.show { display: block; animation: fadeInDown 0.3s ease-out; }
+        @keyframes fadeInDown { 0% { opacity: 0; transform: translateX(-50%) translateY(-20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        /* Sélecteur de juge */
-        .juge-selector {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            justify-content: center;
-            margin: 6px 0 12px 0;
-        }
+        .juge-selector { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 12px 0; }
         .juge-btn {
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.8rem;
-            border: 2px solid #334155;
-            background: #1e293b;
-            color: #94a3b8;
-            transition: all 0.15s;
-            cursor: pointer;
+            padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.8rem;
+            border: 2px solid #334155; background: #1e293b; color: #94a3b8;
+            transition: all 0.15s; cursor: pointer;
         }
-        .juge-btn.selected {
-            border-color: #22c55e;
-            background: #22c55e;
-            color: #07150b;
-        }
+        .juge-btn.selected { border-color: #22c55e; background: #22c55e; color: #07150b; }
         .juge-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
 
-    <!-- TOAST -->
     <div id="toast"></div>
 
-    <!-- En-tête -->
     <div class="flex justify-between items-center mb-3 shrink-0 px-2">
         <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
             <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
@@ -214,10 +124,8 @@
         </div>
     </div>
 
-    <!-- ZONE PRINCIPALE -->
     <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
         
-        <!-- LOGIN -->
         <div id="ecranLogin" class="flex flex-col items-center justify-center flex-1">
             <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-8 italic">Arcathlon</h1>
             <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-5 rounded-2xl text-2xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6 text-white">
@@ -237,12 +145,10 @@
             </div>
         </div>
 
-        <!-- GRILLE -->
         <div id="ecranCoureurs" class="hidden flex-col flex-1 overflow-y-auto">
             <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
             <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-2">Équipe X</h2>
             
-            <!-- Sélecteur du juge iPad -->
             <div class="text-center text-sm font-bold text-slate-400 mb-1">👤 Juge iPad :</div>
             <div id="jugeSelector" class="juge-selector"></div>
 
@@ -251,11 +157,9 @@
             <div id="rankingContainer" class="mt-6 space-y-2"></div>
         </div>
 
-        <!-- ACTION -->
         <div id="ecranAction" class="hidden flex-col h-full">
             <button onclick="retourCoureurs()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
             
-            <!-- Phase Panel -->
             <div id="phasePanel" class="phase-panel panel-course" style="margin-bottom:12px">
                 <div style="display:flex; align-items:end; justify-content:space-between; gap:12px; flex-wrap:wrap">
                     <div>
@@ -266,28 +170,22 @@
                 </div>
             </div>
 
-            <!-- Infos -->
             <div class="text-center font-black text-xl text-slate-300 mb-2 bg-slate-950 py-2 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4 flex-wrap">
                 <span id="coureurLabel">Maillot</span>
                 <span id="infoSerieVMA" class="text-sm font-bold text-slate-400"></span>
             </div>
 
-            <!-- Message d'erreur -->
             <div id="errorMessage" class="error-msg"></div>
 
-            <!-- RELAIS Cartes -->
             <div id="moduleRelais" class="hidden flex-col items-center mb-3">
                 <button id="btnTirerCarte" onclick="tirerCarteRelais()" class="bg-purple-600 px-6 py-2 rounded-xl font-black text-base uppercase shadow-lg shadow-purple-900/50 btn-tap border-2 border-purple-400">🃏 Tirer une Carte</button>
                 <div id="carteAffichee" class="text-lg font-bold text-center bg-slate-800 p-3 rounded-xl border-2 border-purple-500 hidden text-purple-300 mt-2 w-full max-w-md"></div>
             </div>
 
-            <!-- Giant Action Button -->
             <button id="giantActionBtn" class="btn-action course" onclick="onGiantAction()">Démarrer la course</button>
 
-            <!-- Phase Content -->
             <div id="phaseContent" class="flex-1 mt-3 overflow-y-auto" style="min-height: 200px;">
                 
-                <!-- TIR -->
                 <div id="moduleSaisieTir" class="tir-container" style="display:none;">
                     <div class="tir-row">
                         <div class="tir-target">
@@ -314,7 +212,6 @@
                     </div>
                 </div>
 
-                <!-- PÉNALITÉ -->
                 <div id="modulePenalite" class="hidden flex-col items-center">
                     <div class="text-center font-bold text-lg">Pénalités à effectuer</div>
                     <div class="penlaps" id="penlapsRow"></div>
@@ -323,7 +220,6 @@
                 </div>
             </div>
 
-            <!-- KILL BILL -->
             <div id="moduleKillBill" class="hidden flex-1 flex-col gap-3 mt-2">
                 <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-center">
                     <div class="text-sm font-bold text-slate-400">Adversaire : <span id="adversaireLabel" class="text-white">--</span></div>
@@ -350,7 +246,6 @@
                 <button onclick="annulerDuel()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler</button>
             </div>
 
-            <!-- MILLE -->
             <div id="moduleMille" class="hidden flex-1 flex-col items-center justify-center gap-4">
                 <div id="chrono18s" class="text-8xl font-mono font-black text-emerald-400 bg-black px-12 py-8 rounded-3xl border-4 border-slate-700">18</div>
                 <button id="btnStart18" onclick="startTimer18()" class="btn-tap bg-blue-600 px-12 py-6 rounded-2xl font-black text-3xl uppercase border-4 border-blue-400 shadow-xl">Top Départ</button>
@@ -387,22 +282,17 @@
         let killBillState = { equipeAdverse: "", scoreNous: 0, scoreEux: 0, tirsNous: 0, tirsEux: 0, maxTirs: 2 };
         let timer18Interval = null;
 
-        // =====================================================================
-        // TOAST
-        // =====================================================================
         let toastTimeout = null;
         function showToast(message, duration = 3000) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
             toast.classList.add('show');
             clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => {
-                toast.classList.remove('show');
-            }, duration);
+            toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, duration);
         }
 
         // =====================================================================
-        // FIREBASE LISTENER (avec persistance)
+        // FIREBASE LISTENER
         // =====================================================================
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
@@ -492,7 +382,7 @@
         window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
-        // SÉLECTEUR DU JUGE iPad (corrigé pour s'afficher)
+        // SÉLECTEUR DU JUGE iPad (corrigé : utilise m.code)
         // =====================================================================
         function initJugeSelector() {
             const container = document.getElementById('jugeSelector');
@@ -502,35 +392,34 @@
                 container.innerHTML = '<span class="text-xs text-red-400">Aucun membre présent</span>';
                 return;
             }
-            // Réinitialiser le juge sélectionné si absent
-            if (currentJuge && !presents.some(m => (m.prenom + ' ' + m.nom.charAt(0) + '.') === currentJuge)) {
+            // Réinitialiser si le juge sélectionné n'est plus présent
+            if (currentJuge && !presents.some(m => (m.code || `${currentEq} - ${m.maillot}`) === currentJuge)) {
                 currentJuge = '';
             }
             let html = '';
             presents.forEach(m => {
-                const nomComplet = m.prenom + ' ' + m.nom.charAt(0) + '.';
-                const isSelected = (currentJuge === nomComplet) ? 'selected' : '';
-                html += `<button class="juge-btn ${isSelected}" onclick="selectJuge('${nomComplet}')">${nomComplet}</button>`;
+                const code = m.code || `${currentEq} - ${m.maillot}`;
+                const isSelected = (currentJuge === code) ? 'selected' : '';
+                html += `<button class="juge-btn ${isSelected}" onclick="selectJuge('${code}')">${code}</button>`;
             });
             container.innerHTML = html;
         }
 
-        window.selectJuge = function(nomComplet) {
-            currentJuge = nomComplet;
+        window.selectJuge = function(code) {
+            currentJuge = code;
             const btns = document.querySelectorAll('.juge-btn');
             btns.forEach(btn => {
                 btn.classList.remove('selected');
-                if (btn.textContent === nomComplet) {
+                if (btn.textContent === code) {
                     btn.classList.add('selected');
                 }
             });
-            // Rebuild la grille pour afficher/masquer les messages "choisir juge"
             buildCoureursGrid();
-            showToast(`Juge sélectionné : ${nomComplet}`, 1500);
+            showToast(`Juge sélectionné : ${code}`, 1500);
         };
 
         // =====================================================================
-        // GRILLE AVEC FEEDBACK, POINTS, MOYENNE, TEMPS CUMULÉ
+        // GRILLE (inchangée, utilise currentJuge)
         // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
@@ -555,9 +444,7 @@
                 if (complet) data.complet = true;
 
                 let totalPoints = 0;
-                data.series.forEach(s => {
-                    totalPoints += (s.course || 0) + (s.tir || 0);
-                });
+                data.series.forEach(s => { totalPoints += (s.course || 0) + (s.tir || 0); });
 
                 let tempsBonifieCumule = 0;
                 let seriesValides = 0;
@@ -578,32 +465,24 @@
                 const vma = m.vma || 12;
                 data.series.forEach((s, idx) => {
                     if (s.course === 0) return;
-
                     const temps = s.temps ? (s.temps / 1000).toFixed(1) : '?';
                     const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
                     const ptsVMA = s.course || 0;
                     const ptsTir = s.tir || 0;
-
                     const vitesseNum = parseFloat(vitesse);
                     const alerte = (vitesseNum > 25 || vitesseNum > vma * 1.5);
                     const alerteHtml = alerte ? '<span class="alerte">⚠️ Vitesse suspecte – Le professeur en est informé.</span>' : '';
-
                     let ligne1 = `S${idx+1}: ${temps}s | ${vitesse} km/h | VMA: ${ptsVMA} pts`;
-                    if (alerteHtml) {
-                        ligne1 += ` ${alerteHtml}`;
-                    }
+                    if (alerteHtml) ligne1 += ` ${alerteHtml}`;
                     feedback += `<div class="serie-line">${ligne1}</div>`;
-
                     if (idx < seanceConfig.nbSeries - 1) {
                         let bonus = 0;
                         if (ptsTir < 7) bonus = 0;
                         else if (ptsTir < 12) bonus = -10;
                         else if (ptsTir < 16) bonus = -15;
                         else bonus = -20;
-
                         const tempsBonifie = (temps !== '?') ? (parseFloat(temps) + bonus).toFixed(1) : '?';
                         const bonusStr = bonus < 0 ? `-${Math.abs(bonus)}s` : `${bonus}s`;
-
                         let ligne2 = `Tir: ${ptsTir} pts | Bonus: ${bonusStr} | Temps bonifié: <span class="bonifie">${tempsBonifie}s</span>`;
                         feedback += `<div class="serie-line-2">${ligne2}</div>`;
                     }
@@ -698,7 +577,6 @@
                 showToast("⚠️ Veuillez d'abord sélectionner un juge iPad !", 2500);
                 return;
             }
-
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
             currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
@@ -760,7 +638,6 @@
             document.getElementById('ecranAction').classList.add('hidden');
             document.getElementById('ecranCoureurs').classList.remove('hidden');
             document.getElementById('ecranCoureurs').classList.add('flex');
-            // Réinitialiser le sélecteur de juge (on garde le choix)
             initJugeSelector();
             buildCoureursGrid();
         };
@@ -893,9 +770,8 @@
         window.onGiantAction = function() {
             if (modeActuel === 'mille' || modeActuel === 'killbill') return;
             if (currentPhase === 'course') {
-                if (!isRunning) {
-                    startTimer();
-                } else {
+                if (!isRunning) { startTimer(); }
+                else {
                     stopTimer();
                     lapData.courseMs = phaseAccum;
                     if (currentSerie === seanceConfig.nbSeries - 1) {
@@ -905,9 +781,8 @@
                     }
                 }
             } else if (currentPhase === 'penalite') {
-                const errorDiv = document.getElementById('errorMessage');
-                errorDiv.textContent = "Cliquez sur chaque tour de pénalité effectué.";
-                errorDiv.style.display = 'block';
+                document.getElementById('errorMessage').textContent = "Cliquez sur chaque tour de pénalité effectué.";
+                document.getElementById('errorMessage').style.display = 'block';
             }
         };
 
@@ -1229,3 +1104,121 @@
                     display.textContent = "TIR !";
                     document.getElementById('moduleMille').classList.add('hidden');
                     currentPhase = 'tir';
+                    document.getElementById('moduleSaisieTir').style.display = 'flex';
+                    genererZonesFleches();
+                    const panel = document.getElementById('phasePanel');
+                    panel.className = 'phase-panel panel-tir';
+                    document.getElementById('phaseName').textContent = 'TIR';
+                    document.getElementById('phaseClock').textContent = '00:00.00';
+                    phaseAccum = 0;
+                    phaseStartTime = Date.now();
+                    isRunning = true;
+                    tickLoop();
+                    document.getElementById('giantActionBtn').style.display = 'none';
+                    document.getElementById('btnValider').textContent = 'Valider le tir (Mille)';
+                    document.getElementById('errorMessage').style.display = 'none';
+                }
+            }, 1000);
+        };
+
+        // =====================================================================
+        // KILL BILL
+        // =====================================================================
+        function initKillBill() {
+            const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
+            killBillState.equipeAdverse = autres.length ? autres[0] : 'Équipe X';
+            document.getElementById('adversaireLabel').textContent = killBillState.equipeAdverse;
+            killBillState.scoreNous = 0; killBillState.scoreEux = 0; killBillState.tirsNous = 0; killBillState.tirsEux = 0;
+            killBillState.maxTirs = seanceConfig.nbFleches || 2;
+            document.getElementById('scoreNous').textContent = '0'; document.getElementById('scoreEux').textContent = '0';
+            document.getElementById('messageDuel').textContent = `Tire une flèche pour ton équipe (1/${killBillState.maxTirs})`;
+            document.getElementById('btnValiderDuel').disabled = true;
+            document.getElementById('btnValiderDuel').classList.add('opacity-40');
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        window.tirerDuel = function(pts) {
+            if (killBillState.tirsNous < killBillState.maxTirs) {
+                killBillState.scoreNous += pts; killBillState.tirsNous++;
+                document.getElementById('scoreNous').textContent = killBillState.scoreNous;
+                document.getElementById('messageDuel').textContent = killBillState.tirsNous < killBillState.maxTirs ? 
+                    `Tire une flèche pour ton équipe (${killBillState.tirsNous+1}/${killBillState.maxTirs})` : 
+                    `Tire maintenant pour l'équipe adverse (1/${killBillState.maxTirs})`;
+            } else if (killBillState.tirsEux < killBillState.maxTirs) {
+                killBillState.scoreEux += pts; killBillState.tirsEux++;
+                document.getElementById('scoreEux').textContent = killBillState.scoreEux;
+                document.getElementById('messageDuel').textContent = killBillState.tirsEux < killBillState.maxTirs ? 
+                    `Tire pour l'adversaire (${killBillState.tirsEux+1}/${killBillState.maxTirs})` : 
+                    "Duel terminé ! Clique sur Valider";
+                if (killBillState.tirsEux >= killBillState.maxTirs) {
+                    document.getElementById('btnValiderDuel').disabled = false;
+                    document.getElementById('btnValiderDuel').classList.remove('opacity-40');
+                }
+            }
+        };
+
+        window.annulerDuel = function() { initKillBill(); };
+
+        window.validerDuel = function() {
+            const diff = killBillState.scoreNous - killBillState.scoreEux;
+            let penalite = (diff < 0) ? (Math.abs(diff) < 5 ? 2 : 3) : (diff > 0 ? (diff < 5 ? 0 : 1) : 0);
+            const ptsTir = killBillState.scoreNous;
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                juge: currentJuge,
+                ptsVMA: 0,
+                ptsTir: ptsTir,
+                penalites: penalite,
+                vitesse: 0,
+                temps: 0,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                mode: 'killbill',
+                alerteTriche: false
+            };
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    const key = `${currentEq}-${currentMaillot}`;
+                    if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
+                    const nextSerie = currentSerie + 1;
+                    if (nextSerie < seanceConfig.nbSeries) {
+                        currentSerie = nextSerie;
+                        document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                        document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                        resetLap();
+                        setPhase('course');
+                        startTimer();
+                    } else {
+                        if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                        passageActuel++;
+                        retourCoureurs();
+                    }
+                })
+                .catch(() => { alert("Erreur réseau. Retour à la grille."); retourCoureurs(); });
+        };
+
+        // =====================================================================
+        // CONNEXION
+        // =====================================================================
+        db.ref('.info/connected').on('value', snap => {
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
+        });
+
+        // =====================================================================
+        // INIT
+        // =====================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const info = document.getElementById('infoSerieVMA');
+            const span = document.createElement('span');
+            span.id = 'infoFleches';
+            span.className = 'text-xs font-bold text-slate-400 ml-2';
+            span.textContent = 'Flèches : 2';
+            info.appendChild(span);
+            document.getElementById('phasePanel').classList.add('hidden');
+        });
+        console.log("✅ Arcathlon élève - version anonymisée (code)");
+    </script>
+</body>
+</html>
