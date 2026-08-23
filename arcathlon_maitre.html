@@ -12,9 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        /* ====================================================
-           STYLES GÉNÉRAUX (peuvent être externalisés)
-           ==================================================== */
         * { touch-action: manipulation; }
         body { user-select: none; background: #0f172a; color: white; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; }
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
@@ -59,9 +56,7 @@
 </head>
 <body class="p-4 h-screen flex flex-col">
 
-    <!-- ============================================================
-         EN-TÊTE
-         ============================================================ -->
+    <!-- En-tête -->
     <header class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-3">
             <h1 class="text-2xl font-black italic text-blue-500">Arcathlon</h1>
@@ -77,9 +72,7 @@
         </div>
     </header>
 
-    <!-- ============================================================
-         NAVIGATION
-         ============================================================ -->
+    <!-- Navigation -->
     <nav class="nav-scroll flex border-b border-slate-800 mb-4 font-bold text-xs uppercase tracking-widest shrink-0">
         <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves</button>
         <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Équipes & Lancement</button>
@@ -87,14 +80,9 @@
         <button id="btnTab4" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique</button>
     </nav>
 
-    <!-- ============================================================
-         ZONE PRINCIPALE
-         ============================================================ -->
     <div class="flex-1 overflow-hidden relative">
-
-        <!-- ============================================================
-             ONGLET 1 : ÉLÈVES (IMPORT)
-             ============================================================ -->
+        
+        <!-- ONGLET 1 : IMPORT & ELEVES -->
         <div id="viewImport" class="h-full flex flex-col absolute inset-0">
             <div class="flex flex-wrap items-center gap-3 mb-4 shrink-0 bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
                 <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs border border-emerald-400">📄 Import CSV VMA</button>
@@ -110,9 +98,7 @@
             <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 overflow-y-auto pb-6 pr-1 content-start flex-1"></div>
         </div>
 
-        <!-- ============================================================
-             ONGLET 2 : ÉQUIPES & LANCEMENT
-             ============================================================ -->
+        <!-- ONGLET 2 : ÉQUIPES & LANCEMENT -->
         <div id="viewEquipes" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
             <div class="flex flex-wrap items-center justify-between mb-4 gap-3 border-b border-slate-800 pb-3 shrink-0">
                 <div class="flex items-center gap-3">
@@ -171,15 +157,14 @@
             <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6 content-start"></div>
         </div>
 
-        <!-- ============================================================
-             ONGLET 3 : RÉSULTATS & STATS (fusionné)
-             ============================================================ -->
+        <!-- ONGLET 3 : RÉSULTATS & STATS (fusionné) -->
         <div id="viewLive" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex flex-wrap justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700 gap-2">
                 <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode : <span id="liveModeBadge" class="text-white">--</span></div>
                 <div class="flex flex-wrap gap-2">
                     <button onclick="exportResults()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs uppercase border border-emerald-400">📤 Export CSV</button>
                     <button onclick="purgeLive()" class="bg-red-950/60 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚠️ Purger</button>
+                    <button onclick="purgeComplete()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase">🔥 Purge complète Firebase</button>
                     <button onclick="loadStats()" class="bg-blue-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">🔄 Rafraîchir</button>
                     <button onclick="massAction()" class="bg-yellow-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚙️ Action en masse</button>
                 </div>
@@ -208,7 +193,7 @@
                     <div id="journalPassages" class="flex flex-col gap-2"></div>
                 </div>
 
-                <!-- Tableau détaillé -->
+                <!-- Tableau détaillé avec cases à cocher -->
                 <div>
                     <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Détail des passages</h3>
                     <div class="overflow-x-auto">
@@ -234,9 +219,7 @@
             </div>
         </div>
 
-        <!-- ============================================================
-             ONGLET 4 : HISTORIQUE
-             ============================================================ -->
+        <!-- ONGLET 4 : HISTORIQUE -->
         <div id="viewHistorique" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <select id="selectSeance" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none flex-1 max-w-xs">
@@ -248,9 +231,7 @@
         </div>
     </div>
 
-    <!-- ============================================================
-         MODALES
-         ============================================================ -->
+    <!-- MODALES -->
     <!-- MODAL ÉDITION ÉLÈVE -->
     <div id="editModal" class="modal-backdrop">
         <div class="modal">
@@ -307,9 +288,6 @@
         </div>
     </div>
 
-    <!-- ============================================================
-         SCRIPTS
-         ============================================================ -->
     <script>
         // =====================================================================
         // 1. CONFIGURATION FIREBASE
@@ -585,7 +563,7 @@
         });
 
         // =====================================================================
-        // 9. GÉNÉRATION DES ÉQUIPES
+        // 9. GÉNÉRATION DES ÉQUIPES (avec code)
         // =====================================================================
         window.generateTeams = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
@@ -740,7 +718,7 @@
         };
 
         // =====================================================================
-        // 12. TRANSMISSION CONFIG
+        // 12. TRANSMISSION CONFIG (pushConfig) - AVEC LE CODE
         // =====================================================================
         window.pushConfig = function() {
             if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
@@ -766,7 +744,7 @@
                         maillot: m.maillot,
                         vma: m.vma,
                         absent: m.absent || false,
-                        code: m.code || `${eq.id} - ${m.maillot}`
+                        code: m.code || `${eq.id} - ${m.maillot}`   // <-- CODE TRANSMIS
                     }))
                 };
                 eq.membres.forEach(m => {
@@ -869,7 +847,7 @@
                 </div>
             `).join('');
 
-            // Tableau détaillé
+            // Tableau détaillé avec cases à cocher
             let rows = '';
             for (const [key, p] of entries) {
                 const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
@@ -952,7 +930,18 @@
         // 14. ACTIONS (individuelles et en masse)
         // =====================================================================
         window.purgeLive = function() {
-            if (confirm("Réinitialiser le direct ?")) db.ref('arcathlon/live').remove();
+            if (confirm("⚠️ Supprimer tous les passages (mais garder la config) ?")) {
+                db.ref('arcathlon/live/passages').remove();
+            }
+        };
+
+        // Purge complète Firebase (config + passages)
+        window.purgeComplete = function() {
+            if (confirm("🔥 Supprimer TOUTES les données Firebase (config + passages) ? Cette action est irréversible.")) {
+                db.ref('arcathlon').remove()
+                    .then(() => alert("✅ Firebase purgé complètement."))
+                    .catch(err => alert("Erreur : " + err.message));
+            }
         };
 
         window.openActionModal = function(key) {
@@ -1175,7 +1164,7 @@
         // =====================================================================
         // 19. INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version fusionnée et corrigée");
+        console.log("✅ Arcathlon professeur - version finale avec pushConfig() et purge complète");
     </script>
 </body>
 </html>
