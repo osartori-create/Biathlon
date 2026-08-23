@@ -1,27 +1,28 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Arcathlon | Maître (Professeur)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { touch-action: manipulation; }
         body { user-select: none; background: #0f172a; color: white; font-family: sans-serif; }
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
-        .ghost-item { opacity: 0.4; background-color: #3b82f6; }
-        .photo-preview { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
         .nav-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .photo-preview { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
         .alerte-triche { background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem; }
+        .stats-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col">
-    
+
     <!-- En-tête -->
     <header class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-3">
@@ -43,7 +44,8 @@
         <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves (Local)</button>
         <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Composition & Lancement</button>
         <button id="btnTab3" onclick="switchTab('live')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📊 Résultats Direct</button>
-        <button id="btnTab4" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique Séances</button>
+        <button id="btnTab4" onclick="switchTab('statistiques')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📈 Statistiques détaillées</button>
+        <button id="btnTab5" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique Séances</button>
     </nav>
 
     <div class="flex-1 overflow-hidden relative">
@@ -140,7 +142,27 @@
             </div>
         </div>
 
-        <!-- ONGLET 4 : HISTORIQUE -->
+        <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES -->
+        <div id="viewStatistiques" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
+            <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
+                <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger les stats de la séance</button>
+                <button onclick="exportStatsCSV()" class="bg-emerald-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">📥 Exporter CSV détaillé</button>
+            </div>
+            <div class="stats-card">
+                <div class="stats-grid" id="statsSummary"></div>
+            </div>
+            <div style="height: 300px; margin-bottom: 20px;">
+                <canvas id="statsChart"></canvas>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs" id="statsDetailTable">
+                    <thead><tr><th>Équipe</th><th>Maillot</th><th>Série</th><th>Course (s)</th><th>Tir (s)</th><th>Pénalité (s)</th><th>Total (s)</th><th>Points Tir</th><th>Points VMA</th><th>Total pts</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ONGLET 5 : HISTORIQUE -->
         <div id="viewHistorique" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <select id="selectSeance" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none flex-1 max-w-xs">
@@ -157,25 +179,18 @@
 
     <script>
         // =====================================================================
-        // CONFIGURATION FIREBASE
+        // FIREBASE CONFIG
         // =====================================================================
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         // =====================================================================
-        // ÉTAT LOCAL (RGPD : tout est stocké en local, sauf les passages anonymes)
+        // STATE
         // =====================================================================
         let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v8')) || {
-            classes: {},        // { nomClasse: [ {Nom, Prenom, VMA, idPhoto} ] }
-            equipes: {},        // { nomClasse: [ {id, pin, membres: [{prenom,nom,vma,maillot,style,idPhoto,absent}] } ] }
-            activeCl: "",
-            seances: {}         // { seanceId: { configObj, date } }
+            classes: {}, equipes: {}, activeCl: "", seances: {}
         };
-
-        // =====================================================================
-        // INDEXEDDB POUR LES PHOTOS (conforme RGPD)
-        // =====================================================================
         let dbPhotos;
         const request = indexedDB.open("Arcathlon_Prof_DB", 1);
         request.onupgradeneeded = e => {
@@ -188,24 +203,16 @@
             dbPhotos = e.target.result;
             initUI();
         };
-        request.onerror = e => console.error("Erreur IndexedDB", e);
+        request.onerror = e => console.error("IndexedDB error", e);
 
-        // =====================================================================
-        // FONCTIONS UTILITAIRES
-        // =====================================================================
-        function saveToLocal() {
-            localStorage.setItem('arcathlon_state_prof_v8', JSON.stringify(state));
-        }
-
+        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v8', JSON.stringify(state)); }
         function savePhoto(id, blob) {
             if (!dbPhotos) return;
             const tx = dbPhotos.transaction("eleves", "readwrite");
             tx.objectStore("eleves").put({ id, blob });
-            tx.oncomplete = () => console.log(`Photo ${id} sauvegardée`);
         }
-
         function getPhotoUrl(id) {
-            return new Promise((resolve) => {
+            return new Promise(resolve => {
                 if (!dbPhotos) return resolve(null);
                 const tx = dbPhotos.transaction("eleves", "readonly");
                 const req = tx.objectStore("eleves").get(id);
@@ -213,28 +220,21 @@
                 req.onerror = () => resolve(null);
             });
         }
-
-        // Génère une clé unique pour un élève (basée sur nom + première lettre du prénom)
         function clePhoto(nom, prenom) {
             const n = (nom || "").trim().toUpperCase().replace(/\s+/g, "");
             const p = (prenom || "").trim().toUpperCase().charAt(0);
             return n + "_" + p;
         }
-
-        // Normalisation des accents (et des caractères exotiques type ╠)
         function normalizeText(str) {
             if (!str) return "";
-            // Supprimer les accents
             let s = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            // Remplacer les caractères problématiques (ex: ╠ -> i, ╣ -> u)
             s = s.replace(/╠/g, 'i').replace(/╣/g, 'u').replace(/╔/g, 'e');
-            // Supprimer tout ce qui n'est pas lettre, espace, tiret
             s = s.replace(/[^a-zA-Z\s\-]/g, '');
             return s.trim();
         }
 
         // =====================================================================
-        // INITIALISATION DE L'INTERFACE
+        // INIT UI
         // =====================================================================
         function initUI() {
             updateClSelect();
@@ -244,25 +244,20 @@
             }
             updateSeancesList();
 
-            // Statut Firebase
             db.ref('.info/connected').on('value', snap => {
                 document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
                 document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
             });
-
-            // Mode actuel
             db.ref('arcathlon/config/mode').on('value', snap => {
                 document.getElementById('liveModeBadge').textContent = snap.val() || '--';
             });
-
-            // Écoute des passages en direct
             db.ref('arcathlon/live/passages').on('value', snap => {
                 updateLiveScores(snap.val() || {});
             });
         }
 
         // =====================================================================
-        // GESTION DES CLASSES
+        // CLASSES
         // =====================================================================
         function updateClSelect() {
             const sel = document.getElementById('selectClasse');
@@ -270,19 +265,8 @@
             sel.innerHTML = Object.keys(state.classes).map(c =>
                 `<option value="${c}" ${c === current ? 'selected' : ''}>${c}</option>`
             ).join('');
-            if (!current && sel.options.length > 0) {
-                state.activeCl = sel.value;
-                saveToLocal();
-            }
         }
-
-        window.changeClasse = function(val) {
-            state.activeCl = val;
-            saveToLocal();
-            renderEleves();
-            renderTeams();
-        };
-
+        window.changeClasse = function(val) { state.activeCl = val; saveToLocal(); renderEleves(); renderTeams(); };
         window.addClasse = function() {
             const nom = prompt("Nom de la nouvelle classe ?");
             if (nom && !state.classes[nom]) {
@@ -295,7 +279,6 @@
                 renderTeams();
             }
         };
-
         window.purgeEleves = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
             if (!confirm(`Supprimer tous les élèves de la classe ${state.activeCl} ?`)) return;
@@ -305,7 +288,6 @@
             renderEleves();
             renderTeams();
         };
-
         window.addManualEleve = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
             const prenom = prompt("Prénom ?");
@@ -318,9 +300,15 @@
                 renderEleves();
             }
         };
+        window.removeEleve = function(idx) {
+            if (!state.activeCl) return;
+            state.classes[state.activeCl].splice(idx, 1);
+            saveToLocal();
+            renderEleves();
+        };
 
         // =====================================================================
-        // RENDU DES ÉLÈVES (avec photos)
+        // RENDER ELEVES
         // =====================================================================
         async function renderEleves() {
             const container = document.getElementById('elevesGrid');
@@ -330,9 +318,7 @@
             for (let i = 0; i < eleves.length; i++) {
                 const e = eleves[i];
                 const url = e.idPhoto ? await getPhotoUrl(e.idPhoto) : null;
-                const photoHtml = url
-                    ? `<img src="${url}" class="photo-preview">`
-                    : `<div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">👤</div>`;
+                const photoHtml = url ? `<img src="${url}" class="photo-preview">` : `<div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">👤</div>`;
                 html += `
                     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-3 flex flex-col items-center relative">
                         <button onclick="removeEleve(${i})" class="absolute top-2 right-2 text-slate-500 hover:text-red-400 font-bold">&times;</button>
@@ -346,24 +332,15 @@
             container.innerHTML = html;
         }
 
-        window.removeEleve = function(idx) {
-            if (!state.activeCl) return;
-            state.classes[state.activeCl].splice(idx, 1);
-            saveToLocal();
-            renderEleves();
-        };
-
         // =====================================================================
-        // IMPORT CSV (VMA)
+        // IMPORT CSV
         // =====================================================================
         document.getElementById('csvFile').addEventListener('change', function(e) {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
             const file = e.target.files[0];
             if (!file) return;
             Papa.parse(file, {
-                delimiter: ";",
-                header: false,
-                skipEmptyLines: true,
+                delimiter: ";", header: false, skipEmptyLines: true,
                 complete: function(results) {
                     results.data.forEach(row => {
                         if (!row[0] || row[0].toLowerCase().includes("luc")) return;
@@ -374,11 +351,8 @@
                         if (!vma || !prenom || !nom) return;
                         const cle = clePhoto(nom, prenom);
                         let existing = state.classes[state.activeCl].find(el => clePhoto(el.Nom, el.Prenom) === cle);
-                        if (existing) {
-                            existing.VMA = vma;
-                        } else {
-                            state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, idPhoto: cle });
-                        }
+                        if (existing) existing.VMA = vma;
+                        else state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, idPhoto: cle });
                     });
                     saveToLocal();
                     renderEleves();
@@ -388,7 +362,7 @@
         });
 
         // =====================================================================
-        // IMPORT ZIP PHOTOS (avec parsing du nom de fichier)
+        // IMPORT PHOTOS
         // =====================================================================
         document.getElementById('zipFile').addEventListener('change', function(e) {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
@@ -401,78 +375,49 @@
                     if (!zipEntry.name.match(/\.(jpg|jpeg|png|gif)$/i)) return;
                     promises.push(zipEntry.async('blob').then(blob => {
                         const basename = zipEntry.name.split('/').pop() || '';
-                        // Format attendu : _NOM,_Prénom_Sexe.JPG
-                        // Ex: _DUPONT,_Paul_M.JPG
-                        // Noms composés : _NOM1_NOM2,_Ambre_F.JPG
-                        // Gérer les accents mal encodés : on normalise après extraction
                         const match = basename.match(/^_(.+),_(.+)_([MF])\./i);
-                        if (!match) {
-                            console.warn("Nom de fichier non reconnu :", basename);
-                            return;
-                        }
+                        if (!match) { console.warn("Nom non reconnu:", basename); return; }
                         let nomBrut = match[1].trim();
                         let prenomBrut = match[2].trim();
-                        // Normaliser (accents, caractères spéciaux)
                         const nom = normalizeText(nomBrut);
                         const prenom = normalizeText(prenomBrut);
                         const cle = clePhoto(nom, prenom);
-                        // Chercher l'élève correspondant
                         let eleve = eleves.find(e => clePhoto(e.Nom, e.Prenom) === cle);
                         if (!eleve) {
-                            // Si pas trouvé, on peut essayer avec le nom brut (mais normalisé)
-                            // On tente avec le nom normalisé et le prénom normalisé
                             eleve = eleves.find(e => normalizeText(e.Nom) === nom && normalizeText(e.Prenom) === prenom);
-                            if (!eleve) {
-                                console.warn("Élève non trouvé :", nom, prenom);
-                                return;
-                            }
+                            if (!eleve) { console.warn("Élève non trouvé:", nom, prenom); return; }
                         }
-                        // Stocker la photo sous la clé de l'élève (peut-être différente de cle si nom changé)
                         savePhoto(cle, blob);
-                        // Mettre à jour idPhoto si besoin
                         if (!eleve.idPhoto) eleve.idPhoto = cle;
                     }));
                 });
                 Promise.all(promises).then(() => {
-                    alert(`Photos importées avec succès ! (${promises.length} fichiers traités)`);
+                    alert(`Photos importées (${promises.length} traités)`);
                     saveToLocal();
                     renderEleves();
-                }).catch(err => {
-                    console.error("Erreur lors de l'import des photos", err);
-                    alert("Erreur lors de l'import des photos.");
                 });
-            }).catch(err => {
-                console.error("Erreur de décompression ZIP", err);
-                alert("Impossible de lire le fichier ZIP.");
-            });
+            }).catch(err => { console.error(err); alert("Erreur ZIP"); });
             e.target.value = '';
         });
 
         // =====================================================================
-        // GÉNÉRATION DES ÉQUIPES
+        // GENERATE TEAMS
         // =====================================================================
         window.generateTeams = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
             const eleves = state.classes[state.activeCl] || [];
             if (eleves.length < 4) return alert("Il faut au moins 4 élèves.");
-            // Trier par VMA décroissant
             let ordre = [...eleves].sort((a, b) => b.VMA - a.VMA);
             const nbEq = Math.ceil(ordre.length / 4);
             let eqList = Array.from({ length: nbEq }, () => ({ membres: [], sumVMA: 0 }));
-
-            // Répartition équilibrée (algorithme simple)
             ordre.forEach(el => {
                 let minIdx = 0, minSum = Infinity;
                 eqList.forEach((eq, idx) => {
-                    if (eq.membres.length < 4 && eq.sumVMA < minSum) {
-                        minSum = eq.sumVMA;
-                        minIdx = idx;
-                    }
+                    if (eq.membres.length < 4 && eq.sumVMA < minSum) { minSum = eq.sumVMA; minIdx = idx; }
                 });
                 eqList[minIdx].membres.push(el);
                 eqList[minIdx].sumVMA += el.VMA;
             });
-
             const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
             const styleMap = {
                 'Rouge': 'text-red-400 bg-red-950/40 border-red-800',
@@ -480,9 +425,7 @@
                 'Bleu': 'text-blue-400 bg-blue-950/40 border-blue-800',
                 'Vert': 'text-green-400 bg-green-950/40 border-green-800'
             };
-
             state.equipes[state.activeCl] = eqList.map((eq, idx) => {
-                // Trier les membres par VMA décroissant pour attribuer les maillots
                 eq.membres.sort((a, b) => b.VMA - a.VMA);
                 return {
                     id: `EQ${idx + 1}`,
@@ -504,7 +447,7 @@
         };
 
         // =====================================================================
-        // RENDU DES ÉQUIPES (avec photos)
+        // RENDER TEAMS
         // =====================================================================
         async function renderTeams() {
             const container = document.getElementById('teamsGrid');
@@ -522,9 +465,7 @@
                 `;
                 for (let m of eq.membres) {
                     const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
-                    const photo = url
-                        ? `<img src="${url}" class="w-8 h-8 rounded-full object-cover">`
-                        : `<div class="w-8 h-8 rounded-full bg-slate-700"></div>`;
+                    const photo = url ? `<img src="${url}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-700"></div>`;
                     html += `
                         <div class="flex items-center justify-between border border-slate-800 p-2 rounded-lg ${m.style} bg-slate-950">
                             <div class="flex items-center gap-2">
@@ -556,7 +497,7 @@
         };
 
         // =====================================================================
-        // DIFFUSION DE LA CONFIGURATION FIREBASE (anonymisée)
+        // PUSH CONFIG
         // =====================================================================
         window.pushConfig = function() {
             if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
@@ -564,7 +505,6 @@
             }
             const seanceId = `SEANCE_${Date.now()}`;
             const modeChoisi = document.getElementById('modeEpreuve').value;
-
             const configObj = {
                 seanceId: seanceId,
                 mode: modeChoisi,
@@ -576,41 +516,151 @@
                 equipes: {},
                 vmaReference: {}
             };
-
-            // Remplir avec les données anonymes
             state.equipes[state.activeCl].forEach(eq => {
                 configObj.equipes[eq.id] = {
                     pin: eq.pin,
-                    membres: eq.membres.map(m => ({
-                        maillot: m.maillot,
-                        vma: m.vma,
-                        absent: m.absent || false
-                    }))
+                    membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma, absent: m.absent || false }))
                 };
                 eq.membres.forEach(m => {
                     configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma;
                 });
             });
-
-            // Sauvegarder dans l'historique local
             if (!state.seances) state.seances = {};
             state.seances[seanceId] = { configObj, date: new Date().toISOString() };
             saveToLocal();
             updateSeancesList();
 
-            // Envoyer à Firebase
             db.ref('arcathlon/config').set(configObj)
-                .then(() => {
-                    alert(`🚀 Configuration transmise ! (Mode : ${modeChoisi.toUpperCase()})`);
-                })
-                .catch(err => {
-                    console.error("Erreur Firebase :", err);
-                    alert("Erreur de transmission. Vérifie ta connexion.");
-                });
+                .then(() => alert(`🚀 Configuration transmise ! (Mode : ${modeChoisi.toUpperCase()})`))
+                .catch(err => { console.error(err); alert("Erreur de transmission."); });
         };
 
         // =====================================================================
-        // HISTORIQUE DES SÉANCES
+        // LIVE
+        // =====================================================================
+        function updateLiveScores(passages) {
+            const container = document.getElementById('journalPassages');
+            const globe = document.getElementById('grosGlobe');
+            if (!container) return;
+            const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
+            container.innerHTML = entries.slice(0, 20).map(([key, p]) => {
+                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                return `
+                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm">
+                        <span class="text-slate-500 font-mono">${h}</span>
+                        <span class="font-bold text-slate-200">${p.equipe} — Maillot ${p.maillot}</span>
+                        <span class="font-bold text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
+                        ${p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse</span>' : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const scoresEquipes = {};
+            (state.equipes[state.activeCl] || []).forEach(eq => { scoresEquipes[eq.id] = 0; });
+            entries.forEach(([key, p]) => {
+                if (scoresEquipes[p.equipe] !== undefined) {
+                    scoresEquipes[p.equipe] += (p.ptsVMA + p.ptsTir);
+                }
+            });
+            const sorted = Object.entries(scoresEquipes).sort((a, b) => b[1] - a[1]);
+            globe.innerHTML = sorted.map(([eqId, score], idx) => `
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
+                    <span class="font-black text-slate-300 text-base">${idx+1}. ${eqId}</span>
+                    <span class="text-emerald-400 font-black text-xl">${score} pts</span>
+                </div>
+            `).join('');
+        }
+
+        window.purgeLive = function() {
+            if (confirm("Réinitialiser le direct ?")) db.ref('arcathlon/live').remove();
+        };
+
+        // =====================================================================
+        // STATISTIQUES DÉTAILLÉES
+        // =====================================================================
+        let statsChart = null;
+
+        window.loadStats = function() {
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                const passages = snap.val() || {};
+                const data = Object.values(passages);
+                if (!data.length) { alert("Aucune donnée."); return; }
+
+                // Summary
+                const totalLaps = data.length;
+                const totalPts = data.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
+                const totalTirPts = data.reduce((s, p) => s + p.ptsTir, 0);
+                const totalCoursePts = data.reduce((s, p) => s + p.ptsVMA, 0);
+                document.getElementById('statsSummary').innerHTML = `
+                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Passages</span><br><span class="text-2xl font-bold">${totalLaps}</span></div>
+                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Total pts</span><br><span class="text-2xl font-bold">${totalPts}</span></div>
+                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Tir</span><br><span class="text-2xl font-bold">${totalTirPts}</span></div>
+                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
+                `;
+
+                // Table
+                const tbody = document.querySelector('#statsDetailTable tbody');
+                tbody.innerHTML = data.map(p => `
+                    <tr>
+                        <td>${p.equipe}</td>
+                        <td>${p.maillot}</td>
+                        <td>${p.serie || 1}</td>
+                        <td>${p.courseMs ? (p.courseMs/1000).toFixed(2) : '-'}</td>
+                        <td>${p.tirMs ? (p.tirMs/1000).toFixed(2) : '-'}</td>
+                        <td>${p.penaliteMs ? (p.penaliteMs/1000).toFixed(2) : '-'}</td>
+                        <td>${p.temps ? (p.temps/1000).toFixed(2) : '-'}</td>
+                        <td>${p.ptsTir}</td>
+                        <td>${p.ptsVMA}</td>
+                        <td>${p.ptsVMA + p.ptsTir}</td>
+                    </tr>
+                `).join('');
+
+                // Chart: temps par série (course, tir, penalite)
+                const ctx = document.getElementById('statsChart').getContext('2d');
+                if (statsChart) statsChart.destroy();
+                const labels = data.map((_, i) => `#${i+1}`);
+                const courseData = data.map(p => p.courseMs ? p.courseMs/1000 : 0);
+                const tirData = data.map(p => p.tirMs ? p.tirMs/1000 : 0);
+                const penData = data.map(p => p.penaliteMs ? p.penaliteMs/1000 : 0);
+                statsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Course (s)', data: courseData, backgroundColor: '#4f46e5' },
+                            { label: 'Tir (s)', data: tirData, backgroundColor: '#f59e0b' },
+                            { label: 'Pénalité (s)', data: penData, backgroundColor: '#9f86ff' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Temps (s)' } } },
+                        plugins: { legend: { position: 'top' } }
+                    }
+                });
+            });
+        };
+
+        window.exportStatsCSV = function() {
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                const passages = snap.val() || {};
+                const data = Object.values(passages);
+                if (!data.length) return alert("Aucune donnée.");
+                let csv = "Équipe;Maillot;Série;Course(s);Tir(s);Pénalité(s);Total(s);Pts Tir;Pts Course;Total pts\n";
+                data.forEach(p => {
+                    csv += `${p.equipe};${p.maillot};${p.serie||1};${(p.courseMs||0)/1000};${(p.tirMs||0)/1000};${(p.penaliteMs||0)/1000};${(p.temps||0)/1000};${p.ptsTir};${p.ptsVMA};${p.ptsVMA+p.ptsTir}\n`;
+                });
+                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `Arcathlon_stats_${Date.now()}.csv`;
+                a.click();
+            });
+        };
+
+        // =====================================================================
+        // HISTORIQUE
         // =====================================================================
         function updateSeancesList() {
             const select = document.getElementById('selectSeance');
@@ -630,7 +680,6 @@
                 return;
             }
             const data = state.seances[seanceId].configObj;
-            // On affiche la config
             let html = `<div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
                 <h4 class="font-bold text-blue-400">${seanceId}</h4>
                 <p class="text-xs text-slate-400">Mode: ${data.mode} | Séries: ${data.nbSeries} | Flèches: ${data.nbFleches}</p>
@@ -647,61 +696,12 @@
         };
 
         // =====================================================================
-        // RÉSULTATS EN DIRECT
-        // =====================================================================
-        function updateLiveScores(passages) {
-            const container = document.getElementById('journalPassages');
-            const globe = document.getElementById('grosGlobe');
-            if (!container) return;
-
-            const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
-
-            // Journal
-            container.innerHTML = entries.slice(0, 20).map(([key, p]) => {
-                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                return `
-                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm">
-                        <span class="text-slate-500 font-mono">${h}</span>
-                        <span class="font-bold text-slate-200">${p.equipe} — Maillot ${p.maillot}</span>
-                        <span class="font-bold text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
-                        ${p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse</span>' : ''}
-                    </div>
-                `;
-            }).join('');
-
-            // Classement par équipe
-            const scoresEquipes = {};
-            (state.equipes[state.activeCl] || []).forEach(eq => { scoresEquipes[eq.id] = 0; });
-            entries.forEach(([key, p]) => {
-                if (scoresEquipes[p.equipe] !== undefined) {
-                    scoresEquipes[p.equipe] += (p.ptsVMA + p.ptsTir);
-                }
-            });
-            const sorted = Object.entries(scoresEquipes).sort((a, b) => b[1] - a[1]);
-
-            globe.innerHTML = sorted.map(([eqId, score], idx) => `
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-                    <span class="font-black text-slate-300 text-base">${idx+1}. ${eqId}</span>
-                    <span class="text-emerald-400 font-black text-xl">${score} pts</span>
-                </div>
-            `).join('');
-
-            // Mettre à jour le filtre des équipes dans l'historique
-            const filterSelect = document.getElementById('filterEquipe');
-            const currentVal = filterSelect.value;
-            const options = ['all', ...Object.keys(scoresEquipes)];
-            filterSelect.innerHTML = options.map(v =>
-                `<option value="${v}" ${v === currentVal ? 'selected' : ''}>${v === 'all' ? 'Toutes les équipes' : v}</option>`
-            ).join('');
-        }
-
-        // =====================================================================
-        // EXPORT RÉSULTATS CSV (anonymisé)
+        // EXPORT RESULTS (CSV complet)
         // =====================================================================
         window.exportResults = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
-                let csv = "Équipe;Maillot;Prénom (Prof);Nom (Prof);Série;Mode;Points Course;Points Tir;Total;Vitesse;Horodatage\n";
+                let csv = "Équipe;Maillot;Prénom (Prof);Nom (Prof);Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps total;Course(s);Tir(s);Pénalité(s);Horodatage\n";
                 Object.values(passages).forEach(p => {
                     let prenom = "", nom = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -709,9 +709,9 @@
                         const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
                         if (mProf) { prenom = mProf.prenom; nom = mProf.nom; }
                     }
-                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${p.serie};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${new Date(p.timestamp).toLocaleString()}\n`;
+                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${p.serie};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${p.temps ? (p.temps/1000).toFixed(2) : ''};${p.courseMs ? (p.courseMs/1000).toFixed(2) : ''};${p.tirMs ? (p.tirMs/1000).toFixed(2) : ''};${p.penaliteMs ? (p.penaliteMs/1000).toFixed(2) : ''};${new Date(p.timestamp).toLocaleString()}\n`;
                 });
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = `Arcathlon_Prof_${state.activeCl}_${Date.now()}.csv`;
@@ -719,14 +719,8 @@
             });
         };
 
-        window.purgeLive = function() {
-            if (confirm("Réinitialiser le direct ?")) {
-                db.ref('arcathlon/live').remove();
-            }
-        };
-
         // =====================================================================
-        // SAUVEGARDE / RESTAURATION DES DONNÉES PROF
+        // SAUVEGARDE / RESTAURATION
         // =====================================================================
         window.exportData = function() {
             const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
@@ -735,46 +729,38 @@
             a.download = `Arcathlon_Prof_Backup.json`;
             a.click();
         };
-
         document.getElementById('importDataInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(ev) {
-                try {
-                    state = JSON.parse(ev.target.result);
-                    saveToLocal();
-                    initUI();
-                    alert("Données restaurées avec succès !");
-                } catch (err) {
-                    alert("Erreur : fichier JSON invalide.");
-                }
+                try { state = JSON.parse(ev.target.result); saveToLocal(); initUI(); alert("Restauré !"); } catch (err) { alert("Fichier invalide."); }
             };
             reader.readAsText(file);
             e.target.value = '';
         });
 
         // =====================================================================
-        // CHANGEMENT D'ONGLET
+        // SWITCH TABS
         // =====================================================================
         window.switchTab = function(t) {
-            ['viewImport', 'viewEquipes', 'viewLive', 'viewHistorique'].forEach(id =>
+            ['viewImport', 'viewEquipes', 'viewLive', 'viewStatistiques', 'viewHistorique'].forEach(id =>
                 document.getElementById(id).classList.add('hidden')
             );
-            ['btnTab1', 'btnTab2', 'btnTab3', 'btnTab4'].forEach(id => {
+            ['btnTab1', 'btnTab2', 'btnTab3', 'btnTab4', 'btnTab5'].forEach(id => {
                 document.getElementById(id).classList.remove('tab-active', 'text-blue-500');
                 document.getElementById(id).classList.add('text-slate-500');
             });
-            const map = { 'import': '1', 'equipes': '2', 'live': '3', 'historique': '4' };
+            const map = { 'import': '1', 'equipes': '2', 'live': '3', 'statistiques': '4', 'historique': '5' };
             document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
             document.getElementById('btnTab' + map[t]).classList.add('tab-active', 'text-blue-500');
+            if (t === 'statistiques') loadStats();
         };
 
         // =====================================================================
-        // LANCEMENT
+        // INIT
         // =====================================================================
-        // Si IndexedDB est prêt, initUI est appelé dans request.onsuccess.
-        // Sinon, on attend.
+        console.log("Arcathlon professeur chargé - Version améliorée");
     </script>
 </body>
 </html>
