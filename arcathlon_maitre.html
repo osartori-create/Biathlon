@@ -45,7 +45,6 @@
         .action-cell { display: flex; gap: 4px; flex-wrap: wrap; }
         .team-list-sortable { min-height: 60px; }
         .sortable-ghost { opacity: 0.4; background: #3b82f6; }
-        /* Style pour les photos dans le journal */
         .journal-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-right: 6px; }
     </style>
 </head>
@@ -578,7 +577,6 @@
                         style: styleMap[couleurs[j % couleurs.length]] || 'bg-slate-800 border-slate-600 text-white',
                         idPhoto: m.idPhoto || clePhoto(m.Nom, m.Prenom),
                         absent: false,
-                        // Pour Sortable
                         idUnique: `${m.Nom}_${m.Prenom}_${j}`
                     }))
                 };
@@ -589,7 +587,7 @@
         };
 
         // =====================================================================
-        // RENDER TEAMS (avec data-id pour Sortable)
+        // RENDER TEAMS
         // =====================================================================
         async function renderTeams() {
             const container = document.getElementById('teamsGrid');
@@ -631,7 +629,7 @@
         }
 
         // =====================================================================
-        // SORTABLE (glisser-déposer)
+        // SORTABLE (glisser-déposer) - VERSION CORRIGÉE
         // =====================================================================
         let sortableInstances = [];
 
@@ -642,16 +640,17 @@
 
             const containers = document.querySelectorAll('.team-list-sortable');
             containers.forEach(container => {
-                const teamId = container.dataset.team;
                 const sortable = new Sortable(container, {
                     group: 'teams',
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     onEnd: function(evt) {
-                        // Mettre à jour state.equipes après le déplacement
                         const fromTeam = evt.from.dataset.team;
                         const toTeam = evt.to.dataset.team;
                         const itemId = evt.item.dataset.id;
+                        
+                        // Si même équipe ou élément non trouvé, on ignore
+                        if (fromTeam === toTeam) return;
                         
                         // Trouver l'élément déplacé
                         let movedEleve = null;
@@ -659,35 +658,41 @@
                         
                         // Retirer de l'équipe source
                         const fromEq = equipes.find(e => e.id === fromTeam);
-                        if (fromEq) {
-                            const idx = fromEq.membres.findIndex(m => (m.idUnique || m.prenom+'_'+m.nom) === itemId);
-                            if (idx !== -1) {
-                                movedEleve = fromEq.membres.splice(idx, 1)[0];
-                            }
-                        }
+                        if (!fromEq) return;
+                        const idx = fromEq.membres.findIndex(m => (m.idUnique || m.prenom+'_'+m.nom) === itemId);
+                        if (idx === -1) return;
+                        movedEleve = fromEq.membres.splice(idx, 1)[0];
                         
                         // Ajouter à l'équipe destination
                         if (movedEleve && toTeam) {
                             const toEq = equipes.find(e => e.id === toTeam);
-                            if (toEq) {
-                                // Réattribuer la couleur en fonction de l'ordre
-                                const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
-                                // On réattribue les couleurs à toutes les équipes
-                                equipes.forEach(eq => {
-                                    eq.membres.forEach((m, idx) => {
-                                        m.maillot = couleurs[idx % couleurs.length];
-                                        m.style = {
-                                            'Rouge': 'text-red-400 bg-red-950/40 border-red-800',
-                                            'Jaune': 'text-yellow-400 bg-yellow-950/40 border-yellow-800',
-                                            'Bleu': 'text-blue-400 bg-blue-950/40 border-blue-800',
-                                            'Vert': 'text-green-400 bg-green-950/40 border-green-800'
-                                        }[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
-                                    });
-                                });
-                                saveToLocal();
-                                renderTeams();
+                            if (!toEq) {
+                                // Si l'équipe destination n'existe pas, on remet l'élève dans l'équipe source
+                                fromEq.membres.splice(idx, 0, movedEleve);
+                                return;
                             }
+                            toEq.membres.push(movedEleve);
+                        } else {
+                            // Réinsérer si problème
+                            fromEq.membres.splice(idx, 0, movedEleve);
+                            return;
                         }
+                        
+                        // Réattribuer les couleurs à toutes les équipes
+                        const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
+                        equipes.forEach(eq => {
+                            eq.membres.forEach((m, idx) => {
+                                m.maillot = couleurs[idx % couleurs.length];
+                                m.style = {
+                                    'Rouge': 'text-red-400 bg-red-950/40 border-red-800',
+                                    'Jaune': 'text-yellow-400 bg-yellow-950/40 border-yellow-800',
+                                    'Bleu': 'text-blue-400 bg-blue-950/40 border-blue-800',
+                                    'Vert': 'text-green-400 bg-green-950/40 border-green-800'
+                                }[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                            });
+                        });
+                        saveToLocal();
+                        renderTeams();
                     }
                 });
                 sortableInstances.push(sortable);
@@ -705,7 +710,7 @@
         };
 
         // =====================================================================
-        // PUSH CONFIG (avec valeurs par défaut modifiées)
+        // PUSH CONFIG
         // =====================================================================
         window.pushConfig = function() {
             if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
@@ -752,7 +757,6 @@
             if (!container) return;
             const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
             
-            // Générer le journal avec photos
             let journalHtml = '';
             for (let i = 0; i < Math.min(entries.length, 30); i++) {
                 const [key, p] = entries[i];
@@ -760,7 +764,6 @@
                 const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '<span class="alerte-ok">✓ OK</span>';
                 const actionBtn = `<button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>`;
                 
-                // Récupérer la photo du coureur
                 let photoHtml = '';
                 const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
                 if (eqProf) {
@@ -788,7 +791,7 @@
             }
             container.innerHTML = journalHtml;
 
-            // Classement par moyenne (inchangé)
+            // Classement par moyenne
             const scoresEquipes = {};
             const nbCoureurs = {};
             (state.equipes[state.activeCl] || []).forEach(eq => { 
@@ -876,7 +879,7 @@
         };
 
         // =====================================================================
-        // STATISTIQUES DÉTAILLÉES (avec photos et actions)
+        // STATISTIQUES DÉTAILLÉES
         // =====================================================================
         let statsChart = null;
 
@@ -886,7 +889,6 @@
                 const data = Object.values(passages).filter(p => !p.disqualifie);
                 if (!data.length) { alert("Aucune donnée."); return; }
 
-                // Enrichir avec les noms, photos et photos
                 const enriched = await Promise.all(data.map(async (p) => {
                     let prenom = "", nom = "", photoUrl = null, sexe = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -916,7 +918,6 @@
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
                 `;
 
-                // Table avec photo, nom et actions
                 const tbody = document.querySelector('#statsDetailTable tbody');
                 let rows = '';
                 enriched.forEach(p => {
@@ -1140,7 +1141,7 @@
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version avec glisser-déposer, photos et valeurs par défaut");
+        console.log("✅ Arcathlon professeur - version corrigée (glisser-déposer OK)");
     </script>
 </body>
 </html>
