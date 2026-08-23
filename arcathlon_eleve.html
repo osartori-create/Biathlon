@@ -9,18 +9,21 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <style>
         * { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
-        body { background: #0f172a; }
+        body { background: #0f172a; font-family: sans-serif; }
         .btn-tap:active { transform: scale(0.96); }
         .cible-circle { cursor: pointer; transition: opacity 0.15s; }
         .cible-circle:active { opacity: 0.6; }
-        @keyframes pulse-impact { 0% { transform: scale(1); stroke-width: 0; } 50% { transform: scale(1.05); stroke-width: 4px; stroke: #fff; } 100% { transform: scale(1); stroke-width: 0; } }
+        @keyframes pulse-impact { 
+            0% { transform: scale(1); stroke-width: 0; } 
+            50% { transform: scale(1.05); stroke-width: 4px; stroke: #fff; } 
+            100% { transform: scale(1); stroke-width: 0; } 
+        }
         .impact { animation: pulse-impact 0.3s ease-out; }
         .score-badge { background: #1e293b; border-radius: 999px; padding: 2px 10px; font-size: 0.75rem; font-weight: bold; color: #a5b4fc; border: 1px solid #4f46e5; }
-        .icone-statut { font-size: 1.1rem; margin: 0 1px; }
         .alerte-triche { color: #ef4444; font-weight: 900; background: rgba(239,68,68,0.2); padding: 4px 8px; border-radius: 8px; border: 1px solid #ef4444; }
     </style>
 </head>
-<body class="text-white p-4 h-screen flex flex-col font-sans">
+<body class="text-white p-4 h-screen flex flex-col">
 
     <!-- En-tête Statut -->
     <div class="flex justify-between items-center mb-3 shrink-0 px-2">
@@ -28,22 +31,22 @@
             <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
             <span id="connLabel">Connexion...</span>
         </div>
-        <div id="modeBadge" class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/40">
-            Mode: Sprint | <span id="seanceInfo">Séance non chargée</span>
+        <div class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/40">
+            Mode: <span id="labelModeActuel">Sprint</span> | <span id="seanceInfo">--</span>
         </div>
     </div>
 
     <!-- ZONE PRINCIPALE -->
     <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
         
-        <!-- ECRAN 1 : CHOIX EQUIPE & PIN -->
+        <!-- ================= ECRAN 1 : LOGIN ================= -->
         <div id="ecranLogin" class="flex flex-col items-center justify-center flex-1">
             <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-8 italic">Arcathlon</h1>
             <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-5 rounded-2xl text-2xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6 text-white">
                 <option value="">-- CHOISIR L'ÉQUIPE --</option>
             </select>
             <div id="numpad" class="hidden flex-col items-center">
-                <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Code PIN Équipe (3 chiffres)</div>
+                <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Code PIN (3 chiffres)</div>
                 <div id="pinDisplay" class="bg-slate-950 border-2 border-slate-700 w-48 h-14 rounded-xl flex items-center justify-center text-3xl font-mono tracking-[0.6em] mb-4 text-emerald-400 shadow-inner"></div>
                 <div class="grid grid-cols-3 gap-3">
                     <script>
@@ -56,73 +59,69 @@
             </div>
         </div>
 
-        <!-- ECRAN 2 : CHOIX COUREUR (MAILLOT) -->
+        <!-- ================= ECRAN 2 : GRILLE COUREURS ================= -->
         <div id="ecranCoureurs" class="hidden flex-col flex-1">
             <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
             <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-6">Équipe X</h2>
             <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-center"></div>
-            <div class="mt-6 pt-4 border-t border-slate-800 text-center shrink-0">
-                <button onclick="toggleHistorique()" class="bg-slate-800 px-6 py-3 rounded-xl font-bold text-xs text-slate-300 uppercase tracking-widest border border-slate-700 active:bg-slate-700">📜 Historique Équipe</button>
-            </div>
         </div>
 
-        <!-- ECRAN 3 : CHRONOMÉTRAGE -->
-        <div id="ecranChrono" class="hidden flex-col h-full">
+        <!-- ================= ECRAN 3 : ACTION (Géré par Routeur) ================= -->
+        <div id="ecranAction" class="hidden flex-col h-full">
             <button onclick="retourCoureurs()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
-            <div class="text-center font-black text-2xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0">
+            
+            <div class="text-center font-black text-xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4">
                 <span id="coureurLabel">Maillot</span>
+                <span id="infoSerieVMA" class="text-sm font-bold text-slate-400"></span>
             </div>
-            <div class="flex-1 flex flex-col items-center justify-center gap-6">
+
+            <!-- MODULE RELAIS : Cartes Stratégiques -->
+            <div id="moduleRelais" class="hidden flex-col items-center mb-4">
+                <button id="btnTirerCarte" onclick="tirerCarteRelais()" class="bg-purple-600 px-6 py-3 rounded-xl font-black text-lg uppercase shadow-lg shadow-purple-900/50 btn-tap border-2 border-purple-400">🃏 Tirer une Carte Stratégie</button>
+                <div id="carteAffichee" class="text-xl font-bold text-center bg-slate-800 p-4 rounded-xl border-2 border-purple-500 hidden text-purple-300 mt-2 w-full max-w-md"></div>
+            </div>
+
+            <!-- MODULE CHRONO CLASSIQUE (Sprint / Poursuite / Relais) -->
+            <div id="moduleChrono" class="flex-1 flex flex-col items-center justify-center gap-6 hidden">
                 <div class="text-6xl font-mono font-bold tabular-nums text-emerald-400 bg-black/40 px-8 py-4 rounded-3xl border border-slate-800" id="chronoDisplay">00:00.00</div>
                 <div class="flex gap-4">
-                    <button id="btnDepart" onclick="demarrerChrono()" class="btn-tap bg-green-600 text-white w-36 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-green-700">Départ</button>
-                    <button id="btnArrivee" onclick="arreterChrono()" class="btn-tap bg-red-600 text-white w-36 h-20 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl active:bg-red-700 disabled:opacity-40" disabled>Arrivée</button>
+                    <button id="btnDepart" onclick="demarrerChrono()" class="btn-tap bg-green-600 text-white w-32 h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl active:bg-green-700">Départ</button>
+                    <button id="btnArrivee" onclick="arreterChrono()" class="btn-tap bg-red-600 text-white w-32 h-16 rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl active:bg-red-700 disabled:opacity-40" disabled>Arrivée</button>
                 </div>
-                <div class="w-full max-w-md bg-slate-800/80 p-4 rounded-2xl border border-slate-700 text-sm">
-                    <div class="flex justify-between mb-1"><span class="font-bold text-slate-400">Série :</span><span id="serieActuelle" class="font-bold text-emerald-400">1/3</span></div>
-                    <div class="flex justify-between mb-1"><span class="font-bold text-slate-400">Tours :</span><span id="toursInfo" class="font-bold text-emerald-400">3 tours (1200 m)</span></div>
-                    <div class="flex justify-between mb-1"><span class="font-bold text-slate-400">Temps :</span><span id="tempsAffiche" class="font-bold text-emerald-400">00:00.00</span></div>
-                    <div class="flex justify-between"><span class="font-bold text-slate-400">Vitesse :</span><span id="vitesseAffiche" class="font-bold text-emerald-400">0 km/h</span></div>
+                <div class="w-full max-w-md flex justify-between px-4 text-slate-400 font-bold text-sm">
+                    <span>Temps: <span id="tempsAffiche" class="text-emerald-400">00:00.00</span></span>
+                    <span>Vitesse: <span id="vitesseAffiche" class="text-emerald-400">0 km/h</span></span>
                 </div>
             </div>
-        </div>
 
-        <!-- ECRAN 4 : SAISIE TIR -->
-        <div id="ecranSaisie" class="hidden flex-col h-full">
-            <button onclick="retourCoureurs()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
-            <div class="text-center font-black text-xl text-slate-300 mb-3 bg-slate-950 py-2 rounded-xl border border-slate-800 shrink-0" id="labelCoureur"></div>
-            <div class="flex-1 flex gap-6 min-h-0">
-                <!-- Cible -->
-                <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-4 flex flex-col items-center justify-center relative shadow-inner">
-                    <span class="absolute top-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Saisir les impacts 🎯</span>
-                    <svg viewBox="0 0 100 100" class="w-full max-w-[240px] mx-auto drop-shadow-2xl">
+            <!-- MODULE "DANS LE 1000" (Compte à rebours 18s) -->
+            <div id="moduleMille" class="flex-1 flex flex-col items-center justify-center gap-6 hidden">
+                <div id="chrono18s" class="text-8xl font-mono font-black text-emerald-400 bg-black px-12 py-8 rounded-3xl border-4 border-slate-700">18</div>
+                <button id="btnStart18" onclick="startTimer18()" class="btn-tap bg-blue-600 px-12 py-6 rounded-2xl font-black text-3xl uppercase border-4 border-blue-400 shadow-xl">Top Départ</button>
+            </div>
+
+            <!-- MODULE SAISIE TIR -->
+            <div id="moduleSaisieTir" class="flex-1 gap-4 min-h-0 hidden mt-4">
+                <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-2 flex flex-col items-center justify-center relative shadow-inner">
+                    <svg viewBox="0 0 100 100" class="w-full max-w-[200px] mx-auto drop-shadow-2xl">
                         <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6, 'Zone Bleue')" />
                         <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="marquerTir(8, 'Zone Rouge')" />
                         <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="marquerTir(10, 'Centre Jaune')" />
                     </svg>
-                    <div class="grid grid-cols-2 gap-2 mt-4 w-full">
-                        <button onclick="marquerTir(5, 'Bord / Touché')" class="btn-tap bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300">+5 (Bord)</button>
-                        <button onclick="marquerTir(0, 'Manqué')" class="btn-tap bg-red-950/50 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400">0 (Manqué)</button>
+                    <div class="flex gap-2 mt-4 w-full px-2">
+                        <button onclick="marquerTir(5, 'Bord')" class="flex-1 btn-tap bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300">+5 (Bord)</button>
+                        <button onclick="marquerTir(0, 'Manqué')" class="flex-1 btn-tap bg-red-950/50 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400">0 (Manqué)</button>
                     </div>
                 </div>
-                <!-- Panneau Flèches -->
-                <div class="flex-1 flex flex-col gap-3">
-                    <div class="bg-slate-900 p-4 rounded-2xl border border-slate-700 flex flex-col gap-2" id="flechesContainer"></div>
-                    <button id="btnValider" onclick="validerPassage()" disabled class="btn-tap bg-emerald-600 border-2 border-emerald-400 py-5 rounded-2xl font-black text-xl uppercase tracking-widest text-white shadow-xl opacity-40 transition-opacity">
-                        Valider <span id="totalPreview" class="text-base"></span>
+                <div class="flex-1 flex flex-col gap-2">
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-700 flex flex-col gap-2 flex-1" id="flechesContainer"></div>
+                    <div id="resultatTirSpecifique" class="text-center font-black text-sm uppercase text-yellow-400 mb-2"></div>
+                    <button id="btnValider" onclick="validerPassage()" disabled class="btn-tap bg-emerald-600 border-2 border-emerald-400 py-4 rounded-2xl font-black text-lg uppercase tracking-widest text-white shadow-xl opacity-40 transition-opacity">
+                        Valider
                     </button>
-                    <button onclick="annulerTir()" class="btn-tap bg-yellow-600/30 border border-yellow-600/60 py-3 rounded-xl font-bold text-xs uppercase text-yellow-400">↩ Annuler la flèche</button>
+                    <button onclick="annulerTir()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler flèche</button>
                 </div>
             </div>
-        </div>
-
-        <!-- ECRAN HISTORIQUE -->
-        <div id="ecranHistorique" class="hidden flex-col h-full absolute inset-0 bg-slate-950/95 p-6 z-50 backdrop-blur-md">
-            <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
-                <h2 class="text-xl font-black text-blue-400 uppercase tracking-widest italic">Historique de l'Équipe</h2>
-                <button onclick="toggleHistorique()" class="bg-slate-800 px-4 py-2 rounded-xl font-bold uppercase text-xs text-slate-300">Fermer</button>
-            </div>
-            <div id="listHistorique" class="flex flex-col gap-3 overflow-y-auto flex-1"></div>
         </div>
     </div>
 
@@ -133,44 +132,40 @@
 
         let equipesConfig = {}, seanceConfig = {}, scoresCoureur = {};
         let currentEq = "", currentPin = "", currentMaillot = "", inputPin = "";
-        let passageActuel = 1, tirs = [], chronoInterval = null;
+        let passageActuel = 1, tirs = [], chronoInterval = null, timer18Interval = null;
         let tempsDepart = 0, tempsEcoule = 0, currentSerie = 0;
-        let currentVitesse = 0, currentPointsCourse = 0;
+        let currentVitesse = 0, currentPointsCourse = 0, modeActuel = "sprint";
+        let nbFlechesActuel = 2; // Peut varier selon le mode
 
-        // Monitoring connexion
-        db.ref('.info/connected').on('value', snap => {
-            const isConn = !!snap.val();
-            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (isConn ? "bg-emerald-500" : "bg-red-500");
-            document.getElementById('connLabel').textContent = isConn ? "En ligne" : "Hors ligne";
-        });
+        // Cartes Relais (Géré sur l'iPad élève pour robustesse hors-ligne)
+        const cartesRelais = [
+            "Tir mauvaise main !", "1 tour effacé !", "Cible éloignée (7m50)", 
+            "Départ retardé (+10s)", "Volée > 10 pts = 0 pénalité", "Cible Scarface (Moitié compte)"
+        ];
 
-        // Sync configuration globale (Sans aucune donnée nominative)
+        // Écoute de la configuration prof
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
+            modeActuel = config.mode || "sprint";
+            
             seanceConfig = {
                 seanceId: config.seanceId,
-                longueurPiste: config.longueurPiste || 400,
-                nbTours: config.nbTours || 3,
+                distanceTotale: config.distanceTotale || 1200,
                 nbSeries: config.nbSeries || 3,
                 nbFleches: config.nbFleches || 2,
-                distanceTotale: config.distanceTotale || 1200,
                 vmaReference: config.vmaReference || {}
             };
             
-            document.getElementById('seanceInfo').textContent = `Séance ${seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : 'non chargée'}`;
-            document.getElementById('toursInfo').textContent = `${seanceConfig.nbTours} tours (${seanceConfig.distanceTotale} m)`;
+            document.getElementById('labelModeActuel').textContent = modeActuel;
+            document.getElementById('seanceInfo').textContent = seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : '--';
 
-            // Initialiser structure locale des scores
+            // Init scores locaux
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
-                    const key = `${eq}-${m.maillot}`;
-                    let nbS = seanceConfig.nbSeries;
-                    if (m.remplaceAbsent) nbS += 1;
-                    if (m.absent) nbS = 0;
-                    scoresCoureur[key] = {
-                        series: Array(nbS).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
+                    scoresCoureur[`${eq}-${m.maillot}`] = {
+                        series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
                         complet: false
                     };
                 });
@@ -178,20 +173,16 @@
 
             const sel = document.getElementById('selEquipe');
             const valActuelle = sel.value;
-            sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` +
-                Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+            sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
             if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
-
-            if (currentEq && !equipesConfig[currentEq]) resetLogin();
-            else if (currentEq && currentMaillot) buildCoureursGrid();
+            if (currentEq && currentMaillot) buildCoureursGrid();
         });
 
+        // ================= LOGIQUE LOGIN & GRILLE =================
         window.checkTeamSelection = function() {
             const val = document.getElementById('selEquipe').value;
             if (val) {
-                currentEq = val;
-                currentPin = equipesConfig[val].pin;
-                inputPin = "";
+                currentEq = val; currentPin = equipesConfig[val].pin; inputPin = "";
                 document.getElementById('pinDisplay').textContent = "";
                 document.getElementById('numpad').classList.remove('hidden');
                 document.getElementById('numpad').classList.add('flex');
@@ -201,10 +192,7 @@
         };
 
         window.addPin = function(num) {
-            if (inputPin.length < 3) {
-                inputPin += num;
-                document.getElementById('pinDisplay').textContent = "•".repeat(inputPin.length);
-            }
+            if (inputPin.length < 3) { inputPin += num; document.getElementById('pinDisplay').textContent = "•".repeat(inputPin.length); }
         };
         window.clearPin = function() { inputPin = ""; document.getElementById('pinDisplay').textContent = ""; };
 
@@ -215,23 +203,18 @@
                 document.getElementById('ecranCoureurs').classList.add('flex');
                 document.getElementById('titreEquipe').textContent = `Équipe ${currentEq}`;
                 buildCoureursGrid();
-            } else {
-                alert("Code PIN incorrect.");
-                clearPin();
-            }
+            } else { alert("Code PIN incorrect."); clearPin(); }
         };
 
         window.resetLogin = function() {
-            clearInterval(chronoInterval);
+            clearInterval(chronoInterval); clearInterval(timer18Interval);
             currentEq = ""; inputPin = ""; currentMaillot = "";
             document.getElementById('selEquipe').value = "";
             document.getElementById('numpad').classList.add('hidden');
             document.getElementById('ecranCoureurs').classList.add('hidden');
-            document.getElementById('ecranChrono').classList.add('hidden');
-            document.getElementById('ecranSaisie').classList.add('hidden');
+            document.getElementById('ecranAction').classList.add('hidden');
             document.getElementById('ecranLogin').classList.remove('hidden');
             document.getElementById('ecranLogin').classList.add('flex');
-            passageActuel = 1; tirs = []; currentSerie = 0;
         };
 
         function buildCoureursGrid() {
@@ -239,82 +222,93 @@
             const membres = equipesConfig[currentEq]?.membres || [];
             let html = "";
             const colorMap = {
-                'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
-                'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
-                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
-                'Vert': 'bg-green-950/80 border-green-600 text-green-400'
+                'Rouge': 'bg-red-950/80 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400', 'Vert': 'bg-green-950/80 border-green-600 text-green-400'
             };
 
             membres.forEach(m => {
-                if (m.absent) {
-                    html += `
-                    <div class="border-4 border-slate-700 py-6 rounded-3xl flex flex-col items-center justify-center bg-slate-900/40 opacity-40">
-                        <span class="font-black text-xl uppercase tracking-widest text-slate-400">${m.maillot}</span>
-                        <div class="text-xs font-bold text-red-400 mt-2">⚠️ Absent</div>
-                    </div>`;
-                    return;
-                }
+                if (m.absent) return;
                 const key = `${currentEq}-${m.maillot}`;
                 const scores = scoresCoureur[key] || { series: [], complet: false };
-                const idxNonFait = scores.series.findIndex(s => s.course === 0);
-                const complet = idxNonFait === -1;
-                const total = scores.series.reduce((acc, s) => acc + s.course + s.tir, 0);
-
-                let icones = '';
-                scores.series.forEach((s, i) => {
-                    let icone = '⬜';
-                    if (s.course > 0) icone = s.course >= 2 ? '✅' : '❌';
-                    icones += `<span class="icone-statut" title="Série ${i+1}">${icone}</span>`;
-                });
-
+                const complet = scores.complet || scores.series.every(s => s.course > 0 || s.tir > 0);
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
                 const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
-                const scoreDisplay = total > 0 ? `<span class="score-badge mt-1">${total} pts</span>` : '';
-                const remplaceBadge = m.remplaceAbsent ? ' ⭐' : '';
 
                 html += `
-                <button onclick="${complet ? '' : `openChrono('${m.maillot}')`}"
-                        class="${cClass} border-4 py-6 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
-                    <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}${remplaceBadge}</span>
-                    <span class="text-xs font-bold mt-1 text-slate-300">VMA Cible: ${m.vma || '12'} km/h</span>
-                    <div class="flex items-center gap-1 mt-2">${icones}</div>
-                    ${scoreDisplay}
-                    ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-1">✓ Terminé</div>` : ''}
+                <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" class="${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                    <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                    <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
+                    ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
                 </button>`;
             });
             grid.innerHTML = html;
         }
 
-        window.openChrono = function(maillot) {
+        // ================= ROUTEUR D'ACTION (Selon Mode) =================
+        window.openAction = function(maillot) {
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
-            const idxNonFait = scoresCoureur[key].series.findIndex(s => s.course === 0);
-            currentSerie = idxNonFait !== -1 ? idxNonFait : 0;
-            
+            currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
+            if(currentSerie === -1) currentSerie = 0;
+
             document.getElementById('ecranCoureurs').classList.add('hidden');
-            document.getElementById('ecranChrono').classList.remove('hidden');
-            document.getElementById('ecranChrono').classList.add('flex');
+            document.getElementById('ecranAction').classList.remove('hidden');
+            document.getElementById('ecranAction').classList.add('flex');
             
             const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
-            document.getElementById('coureurLabel').innerHTML = `
-                <span class="${colorTexte}">Maillot ${maillot}</span>
-                <div class="text-xs font-bold text-slate-400 mt-1">
-                    Série ${currentSerie + 1}/${scoresCoureur[key].series.length} |
-                    VMA Cible: <span>${seanceConfig.vmaReference[key] || 'N/A'}</span> km/h
-                </div>`;
-            document.getElementById('serieActuelle').textContent = `${currentSerie + 1}/${scoresCoureur[key].series.length}`;
-            resetChrono();
+            document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">${maillot}</span>`;
+            document.getElementById('infoSerieVMA').textContent = `| Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key]}`;
+
+            // Reset UI
+            ['moduleChrono', 'moduleMille', 'moduleRelais', 'moduleSaisieTir'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                document.getElementById(id).classList.remove('flex');
+            });
+            document.getElementById('carteAffichee').classList.add('hidden');
+            document.getElementById('btnTirerCarte').classList.remove('hidden');
+            nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches;
+
+            // Routage
+            if (modeActuel === 'mille') {
+                document.getElementById('moduleMille').classList.remove('hidden');
+                document.getElementById('moduleMille').classList.add('flex');
+                document.getElementById('chrono18s').textContent = "18";
+                document.getElementById('btnStart18').classList.remove('hidden');
+            } else if (modeActuel === 'killbill') {
+                // Passage direct au tir
+                document.getElementById('moduleSaisieTir').classList.remove('hidden');
+                document.getElementById('moduleSaisieTir').classList.add('flex');
+                genererZonesFleches();
+            } else {
+                // Sprint, Poursuite, Relais utilisent le chrono classique
+                if (modeActuel === 'relais') {
+                    document.getElementById('moduleRelais').classList.remove('hidden');
+                    document.getElementById('moduleRelais').classList.add('flex');
+                }
+                document.getElementById('moduleChrono').classList.remove('hidden');
+                document.getElementById('moduleChrono').classList.add('flex');
+                resetChrono();
+            }
         };
 
         window.retourCoureurs = function() {
-            clearInterval(chronoInterval);
-            document.getElementById('ecranChrono').classList.add('hidden');
-            document.getElementById('ecranSaisie').classList.add('hidden');
+            clearInterval(chronoInterval); clearInterval(timer18Interval);
+            document.getElementById('ecranAction').classList.add('hidden');
             document.getElementById('ecranCoureurs').classList.remove('hidden');
             document.getElementById('ecranCoureurs').classList.add('flex');
             buildCoureursGrid();
         };
 
+        // --- Logique Cartes Relais ---
+        window.tirerCarteRelais = function() {
+            const carte = cartesRelais[Math.floor(Math.random() * cartesRelais.length)];
+            document.getElementById('btnTirerCarte').classList.add('hidden');
+            const affichage = document.getElementById('carteAffichee');
+            affichage.textContent = carte;
+            affichage.classList.remove('hidden');
+        };
+
+        // --- Logique Chrono Classique ---
         function demarrerChrono() {
             tempsDepart = Date.now() - tempsEcoule;
             chronoInterval = setInterval(mettreAJourChrono, 30);
@@ -324,188 +318,139 @@
 
         function mettreAJourChrono() {
             tempsEcoule = Date.now() - tempsDepart;
-            const ms = tempsEcoule;
-            const minutes = Math.floor(ms / 60000).toString().padStart(2, '0');
-            const secondes = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-            const centiemes = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+            const minutes = Math.floor(tempsEcoule / 60000).toString().padStart(2, '0');
+            const secondes = Math.floor((tempsEcoule % 60000) / 1000).toString().padStart(2, '0');
+            const centiemes = Math.floor((tempsEcoule % 1000) / 10).toString().padStart(2, '0');
             document.getElementById('chronoDisplay').textContent = `${minutes}:${secondes}.${centiemes}`;
         }
 
         function arreterChrono() {
             clearInterval(chronoInterval);
             const secondesTotales = tempsEcoule / 1000;
-            if (secondesTotales < 5) {
-                alert("Durée trop courte ! Chronomètre réinitialisé.");
-                resetChrono();
-                return;
-            }
-
             currentVitesse = (seanceConfig.distanceTotale / 1000) / (secondesTotales / 3600);
+            
             document.getElementById('tempsAffiche').textContent = document.getElementById('chronoDisplay').textContent;
             document.getElementById('vitesseAffiche').textContent = `${currentVitesse.toFixed(1)} km/h`;
 
-            let alerteTriche = currentVitesse > 18;
-            if (alerteTriche) {
-                alert("⚠️ Vitesse très élevée détectée (>18 km/h). Passage signalé au professeur.");
-            }
-
             const key = `${currentEq}-${currentMaillot}`;
             const vmaRef = seanceConfig.vmaReference[key] || 12;
-            let ptsVMA = 0;
-            if (currentVitesse >= vmaRef + 1) ptsVMA = 3;
-            else if (currentVitesse >= vmaRef - 0.5) ptsVMA = 2;
-            else if (currentVitesse >= vmaRef - 1) ptsVMA = 1;
-            currentPointsCourse = ptsVMA;
-
-            if (currentSerie !== -1 && scoresCoureur[key]) {
-                scoresCoureur[key].series[currentSerie].course = ptsVMA;
-                scoresCoureur[key].series[currentSerie].vitesse = currentVitesse;
-                scoresCoureur[key].series[currentSerie].temps = tempsEcoule;
-            }
+            currentPointsCourse = (currentVitesse >= vmaRef + 1) ? 3 : (currentVitesse >= vmaRef - 0.5) ? 2 : (currentVitesse >= vmaRef - 1) ? 1 : 0;
+            if(scoresCoureur[key]) scoresCoureur[key].series[currentSerie] = { course: currentPointsCourse, vitesse: currentVitesse, temps: tempsEcoule, tir: 0 };
 
             document.getElementById('btnArrivee').disabled = true;
             setTimeout(() => {
-                document.getElementById('ecranChrono').classList.add('hidden');
-                document.getElementById('ecranSaisie').classList.remove('hidden');
-                document.getElementById('ecranSaisie').classList.add('flex');
-                
-                const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[currentMaillot];
-                document.getElementById('labelCoureur').innerHTML = `
-                    <span class="${colorTexte}">Maillot ${currentMaillot}</span>
-                    <div class="text-xs font-bold text-slate-400 mt-1">
-                        Série ${currentSerie + 1}/${scoresCoureur[key].series.length} |
-                        Vit: ${currentVitesse.toFixed(1)} km/h (${ptsVMA} pts VMA)
-                        ${alerteTriche ? '<span class="alerte-triche ml-2">⚠️ Vitesse Suspecte</span>' : ''}
-                    </div>`;
+                document.getElementById('moduleChrono').classList.add('hidden');
+                document.getElementById('moduleRelais').classList.add('hidden');
+                document.getElementById('moduleSaisieTir').classList.remove('hidden');
+                document.getElementById('moduleSaisieTir').classList.add('flex');
                 genererZonesFleches();
-                resetChrono();
-                window._alerteTriche = alerteTriche;
             }, 400);
         }
 
         function resetChrono() {
-            clearInterval(chronoInterval);
-            tempsEcoule = 0;
+            clearInterval(chronoInterval); tempsEcoule = 0;
             document.getElementById('chronoDisplay').textContent = "00:00.00";
             document.getElementById('btnDepart').disabled = false;
             document.getElementById('btnArrivee').disabled = true;
-            document.getElementById('tempsAffiche').textContent = "00:00.00";
-            document.getElementById('vitesseAffiche').textContent = "0 km/h";
         }
 
+        // --- Logique "Dans le 1000" (18s) ---
+        window.startTimer18 = function() {
+            let timeLeft = 18;
+            document.getElementById('btnStart18').classList.add('hidden');
+            const display = document.getElementById('chrono18s');
+            display.textContent = timeLeft;
+            display.classList.replace('text-emerald-400', 'text-yellow-400');
+            
+            timer18Interval = setInterval(() => {
+                timeLeft--;
+                display.textContent = timeLeft;
+                if(timeLeft <= 5) display.classList.replace('text-yellow-400', 'text-red-500');
+                if(timeLeft <= 0) {
+                    clearInterval(timer18Interval);
+                    display.classList.replace('text-red-500', 'text-emerald-400');
+                    display.textContent = "TIR !";
+                    document.getElementById('moduleMille').classList.add('hidden');
+                    document.getElementById('moduleSaisieTir').classList.remove('hidden');
+                    document.getElementById('moduleSaisieTir').classList.add('flex');
+                    genererZonesFleches();
+                }
+            }, 1000);
+        };
+
+        // ================= SAISIE TIR ET VALIDATION =================
         function genererZonesFleches() {
             const container = document.getElementById('flechesContainer');
             let html = '';
-            for (let i = 0; i < seanceConfig.nbFleches; i++) {
-                html += `<div id="affF${i+1}" class="bg-black text-slate-500 font-bold text-base py-3 rounded-xl text-center border border-slate-800">Flèche ${i+1} : --</div>`;
+            for (let i = 0; i < nbFlechesActuel; i++) {
+                html += `<div id="affF${i+1}" class="bg-black text-slate-500 font-bold text-sm py-3 rounded-xl text-center border border-slate-800">Flèche ${i+1} : --</div>`;
             }
             container.innerHTML = html;
-            tirs = [];
-            updateTotal();
+            document.getElementById('resultatTirSpecifique').textContent = "";
+            tirs = []; updateTotal();
         }
 
         window.marquerTir = function(pts, zoneName) {
-            if (tirs.length >= seanceConfig.nbFleches) return;
+            if (tirs.length >= nbFlechesActuel) return;
             tirs.push(pts);
             const aff = document.getElementById(`affF${tirs.length}`);
-            aff.className = "bg-slate-800 text-white font-black text-base py-3 rounded-xl text-center border-2 border-slate-500 shadow impact";
-            aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span> <span class="text-[10px] block font-semibold text-slate-400">${zoneName}</span>`;
+            aff.className = "bg-slate-800 text-white font-black text-sm py-3 rounded-xl text-center border-2 border-slate-500 shadow impact";
+            aff.innerHTML = `Flèche ${tirs.length} : <span class="text-blue-400">${pts} pts</span>`;
             updateTotal();
         };
 
         window.annulerTir = function() {
             if (tirs.length === 0) return;
-            const idx = tirs.length;
-            tirs.pop();
+            const idx = tirs.length; tirs.pop();
             const aff = document.getElementById(`affF${idx}`);
-            aff.className = "bg-black text-slate-500 font-bold text-base py-3 rounded-xl text-center border border-slate-800";
+            aff.className = "bg-black text-slate-500 font-bold text-sm py-3 rounded-xl text-center border border-slate-800";
             aff.textContent = `Flèche ${idx} : --`;
             updateTotal();
         };
 
         window.updateTotal = function() {
             const btn = document.getElementById('btnValider');
-            if (tirs.length === seanceConfig.nbFleches) {
+            if (tirs.length === nbFlechesActuel) {
                 const ptsTir = tirs.reduce((a, b) => a + b, 0);
-                btn.disabled = false;
-                btn.classList.remove('opacity-40');
-                document.getElementById('totalPreview').textContent = `(${ptsTir} pts Tir)`;
+                btn.disabled = false; btn.classList.remove('opacity-40');
+                
+                // Affichage dynamique selon le mode (Bonus Temps vs Tours de Pénalité)
+                const resDiv = document.getElementById('resultatTirSpecifique');
+                if (modeActuel === 'poursuite' || modeActuel === 'relais') {
+                    let pen = (ptsTir < 7) ? 3 : (ptsTir < 12) ? 2 : (ptsTir < 16) ? 1 : 0;
+                    resDiv.innerHTML = `Pénalité : <span class="text-red-400 text-lg">${pen} tour(s)</span>`;
+                } else if (modeActuel === 'sprint') {
+                    let bonus = (ptsTir < 7) ? 0 : (ptsTir < 12) ? 10 : (ptsTir < 16) ? 15 : 20;
+                    resDiv.innerHTML = `Bonus : <span class="text-emerald-400 text-lg">-${bonus} sec</span>`;
+                } else {
+                    resDiv.innerHTML = `Total : <span class="text-blue-400 text-lg">${ptsTir} pts</span>`;
+                }
             } else {
-                btn.disabled = true;
-                btn.classList.add('opacity-40');
-                document.getElementById('totalPreview').textContent = `(${tirs.length}/${seanceConfig.nbFleches} flèches)`;
+                btn.disabled = true; btn.classList.add('opacity-40');
+                document.getElementById('resultatTirSpecifique').textContent = "";
             }
         };
 
         window.validerPassage = function() {
-            const btn = document.getElementById('btnValider');
-            btn.disabled = true;
-            const key = `${currentEq}-${currentMaillot}`;
+            document.getElementById('btnValider').disabled = true;
             const ptsTir = tirs.reduce((a, b) => a + b, 0);
-            scoresCoureur[key].series[currentSerie].tir = ptsTir;
-
-            const complet = scoresCoureur[key].series.every(s => s.course > 0 || s.tir > 0);
-            if (complet) scoresCoureur[key].complet = true;
-
-            // Données strictement ANONYMES transmises au réseau
+            
+            // Validation 100% Anonymisée RGPD
             const passageData = {
-                equipe: currentEq,
-                maillot: currentMaillot,
-                ptsVMA: currentPointsCourse,
-                ptsTir: ptsTir,
-                vitesse: currentVitesse,
-                temps: tempsEcoule,
-                passage: passageActuel,
-                serie: currentSerie + 1,
-                timestamp: Date.now(),
-                seanceId: seanceConfig.seanceId,
-                alerteTriche: window._alerteTriche || false
+                equipe: currentEq, maillot: currentMaillot,
+                ptsVMA: currentPointsCourse, ptsTir: ptsTir,
+                vitesse: currentVitesse, temps: tempsEcoule,
+                serie: currentSerie + 1, timestamp: Date.now(), mode: modeActuel
             };
 
-            const ref = db.ref('arcathlon/live/passages').push();
-            ref.set(passageData).then(() => {
-                passageActuel++;
-                retourCoureurs();
+            db.ref('arcathlon/live/passages').push().set(passageData).then(() => {
+                const key = `${currentEq}-${currentMaillot}`;
+                if(scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
+                passageActuel++; retourCoureurs();
             }).catch(() => {
-                alert("Sauvegarde locale enregistrée. Vérifiez la connexion Wi-Fi.");
-                retourCoureurs();
+                alert("Erreur réseau. Retour à la grille."); retourCoureurs();
             });
         };
-
-        window.toggleHistorique = function() {
-            const panel = document.getElementById('ecranHistorique');
-            if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                panel.classList.add('flex');
-                renderHistorique();
-            } else {
-                panel.classList.add('hidden');
-            }
-        };
-
-        function renderHistorique() {
-            const container = document.getElementById('listHistorique');
-            const coureurKey = `${currentEq}-${currentMaillot}`;
-            const scores = scoresCoureur[coureurKey] || { series: [] };
-            if (!scores.series.length) {
-                container.innerHTML = '<p class="text-slate-500 text-center py-6">Aucun passage enregistré pour ce maillot.</p>';
-                return;
-            }
-            let html = `<div class="bg-slate-900 p-4 rounded-xl border border-slate-800"><h3 class="font-black text-blue-400 text-base mb-3">Maillot ${currentMaillot}</h3><div class="space-y-2">`;
-            scores.series.forEach((s, idx) => {
-                const totalSerie = s.course + s.tir;
-                html += `
-                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center text-xs">
-                    <div>
-                        <div class="font-bold text-slate-200">Série ${idx + 1}</div>
-                        <div class="text-slate-400 mt-1">Course: ${s.course} pts | Tir: ${s.tir} pts | Vit: ${s.vitesse ? s.vitesse.toFixed(1) : '-'} km/h</div>
-                    </div>
-                    <span class="text-emerald-400 font-black text-sm">${totalSerie} pts</span>
-                </div>`;
-            });
-            html += `</div></div>`;
-            container.innerHTML = html;
-        }
     </script>
 </body>
 </html>
