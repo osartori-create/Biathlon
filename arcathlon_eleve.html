@@ -659,12 +659,26 @@
             }
         }
 
+        // =====================================================================
+        // VALIDATION DU TIR (corrigée)
+        // =====================================================================
         window.validerTir = function() {
-            if (lapData.shots.length !== nbFlechesActuel) return;
+            if (lapData.shots.length !== nbFlechesActuel) {
+                console.warn("Toutes les flèches n'ont pas été tirées.");
+                return;
+            }
             // Stop tir phase timer
             if (isRunning) stopTimer();
             // Store tir time
             lapData.tirMs = phaseAccum;
+            console.log("Temps de tir:", lapData.tirMs);
+
+            // Traitement spécial pour le mode "mille"
+            if (modeActuel === 'mille') {
+                finishMille();
+                return;
+            }
+
             // Check if penalties required
             if (lapData.penReq > 0 && (modeActuel === 'poursuite' || modeActuel === 'relais')) {
                 // Go to penalty phase
@@ -675,6 +689,105 @@
                 finishLap();
             }
         };
+
+        // =====================================================================
+        // FINISH LAP (avec protection division par zéro)
+        // =====================================================================
+        function finishLap() {
+            console.log("finishLap appelé");
+            const totalLap = lapData.courseMs + lapData.tirMs + lapData.penaliteMs;
+            const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+            let vitesse = 0;
+            if (lapData.courseMs > 0) {
+                vitesse = (seanceConfig.distanceTotale / 1000) / ((lapData.courseMs / 1000) / 3600);
+            }
+            const key = `${currentEq}-${currentMaillot}`;
+            const vmaRef = seanceConfig.vmaReference[key] || 12;
+            let ptsVMA = 0;
+            if (lapData.courseMs > 0) {
+                const v = (seanceConfig.distanceTotale / 1000) / ((lapData.courseMs / 1000) / 3600);
+                ptsVMA = (v >= vmaRef + 1) ? 3 : (v >= vmaRef - 0.5) ? 2 : (v >= vmaRef - 1) ? 1 : 0;
+            }
+
+            // Prepare passage data
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                ptsVMA: ptsVMA,
+                ptsTir: ptsTir,
+                vitesse: vitesse,
+                temps: totalLap,
+                courseMs: lapData.courseMs,
+                tirMs: lapData.tirMs,
+                penaliteMs: lapData.penaliteMs,
+                shots: lapData.shots,
+                penReq: lapData.penReq,
+                penDone: lapData.penDone,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                mode: modeActuel
+            };
+
+            console.log("Envoi des données:", passageData);
+
+            // Send to Firebase
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    if (scoresCoureur[key]) {
+                        scoresCoureur[key].series[currentSerie] = { course: ptsVMA, tir: ptsTir, temps: totalLap, vitesse: vitesse };
+                    }
+                    passageActuel++;
+                    retourCoureurs();
+                })
+                .catch((err) => {
+                    console.error("Erreur Firebase:", err);
+                    alert("Erreur réseau. Retour à la grille.");
+                    retourCoureurs();
+                });
+        }
+
+        // =====================================================================
+        // FINISH MILLE (traitement spécifique)
+        // =====================================================================
+        function finishMille() {
+            console.log("finishMille appelé");
+            const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+            const key = `${currentEq}-${currentMaillot}`;
+            // Pour le mille, on n'a pas de temps de course mesuré, on le fixe à 18s (18000ms)
+            const courseMs = 18000;
+            const totalLap = courseMs + lapData.tirMs + lapData.penaliteMs;
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                ptsVMA: 0, // pas de points VMA pour ce mode
+                ptsTir: ptsTir,
+                vitesse: 0,
+                temps: totalLap,
+                courseMs: courseMs,
+                tirMs: lapData.tirMs,
+                penaliteMs: lapData.penaliteMs,
+                shots: lapData.shots,
+                penReq: 0,
+                penDone: 0,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                mode: 'mille'
+            };
+            console.log("Envoi données mille:", passageData);
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    if (scoresCoureur[key]) {
+                        scoresCoureur[key].series[currentSerie] = { course: 0, tir: ptsTir, temps: totalLap, vitesse: 0 };
+                    }
+                    passageActuel++;
+                    retourCoureurs();
+                })
+                .catch((err) => {
+                    console.error("Erreur Firebase:", err);
+                    alert("Erreur réseau. Retour à la grille.");
+                    retourCoureurs();
+                });
+        }
 
         // =====================================================================
         // PENALITE MODULE
@@ -711,56 +824,6 @@
                 lapData.penaliteMs = phaseAccum;
                 finishLap();
             }
-        }
-
-        // =====================================================================
-        // FINISH LAP
-        // =====================================================================
-        function finishLap() {
-            // Compute total lap time
-            const totalLap = lapData.courseMs + lapData.tirMs + lapData.penaliteMs;
-            const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
-            const vitesse = (seanceConfig.distanceTotale / 1000) / ((lapData.courseMs / 1000) / 3600); // km/h
-            const key = `${currentEq}-${currentMaillot}`;
-            const vmaRef = seanceConfig.vmaReference[key] || 12;
-            let ptsVMA = 0;
-            if (lapData.courseMs > 0) {
-                const vitesse = (seanceConfig.distanceTotale / 1000) / ((lapData.courseMs / 1000) / 3600);
-                ptsVMA = (vitesse >= vmaRef + 1) ? 3 : (vitesse >= vmaRef - 0.5) ? 2 : (vitesse >= vmaRef - 1) ? 1 : 0;
-            }
-
-            // Prepare passage data
-            const passageData = {
-                equipe: currentEq,
-                maillot: currentMaillot,
-                ptsVMA: ptsVMA,
-                ptsTir: ptsTir,
-                vitesse: vitesse,
-                temps: totalLap,
-                courseMs: lapData.courseMs,
-                tirMs: lapData.tirMs,
-                penaliteMs: lapData.penaliteMs,
-                shots: lapData.shots,
-                penReq: lapData.penReq,
-                penDone: lapData.penDone,
-                serie: currentSerie + 1,
-                timestamp: Date.now(),
-                mode: modeActuel
-            };
-
-            // Send to Firebase
-            db.ref('arcathlon/live/passages').push().set(passageData)
-                .then(() => {
-                    if (scoresCoureur[key]) {
-                        scoresCoureur[key].series[currentSerie] = { course: ptsVMA, tir: ptsTir, temps: totalLap, vitesse: vitesse };
-                    }
-                    passageActuel++;
-                    retourCoureurs();
-                })
-                .catch(() => {
-                    alert("Erreur réseau. Retour à la grille.");
-                    retourCoureurs();
-                });
         }
 
         // =====================================================================
@@ -886,7 +949,8 @@
                     if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
                     passageActuel++; retourCoureurs();
                 })
-                .catch(() => {
+                .catch((err) => {
+                    console.error("Erreur Firebase:", err);
                     alert("Erreur réseau. Retour à la grille.");
                     retourCoureurs();
                 });
@@ -915,7 +979,7 @@
             document.getElementById('phasePanel').classList.add('hidden');
         });
 
-        console.log("Arcathlon élève chargé - Version améliorée");
+        console.log("Arcathlon élève chargé - Version corrigée");
     </script>
 </body>
 </html>
