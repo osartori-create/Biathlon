@@ -21,7 +21,6 @@
         .impact { animation: pulse-impact 0.3s ease-out; }
         .score-badge { background: #1e293b; border-radius: 999px; padding: 2px 10px; font-size: 0.75rem; font-weight: bold; color: #a5b4fc; border: 1px solid #4f46e5; }
         .alerte-triche { color: #ef4444; font-weight: 900; background: rgba(239,68,68,0.2); padding: 4px 8px; border-radius: 8px; border: 1px solid #ef4444; }
-        .role-badge { background: #1e293b; border-radius: 999px; padding: 2px 12px; font-size: 0.7rem; font-weight: bold; color: #fbbf24; border: 1px solid #f59e0b; }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
@@ -74,7 +73,6 @@
             <div class="text-center font-black text-xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4 flex-wrap">
                 <span id="coureurLabel">Maillot</span>
                 <span id="infoSerieVMA" class="text-sm font-bold text-slate-400"></span>
-                <span id="roleActuel" class="role-badge">Rôle : --</span>
             </div>
 
             <!-- MODULE RELAIS : Cartes Stratégiques -->
@@ -306,13 +304,6 @@
             const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot] || 'text-white';
             document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">${maillot}</span>`;
             document.getElementById('infoSerieVMA').textContent = `| Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
-
-            // Rôle (chronométreur, juge, responsable, coureur) selon série et index
-            const membres = equipesConfig[currentEq].membres || [];
-            const idx = membres.findIndex(m => m.maillot === maillot);
-            const roles = ['Chronométreur', 'Juge points', 'Responsable matériel', 'Coureur'];
-            const roleIdx = (currentSerie + idx) % roles.length;
-            document.getElementById('roleActuel').textContent = `Rôle : ${roles[roleIdx]}`;
 
             // Reset UI
             ['moduleChrono', 'moduleMille', 'moduleRelais', 'moduleSaisieTir', 'moduleKillBill'].forEach(id => {
@@ -613,10 +604,6 @@
         // =====================================================================
         // INITIALISATION
         // =====================================================================
-        // La config est écoutée via le listener ci-dessus.
-        // On ajoute un petit élément pour afficher le nombre de flèches en cours
-        // (on ajoute dynamiquement un span dans l'en-tête si besoin)
-        // On ajoute un span dans l'info de la série
         document.addEventListener('DOMContentLoaded', function() {
             // Ajouter un affichage du nombre de flèches dans la zone d'info
             const infoDiv = document.getElementById('infoSerieVMA');
