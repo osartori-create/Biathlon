@@ -104,22 +104,25 @@ export class DashboardUI {
     }
 
     _updateRanking() {
-        // Supprimer l'ancien écouteur s'il existe
-        if (this._passagesListener) {
-            firebase.database().ref('arcathlon/live/passages').off('value', this._passagesListener);
-            this._passagesListener = null;
-        }
+    // Supprimer l'ancien écouteur s'il existe
+    if (this._passagesListener) {
+        firebase.database().ref('arcathlon/live/passages').off('value', this._passagesListener);
+        this._passagesListener = null;
+    }
 
-        const state = appState.getState();
-        if (!state.equipe) return;
+    const state = appState.getState();
+    if (!state.equipe) return;
 
-        const grid = document.getElementById('maillotsGrid');
-        if (!grid) return;
+    const grid = document.getElementById('maillotsGrid');
+    if (!grid) return;
 
-        // Créer un écouteur en temps réel
-        const listener = firebase.database().ref('arcathlon/live/passages').on('value', snap => {
-            const passages = snap.val() || {};
-            const scores = {};
+    console.log('🔄 _updateRanking appelé, création du listener...'); // <-- LOG
+
+    // Créer un écouteur en temps réel
+    const listener = firebase.database().ref('arcathlon/live/passages').on('value', snap => {
+        console.log('📡 Événement Firebase déclenché !'); // <-- LOG
+        const passages = snap.val() || {};
+        const scores = {};
 
             // Calculer les points par équipe + maillot
             Object.values(passages).forEach(p => {
