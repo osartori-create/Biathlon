@@ -70,12 +70,12 @@
             font-size: 0.85rem;
             color: #ffffff;
             margin-top: 4px;
-            line-height: 1.4;
+            line-height: 1.3;
             font-weight: 500;
             width: 100%;
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
+            align-items: center;
         }
         .coureur-feedback .serie-line {
             white-space: normal;
@@ -83,8 +83,6 @@
             text-align: left;
             margin-bottom: 2px;
             width: 100%;
-            font-size: 0.85rem;
-            line-height: 1.3;
         }
         .coureur-feedback .serie-line-2 {
             white-space: normal;
@@ -123,13 +121,29 @@
         #toast.show { display: block; animation: fadeInDown 0.3s ease-out; }
         @keyframes fadeInDown { 0% { opacity: 0; transform: translateX(-50%) translateY(-20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
-        .juge-selector { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 12px 0; }
-        .juge-btn {
-            padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.8rem;
-            border: 2px solid #334155; background: #1e293b; color: #94a3b8;
-            transition: all 0.15s; cursor: pointer;
+        .juge-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin: 6px 0 12px 0;
         }
-        .juge-btn.selected { border-color: #22c55e; background: #22c55e; color: #07150b; }
+        .juge-btn {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            border: 2px solid #334155;
+            background: #1e293b;
+            color: #94a3b8;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+        .juge-btn.selected {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #07150b;
+        }
         .juge-btn:active { transform: scale(0.95); }
     </style>
 </head>
@@ -315,8 +329,9 @@
         }
 
         // =====================================================================
-        // FIREBASE LISTENER (temps réel)
+        // FIREBASE LISTENER (config + passages en temps réel)
         // =====================================================================
+        // Écoute de la config
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
@@ -333,7 +348,7 @@
             document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
             document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
 
-            // Réinitialiser les scores (sera rempli par les passages)
+            // Réinitialiser les scores
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
@@ -344,31 +359,36 @@
                 });
             });
 
-            // Mise à jour du sélecteur d'équipe
+            // Mettre à jour le sélecteur d'équipe
             const sel = document.getElementById('selEquipe');
             const valActuelle = sel.value;
             sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
             if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
-
-            // Si l'équipe a changé, réinitialiser le juge
-            if (currentEq && !equipesConfig[currentEq]) {
-                currentEq = "";
-                currentJuge = "";
-            }
-            if (currentEq) {
+            if (currentEq && currentMaillot) {
+                initJugeSelector();
+                buildCoureursGrid();
+            } else if (currentEq) {
                 initJugeSelector();
                 buildCoureursGrid();
             }
         });
 
-        // Écoute en temps réel des passages (pour synchronisation)
+        // Écoute des passages en temps réel (synchronisation)
         db.ref('arcathlon/live/passages').on('value', snap => {
             const passages = snap.val() || {};
-            // Réinitialiser les scores (mais garder les données)
-            Object.keys(scoresCoureur).forEach(key => {
-                scoresCoureur[key].series = Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 }));
-                scoresCoureur[key].complet = false;
+
+            // Réinitialiser les scores
+            scoresCoureur = {};
+            Object.keys(equipesConfig).forEach(eq => {
+                (equipesConfig[eq].membres || []).forEach(m => {
+                    scoresCoureur[`${eq}-${m.maillot}`] = {
+                        series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
+                        complet: false
+                    };
+                });
             });
+
+            // Remplir avec les passages
             Object.values(passages).forEach(p => {
                 const key = `${p.equipe}-${p.maillot}`;
                 if (scoresCoureur[key]) {
@@ -383,6 +403,7 @@
                     }
                 }
             });
+
             // Marquer les complets
             Object.keys(scoresCoureur).forEach(k => {
                 const data = scoresCoureur[k];
@@ -393,7 +414,12 @@
                 });
                 if (allDone) data.complet = true;
             });
-            if (currentEq) {
+
+            // Rafraîchir l'affichage
+            if (currentEq && currentMaillot) {
+                initJugeSelector();
+                buildCoureursGrid();
+            } else if (currentEq) {
                 initJugeSelector();
                 buildCoureursGrid();
             }
@@ -459,7 +485,7 @@
         };
 
         // =====================================================================
-        // GRILLE AVEC FEEDBACK
+        // GRILLE
         // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
@@ -1258,7 +1284,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version corrigée (code)");
+        console.log("✅ Arcathlon élève - version finale avec code et synchronisation");
     </script>
 </body>
 </html>
