@@ -46,6 +46,12 @@
         .team-list-sortable { min-height: 60px; }
         .sortable-ghost { opacity: 0.4; background: #3b82f6; }
         .journal-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-right: 6px; }
+        .statut-ok { color: #22c55e; }
+        .statut-malus { color: #f59e0b; }
+        .statut-disqualifie { color: #ef4444; }
+        .zoom-controls { display: flex; gap: 4px; align-items: center; }
+        .zoom-controls button { background: #1e293b; border: 1px solid #334155; color: white; padding: 2px 10px; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+        .zoom-controls button:active { transform: scale(0.95); }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col">
@@ -63,6 +69,11 @@
                 <option value="">-- Classe --</option>
             </select>
             <button onclick="addClasse()" class="bg-blue-600 px-3 py-1 rounded text-xs font-black uppercase">+ Classe</button>
+            <!-- Contrôles zoom -->
+            <div class="zoom-controls">
+                <button onclick="zoomIn()">🔍+</button>
+                <button onclick="zoomOut()">🔍-</button>
+            </div>
         </div>
     </header>
 
@@ -175,9 +186,10 @@
 
         <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES -->
         <div id="viewStatistiques" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
-            <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
+            <div class="flex flex-wrap items-center gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger</button>
                 <button onclick="exportStatsCSV()" class="bg-emerald-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">📥 Export CSV détaillé</button>
+                <button onclick="massAction()" class="bg-yellow-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">⚙️ Action en masse</button>
             </div>
             <div class="stats-card">
                 <div class="stats-grid" id="statsSummary"></div>
@@ -189,10 +201,11 @@
                 <table class="w-full text-xs" id="statsDetailTable">
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="selectAllStats" onchange="toggleAllStats(this.checked)"></th>
                             <th>Photo</th><th>Code</th><th>Équipe</th><th>Maillot</th><th>Série</th>
                             <th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
                             <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié</th>
-                            <th>Total pts</th><th>Alerte</th><th>Actions</th>
+                            <th>Total pts</th><th>Statut</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -326,7 +339,7 @@
             return s.trim();
         }
 
-        // Helper pour résoudre l'idPhoto à partir de state.classes (et non de la copie figée)
+        // Helper pour résoudre l'idPhoto à partir de state.classes
         function currentIdPhoto(mProf) {
             if (!mProf) return null;
             const eleves = state.classes[state.activeCl] || [];
@@ -337,7 +350,18 @@
         }
 
         let currentPassageKey = null;
-        let currentPassageData = null;
+
+        // =====================================================================
+        // ZOOM
+        // =====================================================================
+        function zoomIn() {
+            let fs = parseFloat(getComputedStyle(document.body).fontSize);
+            document.body.style.fontSize = (fs + 2) + 'px';
+        }
+        function zoomOut() {
+            let fs = parseFloat(getComputedStyle(document.body).fontSize);
+            if (fs > 10) document.body.style.fontSize = (fs - 2) + 'px';
+        }
 
         // =====================================================================
         // INIT UI
@@ -363,7 +387,7 @@
         }
 
         // =====================================================================
-        // CLASSES (inchangé)
+        // CLASSES
         // =====================================================================
         function updateClSelect() {
             const sel = document.getElementById('selectClasse');
@@ -443,7 +467,7 @@
         }
 
         // =====================================================================
-        // MODAL ÉDITION ÉLÈVE (inchangé)
+        // MODAL ÉDITION ÉLÈVE
         // =====================================================================
         window.openEditModal = function(idx) {
             const eleves = state.classes[state.activeCl] || [];
@@ -598,7 +622,7 @@
         };
 
         // =====================================================================
-        // RENDER TEAMS (avec currentIdPhoto)
+        // RENDER TEAMS
         // =====================================================================
         async function renderTeams() {
             const container = document.getElementById('teamsGrid');
@@ -640,7 +664,7 @@
         }
 
         // =====================================================================
-        // SORTABLE (glisser-déposer)
+        // SORTABLE
         // =====================================================================
         let sortableInstances = [];
 
@@ -702,7 +726,7 @@
         };
 
         // =====================================================================
-        // PUSH CONFIG (corrigé : code au lieu de nom/prénom)
+        // PUSH CONFIG
         // =====================================================================
         window.pushConfig = function() {
             if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
@@ -746,7 +770,7 @@
         };
 
         // =====================================================================
-        // LIVE (avec currentIdPhoto)
+        // LIVE (avec statut visuel)
         // =====================================================================
         async function updateLiveScores(passages) {
             const container = document.getElementById('journalPassages');
@@ -760,6 +784,11 @@
                 const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                 const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '<span class="alerte-ok">✓ OK</span>';
                 const actionBtn = `<button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>`;
+                
+                // Statut visuel
+                let statutHtml = '✅';
+                if (p.disqualifie) statutHtml = '<span class="statut-disqualifie">🚫 Disqualifié</span>';
+                else if (p.malus && p.malus > 0) statutHtml = `<span class="statut-malus">⏱️ +${p.malus}s</span>`;
                 
                 let photoHtml = '';
                 const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -783,6 +812,7 @@
                         <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
                         <span class="text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
                         ${alerte}
+                        ${statutHtml}
                         ${actionBtn}
                     </div>
                 `;
@@ -797,7 +827,7 @@
                 nbCoureurs[eq.id] = 0;
             });
             entries.forEach(([key, p]) => {
-                if (scoresEquipes[p.equipe] !== undefined) {
+                if (scoresEquipes[p.equipe] !== undefined && !p.disqualifie) {
                     scoresEquipes[p.equipe] += (p.ptsVMA + p.ptsTir);
                     nbCoureurs[p.equipe]++;
                 }
@@ -820,7 +850,7 @@
         };
 
         // =====================================================================
-        // MODAL ACTION (inchangé)
+        // MODAL ACTION
         // =====================================================================
         window.openActionModal = function(key) {
             currentPassageKey = key;
@@ -877,17 +907,17 @@
         };
 
         // =====================================================================
-        // STATISTIQUES DÉTAILLÉES (avec currentIdPhoto)
+        // STATISTIQUES DÉTAILLÉES (avec cases à cocher et statut)
         // =====================================================================
         let statsChart = null;
 
         window.loadStats = function() {
             db.ref('arcathlon/live/passages').once('value', async (snap) => {
                 const passages = snap.val() || {};
-                const data = Object.values(passages).filter(p => !p.disqualifie);
+                const data = Object.values(passages);
                 if (!data.length) { alert("Aucune donnée."); return; }
 
-                const enriched = await Promise.all(data.map(async (p) => {
+                const enriched = await Promise.all(data.map(async (p, index) => {
                     let prenom = "", nom = "", photoUrl = null, sexe = "", code = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
                     if (eqProf) {
@@ -901,14 +931,17 @@
                             if (idPhoto) photoUrl = await getPhotoUrl(idPhoto);
                         }
                     }
-                    return { ...p, prenom, nom, photoUrl, sexe, code };
+                    // Générer une clé unique pour la checkbox
+                    const key = Object.keys(passages)[index] || `passage_${Date.now()}_${index}`;
+                    return { ...p, prenom, nom, photoUrl, sexe, code, key };
                 }));
 
                 // Summary
-                const totalLaps = enriched.length;
-                const totalPts = enriched.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
-                const totalTirPts = enriched.reduce((s, p) => s + p.ptsTir, 0);
-                const totalCoursePts = enriched.reduce((s, p) => s + p.ptsVMA, 0);
+                const actifs = enriched.filter(p => !p.disqualifie);
+                const totalLaps = actifs.length;
+                const totalPts = actifs.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
+                const totalTirPts = actifs.reduce((s, p) => s + p.ptsTir, 0);
+                const totalCoursePts = actifs.reduce((s, p) => s + p.ptsVMA, 0);
                 document.getElementById('statsSummary').innerHTML = `
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Passages</span><br><span class="text-2xl font-bold">${totalLaps}</span></div>
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Total pts</span><br><span class="text-2xl font-bold">${totalPts}</span></div>
@@ -918,7 +951,7 @@
 
                 const tbody = document.querySelector('#statsDetailTable tbody');
                 let rows = '';
-                enriched.forEach(p => {
+                enriched.forEach((p, idx) => {
                     const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
                     const ptsTir = p.ptsTir || 0;
@@ -928,10 +961,15 @@
                     else if (ptsTir < 16) bonus = -15;
                     else bonus = -20;
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
+                    let statutHtml = '✅';
+                    if (p.disqualifie) statutHtml = '<span class="statut-disqualifie">🚫 Disqualifié</span>';
+                    else if (p.malus && p.malus > 0) statutHtml = `<span class="statut-malus">⏱️ +${p.malus}s</span>`;
                     const alerte = p.alerteTriche ? '⚠️' : '✓';
                     const photoHtml = p.photoUrl ? `<img src="${p.photoUrl}" class="photo-thumb">` : `<div class="w-8 h-8 rounded-full bg-slate-700 inline-block"></div>`;
+                    const key = p.key || `passage_${idx}`;
                     rows += `
                         <tr>
+                            <td><input type="checkbox" class="stats-checkbox" data-key="${key}"></td>
                             <td>${photoHtml}</td>
                             <td><strong>${p.code || p.maillot}</strong></td>
                             <td>${p.equipe}</td>
@@ -944,19 +982,20 @@
                             <td>${bonus}</td>
                             <td><strong class="text-emerald-400">${tempsBonifie}</strong></td>
                             <td>${(p.ptsVMA||0) + ptsTir}</td>
-                            <td>${alerte}</td>
+                            <td>${statutHtml}</td>
                             <td>
-                                <button onclick="openActionModalFromStats('${p.equipe}','${p.maillot}',${p.serie||1})" class="btn btn-ghost btn-xs">⚙️</button>
+                                <button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>
                             </td>
                         </tr>
                     `;
                 });
                 tbody.innerHTML = rows;
 
+                // Chart
                 const ctx = document.getElementById('statsChart').getContext('2d');
                 if (statsChart) statsChart.destroy();
-                const labels = enriched.map((_, i) => `#${i+1}`);
-                const tempsData = enriched.map(p => p.temps ? p.temps/1000 : 0);
+                const labels = actifs.map((_, i) => `#${i+1}`);
+                const tempsData = actifs.map(p => p.temps ? p.temps/1000 : 0);
                 statsChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -975,57 +1014,36 @@
             });
         };
 
-        window.openActionModalFromStats = function(equipe, maillot, serie) {
-            db.ref('arcathlon/live/passages').once('value', snap => {
-                const passages = snap.val() || {};
-                let foundKey = null;
-                for (const [key, p] of Object.entries(passages)) {
-                    if (p.equipe === equipe && p.maillot === maillot && p.serie === serie) {
-                        foundKey = key;
-                        break;
-                    }
-                }
-                if (foundKey) {
-                    openActionModal(foundKey);
-                } else {
-                    alert("Passage non trouvé.");
-                }
-            });
-        };
+        // =====================================================================
+        // ACTIONS EN MASSE
+        // =====================================================================
+        function toggleAllStats(checked) {
+            document.querySelectorAll('.stats-checkbox').forEach(cb => cb.checked = checked);
+        }
 
-        window.exportStatsCSV = function() {
-            db.ref('arcathlon/live/passages').once('value', snap => {
-                const passages = snap.val() || {};
-                const data = Object.values(passages).filter(p => !p.disqualifie);
-                if (!data.length) return alert("Aucune donnée.");
-                let csv = "Équipe;Maillot;Code;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
-                data.forEach(p => {
-                    let code = p.maillot;
-                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
-                    if (eqProf) {
-                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) code = mProf.code || `${p.equipe} - ${p.maillot}`;
-                    }
-                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
-                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
-                    const ptsTir = p.ptsTir || 0;
-                    let bonus = 0;
-                    if (ptsTir < 7) bonus = 0;
-                    else if (ptsTir < 12) bonus = -10;
-                    else if (ptsTir < 16) bonus = -15;
-                    else bonus = -20;
-                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
-                    const malus = p.malus || 0;
-                    const disqualifie = p.disqualifie ? 'Oui' : 'Non';
-                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
-                });
-                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `Arcathlon_stats_${Date.now()}.csv`;
-                a.click();
+        window.massAction = function() {
+            const selected = document.querySelectorAll('.stats-checkbox:checked');
+            if (selected.length === 0) return alert("Sélectionnez au moins un passage.");
+            const keys = Array.from(selected).map(cb => cb.dataset.key);
+            const action = prompt("Que voulez-vous faire ?\n1 - Appliquer malus 5 min (+300s)\n2 - Appliquer malus 1 min (+60s)\n3 - Disqualifier\n4 - Modifier les points de tir (valeur unique)");
+            if (!action) return;
+            const updates = {};
+            if (action === '1') {
+                keys.forEach(key => { updates[key] = { malus: 300 } });
+            } else if (action === '2') {
+                keys.forEach(key => { updates[key] = { malus: 60 } });
+            } else if (action === '3') {
+                keys.forEach(key => { updates[key] = { disqualifie: true } });
+            } else if (action === '4') {
+                const pts = prompt("Nouveaux points de tir (0-20) :");
+                if (pts === null || isNaN(pts) || pts < 0 || pts > 20) return alert("Valeur invalide.");
+                keys.forEach(key => { updates[key] = { ptsTir: parseInt(pts) } });
+            } else return;
+            // Appliquer les mises à jour
+            Object.entries(updates).forEach(([key, data]) => {
+                db.ref(`arcathlon/live/passages/${key}`).update(data);
             });
+            alert("Action en masse appliquée !");
         };
 
         // =====================================================================
@@ -1068,8 +1086,8 @@
         window.exportResults = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
-                const data = Object.values(passages).filter(p => !p.disqualifie);
-                let csv = "Équipe;Maillot;Code;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Horodatage\n";
+                const data = Object.values(passages);
+                let csv = "Équipe;Maillot;Code;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Disqualifié;Horodatage\n";
                 data.forEach(p => {
                     let code = p.maillot;
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -1087,12 +1105,48 @@
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
                     const alerte = p.alerteTriche ? 'Oui' : 'Non';
                     const malus = p.malus || 0;
-                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${new Date(p.timestamp).toLocaleString()}\n`;
+                    const disqualifie = p.disqualifie ? 'Oui' : 'Non';
+                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${disqualifie};${new Date(p.timestamp).toLocaleString()}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = `Arcathlon_Prof_${state.activeCl}_${Date.now()}.csv`;
+                a.click();
+            });
+        };
+
+        window.exportStatsCSV = function() {
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                const passages = snap.val() || {};
+                const data = Object.values(passages);
+                if (!data.length) return alert("Aucune donnée.");
+                let csv = "Équipe;Maillot;Code;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
+                data.forEach(p => {
+                    let code = p.maillot;
+                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
+                    if (eqProf) {
+                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
+                        if (mProf) code = mProf.code || `${p.equipe} - ${p.maillot}`;
+                    }
+                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
+                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
+                    const ptsTir = p.ptsTir || 0;
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
+                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
+                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
+                    const malus = p.malus || 0;
+                    const disqualifie = p.disqualifie ? 'Oui' : 'Non';
+                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
+                });
+                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `Arcathlon_stats_${Date.now()}.csv`;
                 a.click();
             });
         };
@@ -1138,7 +1192,7 @@
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version anonymisée (code)");
+        console.log("✅ Arcathlon professeur - version complète avec zoom, statuts et actions en masse");
     </script>
 </body>
 </html>
