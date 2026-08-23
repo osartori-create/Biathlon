@@ -65,35 +65,52 @@
         .tir-shots .shot-box { background: #111827; padding: 8px; border-radius: 12px; border: 1px solid #1f2937; text-align: center; font-weight: bold; font-size: 1rem; }
         .shot-box .shot-score { color: #60a5fa; }
         .valid-btn { margin-top: 8px; }
-        /* Feedback des coureurs : taille agrandie pour lisibilité sur iPad */
+        /* Feedback des coureurs */
         .coureur-feedback {
-    font-size: 0.9rem;
-    color: #ffffff;           /* Blanc pur pour une lisibilité maximale */
-    margin-top: 4px;
-    line-height: 1.6;         /* Espacement vertical entre les lignes */
-    font-weight: 500;
-    width: 100%;
-    display: flex;
-    flex-direction: column;   /* Les éléments s'empilent verticalement */
-    align-items: center;      /* Centré pour rester propre */
-}
-.coureur-feedback .serie-line {
-    white-space: nowrap;      /* Évite que le texte d'une série ne coupe à l'écran */
-}
-        /* Éviter que le texte ne déborde sur les petits écrans */
-        .coureur-btn-content {
+            font-size: 0.9rem;
+            color: #ffffff;
+            margin-top: 4px;
+            line-height: 1.6;
+            font-weight: 500;
+            width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100%;
-            padding: 4px 0;
         }
-        .coureur-feedback span {
-            display: inline-block;
-            background: rgba(0,0,0,0.3);
-            padding: 0 4px;
-            border-radius: 4px;
-            margin: 1px 2px;
+        .coureur-feedback .serie-line {
+            white-space: nowrap;
+        }
+        .coureur-points {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #facc15;
+            margin-top: 2px;
+            text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);
+        }
+        #teamTotal {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #34d399;
+            text-shadow: 0 0 10px rgba(52, 211, 153, 0.3);
+        }
+        .ranking-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+        }
+        .ranking-item .rank {
+            font-weight: 700;
+            color: #e2e8f0;
+            font-size: 1.1rem;
+        }
+        .ranking-item .points {
+            color: #34d399;
+            font-weight: 900;
+            font-size: 1.6rem;
         }
     </style>
 </head>
@@ -134,10 +151,12 @@
         </div>
 
         <!-- GRILLE -->
-        <div id="ecranCoureurs" class="hidden flex-col flex-1">
+        <div id="ecranCoureurs" class="hidden flex-col flex-1 overflow-y-auto">
             <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
-            <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-6">Équipe X</h2>
-            <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-center"></div>
+            <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-2">Équipe X</h2>
+            <div id="teamTotal" class="text-2xl font-black text-emerald-400 text-center mb-4">🏆 Total équipe : 0 pts</div>
+            <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-start"></div>
+            <div id="rankingContainer" class="mt-6 space-y-2"></div>
         </div>
 
         <!-- ACTION -->
@@ -276,7 +295,7 @@
         let timer18Interval = null;
 
         // =====================================================================
-        // FIREBASE LISTENER
+        // FIREBASE LISTENER (avec persistance)
         // =====================================================================
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
@@ -294,6 +313,7 @@
             document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
             document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
 
+            // Réinitialiser les scores
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
@@ -303,11 +323,45 @@
                     };
                 });
             });
-            const sel = document.getElementById('selEquipe');
-            const valActuelle = sel.value;
-            sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
-            if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
-            if (currentEq && currentMaillot) buildCoureursGrid();
+
+            // Restaurer les passages existants (persistance)
+            db.ref('arcathlon/live/passages').once('value', snapPass => {
+                const passages = snapPass.val() || {};
+                Object.values(passages).forEach(p => {
+                    const key = `${p.equipe}-${p.maillot}`;
+                    if (scoresCoureur[key]) {
+                        const idx = p.serie - 1;
+                        if (idx >= 0 && idx < scoresCoureur[key].series.length) {
+                            scoresCoureur[key].series[idx] = {
+                                course: p.ptsVMA || 0,
+                                tir: p.ptsTir || 0,
+                                temps: p.temps || 0,
+                                vitesse: p.vitesse || 0
+                            };
+                        }
+                    }
+                });
+                // Marquer les coureurs complets
+                Object.keys(scoresCoureur).forEach(k => {
+                    const data = scoresCoureur[k];
+                    const allDone = data.series.every((s, i) => {
+                        if (s.course === 0) return false;
+                        if (i === seanceConfig.nbSeries - 1) return true;
+                        return s.tir > 0;
+                    });
+                    if (allDone) data.complet = true;
+                });
+                // Mettre à jour le sélecteur et la grille
+                const sel = document.getElementById('selEquipe');
+                const valActuelle = sel.value;
+                sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+                if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
+                if (currentEq && currentMaillot) buildCoureursGrid();
+                else if (currentEq) {
+                    // Si on est sur la grille mais qu'on a perdu le maillot, on rebuild
+                    buildCoureursGrid();
+                }
+            });
         });
 
         // =====================================================================
@@ -332,7 +386,7 @@
         window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
-        // GRILLE AVEC FEEDBACK (taille agrandie)
+        // GRILLE AVEC FEEDBACK, POINTS, TOTAL ÉQUIPE ET CLASSEMENT
         // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
@@ -349,16 +403,20 @@
                 const key = `${currentEq}-${m.maillot}`;
                 const data = scoresCoureur[key];
                 if (!data) return;
-                // Vérifier si toutes les séries sont complètes
-                const allCoursesDone = data.series.every((s, idx) => {
+                const complet = data.complet || data.series.every((s, idx) => {
                     if (s.course === 0) return false;
-                    if (idx === seanceConfig.nbSeries - 1) return true; // dernière course, pas de tir attendu
+                    if (idx === seanceConfig.nbSeries - 1) return true;
                     return s.tir > 0;
                 });
-                const complet = data.complet || allCoursesDone;
                 if (complet) data.complet = true;
 
-                // Construire le feedback pour chaque série
+                // Calcul des points du coureur
+                let totalPoints = 0;
+                data.series.forEach(s => {
+                    totalPoints += (s.course || 0) + (s.tir || 0);
+                });
+
+                // Feedback des séries
                 let feedback = '';
                 data.series.forEach((s, idx) => {
                     if (s.course === 0) return;
@@ -375,20 +433,63 @@
                         <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
                         <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
                         ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
+                        <div class="coureur-points">${totalPoints} pts</div>
                         ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
                     </button>
                 `;
             });
             grid.innerHTML = html;
+            updateTeamTotal();
+            updateTeamRanking();
+        }
+
+        function updateTeamTotal() {
+            const membres = equipesConfig[currentEq]?.membres || [];
+            let teamTotal = 0;
+            membres.forEach(m => {
+                const key = `${currentEq}-${m.maillot}`;
+                const data = scoresCoureur[key];
+                if (data) {
+                    data.series.forEach(s => {
+                        teamTotal += (s.course || 0) + (s.tir || 0);
+                    });
+                }
+            });
+            document.getElementById('teamTotal').textContent = `🏆 Total équipe : ${teamTotal} pts`;
+        }
+
+        function updateTeamRanking() {
+            const equipes = Object.keys(equipesConfig);
+            const ranking = equipes.map(eqId => {
+                let total = 0;
+                const membres = equipesConfig[eqId]?.membres || [];
+                membres.forEach(m => {
+                    const key = `${eqId}-${m.maillot}`;
+                    const data = scoresCoureur[key];
+                    if (data) {
+                        data.series.forEach(s => {
+                            total += (s.course || 0) + (s.tir || 0);
+                        });
+                    }
+                });
+                return { id: eqId, points: total };
+            });
+            ranking.sort((a, b) => b.points - a.points);
+            const container = document.getElementById('rankingContainer');
+            container.innerHTML = ranking.map((r, i) => `
+                <div class="ranking-item">
+                    <span class="rank">${i+1}. ${r.id}</span>
+                    <span class="points">${r.points} pts</span>
+                </div>
+            `).join('');
         }
 
         // =====================================================================
-        // OPEN ACTION
+        // OPEN ACTION (inchangé)
         // =====================================================================
         window.openAction = function(maillot) {
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
-            // Trouver la première série non encore courue (course === 0)
             currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
             if (currentSerie === -1) {
                 alert("Toutes les séries sont déjà terminées.");
@@ -405,21 +506,18 @@
             document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
             document.getElementById('currentSerieChip').textContent = currentSerie + 1;
 
-            // Réinitialisation
             resetLap();
             currentPhase = 'course';
             nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches;
             effetCarte = null;
             updateInfoFleches();
 
-            // Cacher tous les modules
             document.getElementById('moduleSaisieTir').style.display = 'none';
             document.getElementById('modulePenalite').classList.add('hidden');
             document.getElementById('moduleKillBill').classList.add('hidden');
             document.getElementById('moduleMille').classList.add('hidden');
             document.getElementById('moduleRelais').classList.add('hidden');
 
-            // Modes spéciaux
             if (modeActuel === 'relais') {
                 document.getElementById('moduleRelais').classList.remove('hidden');
                 document.getElementById('moduleRelais').classList.add('flex');
@@ -455,7 +553,7 @@
         };
 
         // =====================================================================
-        // PHASE MANAGEMENT
+        // PHASE MANAGEMENT (inchangé)
         // =====================================================================
         function setPhase(phase) {
             currentPhase = phase;
@@ -477,7 +575,6 @@
                 giant.className = 'btn-action course';
                 document.getElementById('moduleSaisieTir').style.display = 'none';
                 document.getElementById('modulePenalite').classList.add('hidden');
-                // Cacher l'erreur si elle était affichée
                 document.getElementById('errorMessage').style.display = 'none';
             } else if (phase === 'tir') {
                 panel.classList.add('panel-tir');
@@ -486,7 +583,6 @@
                 document.getElementById('moduleSaisieTir').style.display = 'flex';
                 document.getElementById('modulePenalite').classList.add('hidden');
                 genererZonesFleches();
-                // Le message d'erreur sera géré par updateTirUI
             } else if (phase === 'penalite') {
                 panel.classList.add('panel-pen');
                 name.textContent = 'PÉNALITÉ';
@@ -581,9 +677,6 @@
             }
         }
 
-        // =====================================================================
-        // GIANT ACTION
-        // =====================================================================
         window.onGiantAction = function() {
             if (modeActuel === 'mille' || modeActuel === 'killbill') return;
             if (currentPhase === 'course') {
@@ -646,10 +739,9 @@
             const errorDiv = document.getElementById('errorMessage');
             
             if (lapData.shots.length === nbFlechesActuel) {
-                // Toutes les flèches sont tirées : cacher l'erreur, activer le bouton
                 btn.disabled = false;
                 btn.classList.remove('opacity-40');
-                errorDiv.style.display = 'none';  // <-- Masquer le message
+                errorDiv.style.display = 'none';
                 const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
                 const resDiv = document.getElementById('resultatTirSpecifique');
                 if (modeActuel === 'poursuite' || modeActuel === 'relais') {
@@ -667,7 +759,6 @@
                     btn.textContent = 'Valider le tir';
                 }
             } else {
-                // Pas toutes les flèches : désactiver le bouton, afficher l'erreur
                 btn.disabled = true;
                 btn.classList.add('opacity-40');
                 document.getElementById('resultatTirSpecifique').textContent = "";
@@ -677,9 +768,6 @@
             }
         }
 
-        // =====================================================================
-        // VALIDER TIR
-        // =====================================================================
         window.validerTir = function() {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.style.display = 'none';
@@ -760,7 +848,6 @@
                             document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
                             resetLap();
                             setPhase('course');
-                            // Démarrer automatiquement la course suivante
                             startTimer();
                         } else {
                             if (scoresCoureur[key]) scoresCoureur[key].complet = true;
@@ -1009,7 +1096,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version finale optimisée");
+        console.log("✅ Arcathlon élève - version finale avec persistance et classement");
     </script>
 </body>
 </html>
