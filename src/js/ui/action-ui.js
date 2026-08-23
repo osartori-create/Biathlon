@@ -29,7 +29,7 @@ export class ActionUI {
                     </div>
                     <div class="text-right">
                         <div class="text-sm font-bold text-slate-400">${state.maillot}</div>
-                        <div id="serieInfo" class="text-xs text-slate-400">Série ${state.currentSerie+1}/${this._controller._nbSeries || 3}</div>
+                        <div id="serieInfo" class="text-xs text-slate-400">Série ${state.currentSerie+1}/${this._controller?._nbSeries || 3}</div>
                         <div id="handicapDisplay" class="text-xs text-yellow-400 font-bold ${state.handicapMs > 0 ? '' : 'hidden'}">⏱️ +${(state.handicapMs/1000).toFixed(1)}s</div>
                     </div>
                 </div>
