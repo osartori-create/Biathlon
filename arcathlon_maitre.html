@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        /* (styles inchangés) */
         * { touch-action: manipulation; }
         body { user-select: none; background: #0f172a; color: white; font-family: sans-serif; }
         .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
@@ -51,7 +50,7 @@
 </head>
 <body class="p-4 h-screen flex flex-col">
 
-    <!-- En-tête (inchangé) -->
+    <!-- En-tête -->
     <header class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0 flex-wrap gap-2">
         <div class="flex items-center gap-3">
             <h1 class="text-2xl font-black italic text-blue-500">Arcathlon</h1>
@@ -67,7 +66,7 @@
         </div>
     </header>
 
-    <!-- Navigation (inchangée) -->
+    <!-- Navigation -->
     <nav class="nav-scroll flex border-b border-slate-800 mb-4 font-bold text-xs uppercase tracking-widest shrink-0">
         <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves</button>
         <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Équipes & Lancement</button>
@@ -78,7 +77,7 @@
 
     <div class="flex-1 overflow-hidden relative">
         
-        <!-- ONGLET 1 : IMPORT & ELEVES (inchangé) -->
+        <!-- ONGLET 1 : IMPORT & ELEVES -->
         <div id="viewImport" class="h-full flex flex-col absolute inset-0">
             <div class="flex flex-wrap items-center gap-3 mb-4 shrink-0 bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
                 <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs border border-emerald-400">📄 Import CSV VMA</button>
@@ -94,7 +93,7 @@
             <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 overflow-y-auto pb-6 pr-1 content-start flex-1"></div>
         </div>
 
-        <!-- ONGLET 2 : ÉQUIPES & CONFIG (inchangé) -->
+        <!-- ONGLET 2 : ÉQUIPES & CONFIG -->
         <div id="viewEquipes" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
             <div class="flex flex-wrap items-center justify-between mb-4 gap-3 border-b border-slate-800 pb-3 shrink-0">
                 <div class="flex items-center gap-3">
@@ -153,7 +152,7 @@
             <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6 content-start"></div>
         </div>
 
-        <!-- ONGLET 3 : LIVE (modifié pour photos) -->
+        <!-- ONGLET 3 : LIVE -->
         <div id="viewLive" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode : <span id="liveModeBadge" class="text-white">--</span></div>
@@ -174,7 +173,7 @@
             </div>
         </div>
 
-        <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES (modifié pour photos) -->
+        <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES -->
         <div id="viewStatistiques" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
             <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger</button>
@@ -190,7 +189,7 @@
                 <table class="w-full text-xs" id="statsDetailTable">
                     <thead>
                         <tr>
-                            <th>Photo</th><th>Juge</th><th>Équipe</th><th>Maillot</th><th>Série</th>
+                            <th>Photo</th><th>Code</th><th>Équipe</th><th>Maillot</th><th>Série</th>
                             <th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
                             <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié</th>
                             <th>Total pts</th><th>Alerte</th><th>Actions</th>
@@ -201,7 +200,7 @@
             </div>
         </div>
 
-        <!-- ONGLET 5 : HISTORIQUE (inchangé) -->
+        <!-- ONGLET 5 : HISTORIQUE -->
         <div id="viewHistorique" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
                 <select id="selectSeance" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none flex-1 max-w-xs">
@@ -213,7 +212,7 @@
         </div>
     </div>
 
-    <!-- MODAL ÉDITION ÉLÈVE (inchangé) -->
+    <!-- MODAL ÉDITION ÉLÈVE -->
     <div id="editModal" class="modal-backdrop">
         <div class="modal">
             <div class="hd">✏️ Modifier l'élève</div>
@@ -234,7 +233,7 @@
         </div>
     </div>
 
-    <!-- MODAL ACTION SUR PASSAGE (inchangé) -->
+    <!-- MODAL ACTION SUR PASSAGE -->
     <div id="actionModal" class="modal-backdrop">
         <div class="modal">
             <div class="hd">⚙️ Action sur le passage</div>
@@ -253,7 +252,7 @@
         </div>
     </div>
 
-    <!-- MODAL ÉDITION TIR (inchangé) -->
+    <!-- MODAL ÉDITION TIR -->
     <div id="tirModal" class="modal-backdrop">
         <div class="modal">
             <div class="hd">🎯 Modifier les points de tir</div>
@@ -282,7 +281,7 @@
         // =====================================================================
         // STATE
         // =====================================================================
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v11')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v12')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -299,7 +298,7 @@
         };
         request.onerror = e => console.error("IndexedDB error", e);
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v11', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v12', JSON.stringify(state)); }
         function savePhoto(id, blob) {
             if (!dbPhotos) return;
             const tx = dbPhotos.transaction("eleves", "readwrite");
@@ -327,9 +326,7 @@
             return s.trim();
         }
 
-        // =====================================================================
-        // HELPER POUR LES PHOTOS (correction)
-        // =====================================================================
+        // Helper pour résoudre l'idPhoto à partir de state.classes (et non de la copie figée)
         function currentIdPhoto(mProf) {
             if (!mProf) return null;
             const eleves = state.classes[state.activeCl] || [];
@@ -419,7 +416,7 @@
         };
 
         // =====================================================================
-        // RENDER ELEVES (inchangé)
+        // RENDER ELEVES
         // =====================================================================
         async function renderEleves() {
             const container = document.getElementById('elevesGrid');
@@ -482,7 +479,7 @@
         };
 
         // =====================================================================
-        // IMPORT CSV (inchangé)
+        // IMPORT CSV
         // =====================================================================
         document.getElementById('csvFile').addEventListener('change', function(e) {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
@@ -511,7 +508,7 @@
         });
 
         // =====================================================================
-        // IMPORT PHOTOS (inchangé)
+        // IMPORT PHOTOS
         // =====================================================================
         document.getElementById('zipFile').addEventListener('change', function(e) {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
@@ -550,7 +547,7 @@
         });
 
         // =====================================================================
-        // GENERATE TEAMS (inchangé)
+        // GENERATE TEAMS
         // =====================================================================
         window.generateTeams = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
@@ -590,7 +587,8 @@
                         style: styleMap[couleurs[j % couleurs.length]] || 'bg-slate-800 border-slate-600 text-white',
                         idPhoto: m.idPhoto || clePhoto(m.Nom, m.Prenom),
                         absent: false,
-                        idUnique: `${m.Nom}_${m.Prenom}_${j}`
+                        idUnique: `${m.Nom}_${m.Prenom}_${j}`,
+                        code: `${eqList[idx].id} - ${couleurs[j % couleurs.length]}`
                     }))
                 };
             });
@@ -600,7 +598,7 @@
         };
 
         // =====================================================================
-        // RENDER TEAMS (avec correction photos)
+        // RENDER TEAMS (avec currentIdPhoto)
         // =====================================================================
         async function renderTeams() {
             const container = document.getElementById('teamsGrid');
@@ -617,7 +615,6 @@
                         <div class="team-list-sortable flex-1 space-y-2 border border-dashed border-slate-800 rounded-xl p-2 min-h-[60px]" data-team="${eq.id}">
                 `;
                 for (let m of eq.membres) {
-                    // Récupération de l'idPhoto via le helper pour resynchronisation
                     const idPhoto = currentIdPhoto(m);
                     const url = idPhoto ? await getPhotoUrl(idPhoto) : null;
                     const photo = url ? `<img src="${url}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-700"></div>`;
@@ -639,19 +636,17 @@
                 html += `</div></div>`;
                 container.innerHTML += html;
             }
-            // Réinitialiser Sortable après le rendu
             initSortable();
         }
 
         // =====================================================================
-        // SORTABLE (inchangé)
+        // SORTABLE (glisser-déposer)
         // =====================================================================
         let sortableInstances = [];
 
         function initSortable() {
             sortableInstances.forEach(s => s.destroy());
             sortableInstances = [];
-
             const containers = document.querySelectorAll('.team-list-sortable');
             containers.forEach(container => {
                 const sortable = new Sortable(container, {
@@ -672,15 +667,9 @@
                         movedEleve = fromEq.membres.splice(idx, 1)[0];
                         if (movedEleve && toTeam) {
                             const toEq = equipes.find(e => e.id === toTeam);
-                            if (!toEq) {
-                                fromEq.membres.splice(idx, 0, movedEleve);
-                                return;
-                            }
+                            if (!toEq) { fromEq.membres.splice(idx, 0, movedEleve); return; }
                             toEq.membres.push(movedEleve);
-                        } else {
-                            fromEq.membres.splice(idx, 0, movedEleve);
-                            return;
-                        }
+                        } else { fromEq.membres.splice(idx, 0, movedEleve); return; }
                         const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
                         equipes.forEach(eq => {
                             eq.membres.forEach((m, idx) => {
@@ -691,6 +680,7 @@
                                     'Bleu': 'text-blue-400 bg-blue-950/40 border-blue-800',
                                     'Vert': 'text-green-400 bg-green-950/40 border-green-800'
                                 }[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                                m.code = `${eq.id} - ${m.maillot}`;
                             });
                         });
                         saveToLocal();
@@ -712,7 +702,7 @@
         };
 
         // =====================================================================
-        // PUSH CONFIG (corrigé : anonymisation totale)
+        // PUSH CONFIG (corrigé : code au lieu de nom/prénom)
         // =====================================================================
         window.pushConfig = function() {
             if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
@@ -732,15 +722,13 @@
                 vmaReference: {}
             };
             state.equipes[state.activeCl].forEach(eq => {
-                // Construction des membres avec seulement les données nécessaires et un code juge anonyme
                 configObj.equipes[eq.id] = {
                     pin: eq.pin,
                     membres: eq.membres.map(m => ({
                         maillot: m.maillot,
                         vma: m.vma,
                         absent: m.absent || false,
-                        // On transmet un code juge anonyme : "EQX - MAILLOT"
-                        jugeCode: eq.id + ' - ' + m.maillot
+                        code: m.code || `${eq.id} - ${m.maillot}`
                     }))
                 };
                 eq.membres.forEach(m => {
@@ -758,7 +746,7 @@
         };
 
         // =====================================================================
-        // LIVE (avec photos corrigées)
+        // LIVE (avec currentIdPhoto)
         // =====================================================================
         async function updateLiveScores(passages) {
             const container = document.getElementById('journalPassages');
@@ -774,7 +762,6 @@
                 const actionBtn = `<button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>`;
                 
                 let photoHtml = '';
-                // Récupération via le helper pour resynchronisation
                 const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
                 if (eqProf) {
                     const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
@@ -802,7 +789,7 @@
             }
             container.innerHTML = journalHtml;
 
-            // Classement par moyenne (inchangé)
+            // Classement par moyenne
             const scoresEquipes = {};
             const nbCoureurs = {};
             (state.equipes[state.activeCl] || []).forEach(eq => { 
@@ -890,7 +877,7 @@
         };
 
         // =====================================================================
-        // STATISTIQUES DÉTAILLÉES (avec photos corrigées)
+        // STATISTIQUES DÉTAILLÉES (avec currentIdPhoto)
         // =====================================================================
         let statsChart = null;
 
@@ -901,22 +888,23 @@
                 if (!data.length) { alert("Aucune donnée."); return; }
 
                 const enriched = await Promise.all(data.map(async (p) => {
-                    let prenom = "", nom = "", photoUrl = null, sexe = "";
+                    let prenom = "", nom = "", photoUrl = null, sexe = "", code = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
                     if (eqProf) {
                         const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) { 
-                            prenom = mProf.prenom; 
+                        if (mProf) {
+                            prenom = mProf.prenom;
                             nom = mProf.nom;
                             sexe = mProf.sexe || 'M';
+                            code = mProf.code || `${p.equipe} - ${p.maillot}`;
                             const idPhoto = currentIdPhoto(mProf);
                             if (idPhoto) photoUrl = await getPhotoUrl(idPhoto);
                         }
                     }
-                    return { ...p, prenom, nom, photoUrl, sexe };
+                    return { ...p, prenom, nom, photoUrl, sexe, code };
                 }));
 
-                // Summary (inchangé)
+                // Summary
                 const totalLaps = enriched.length;
                 const totalPts = enriched.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
                 const totalTirPts = enriched.reduce((s, p) => s + p.ptsTir, 0);
@@ -928,7 +916,6 @@
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
                 `;
 
-                // Table avec photo, nom et juge (code anonyme)
                 const tbody = document.querySelector('#statsDetailTable tbody');
                 let rows = '';
                 enriched.forEach(p => {
@@ -943,12 +930,10 @@
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
                     const alerte = p.alerteTriche ? '⚠️' : '✓';
                     const photoHtml = p.photoUrl ? `<img src="${p.photoUrl}" class="photo-thumb">` : `<div class="w-8 h-8 rounded-full bg-slate-700 inline-block"></div>`;
-                    // Affichage du juge : code anonyme (ou vide si absent)
-                    const jugeDisplay = p.juge || '-';
                     rows += `
                         <tr>
                             <td>${photoHtml}</td>
-                            <td>${jugeDisplay}</td>
+                            <td><strong>${p.code || p.maillot}</strong></td>
                             <td>${p.equipe}</td>
                             <td>${p.maillot}</td>
                             <td>${p.serie || 1}</td>
@@ -968,7 +953,6 @@
                 });
                 tbody.innerHTML = rows;
 
-                // Chart (inchangé)
                 const ctx = document.getElementById('statsChart').getContext('2d');
                 if (statsChart) statsChart.destroy();
                 const labels = enriched.map((_, i) => `#${i+1}`);
@@ -1014,8 +998,14 @@
                 const passages = snap.val() || {};
                 const data = Object.values(passages).filter(p => !p.disqualifie);
                 if (!data.length) return alert("Aucune donnée.");
-                let csv = "Équipe;Maillot;Juge;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
+                let csv = "Équipe;Maillot;Code;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
                 data.forEach(p => {
+                    let code = p.maillot;
+                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
+                    if (eqProf) {
+                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
+                        if (mProf) code = mProf.code || `${p.equipe} - ${p.maillot}`;
+                    }
                     const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
                     const ptsTir = p.ptsTir || 0;
@@ -1028,7 +1018,7 @@
                     const alerte = p.alerteTriche ? 'Oui' : 'Non';
                     const malus = p.malus || 0;
                     const disqualifie = p.disqualifie ? 'Oui' : 'Non';
-                    csv += `${p.equipe};${p.maillot};${p.juge || ''};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
+                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
@@ -1039,7 +1029,7 @@
         };
 
         // =====================================================================
-        // HISTORIQUE (inchangé)
+        // HISTORIQUE
         // =====================================================================
         function updateSeancesList() {
             const select = document.getElementById('selectSeance');
@@ -1073,14 +1063,20 @@
         };
 
         // =====================================================================
-        // EXPORT RESULTS (avec juge)
+        // EXPORT RESULTS
         // =====================================================================
         window.exportResults = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
                 const data = Object.values(passages).filter(p => !p.disqualifie);
-                let csv = "Équipe;Maillot;Juge;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Horodatage\n";
+                let csv = "Équipe;Maillot;Code;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Horodatage\n";
                 data.forEach(p => {
+                    let code = p.maillot;
+                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
+                    if (eqProf) {
+                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
+                        if (mProf) code = mProf.code || `${p.equipe} - ${p.maillot}`;
+                    }
                     const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
                     const ptsTir = p.ptsTir || 0;
                     let bonus = 0;
@@ -1091,7 +1087,7 @@
                     const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
                     const alerte = p.alerteTriche ? 'Oui' : 'Non';
                     const malus = p.malus || 0;
-                    csv += `${p.equipe};${p.maillot};${p.juge || ''};${p.serie||1};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${new Date(p.timestamp).toLocaleString()}\n`;
+                    csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${new Date(p.timestamp).toLocaleString()}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
@@ -1102,7 +1098,7 @@
         };
 
         // =====================================================================
-        // SAUVEGARDE / RESTAURATION (inchangé)
+        // SAUVEGARDE / RESTAURATION
         // =====================================================================
         window.exportData = function() {
             const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
@@ -1123,7 +1119,7 @@
         });
 
         // =====================================================================
-        // SWITCH TABS (inchangé)
+        // SWITCH TABS
         // =====================================================================
         window.switchTab = function(t) {
             ['viewImport', 'viewEquipes', 'viewLive', 'viewStatistiques', 'viewHistorique'].forEach(id =>
@@ -1142,7 +1138,7 @@
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version corrigée (photos + anonymisation totale)");
+        console.log("✅ Arcathlon professeur - version anonymisée (code)");
     </script>
 </body>
 </html>

@@ -382,7 +382,7 @@
         window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
-        // SÉLECTEUR DU JUGE iPad (corrigé : utilise m.code)
+        // SÉLECTEUR DU JUGE iPad (utilise m.code)
         // =====================================================================
         function initJugeSelector() {
             const container = document.getElementById('jugeSelector');
@@ -419,7 +419,7 @@
         };
 
         // =====================================================================
-        // GRILLE (inchangée, utilise currentJuge)
+        // GRILLE
         // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
@@ -643,7 +643,7 @@
         };
 
         // =====================================================================
-        // PHASE MANAGEMENT (inchangé)
+        // PHASE MANAGEMENT
         // =====================================================================
         function setPhase(phase) {
             currentPhase = phase;
