@@ -187,7 +187,7 @@ export class ActionUI {
             } else {
                 this._controller.stopCourse();
                 this._updatePhase('tir');
-                toast.info('🎯 Passez au tir !');
+                toast.show('🎯 Passez au tir !', 2000, 'info');
             }
         }
     }

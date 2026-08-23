@@ -10,6 +10,7 @@ export class DashboardUI {
         this._unsubscribeState = null;
         this._cleanup = null;
         this._refreshInterval = null;
+        this._passagesListener = null;
     }
 
     render(config) {
@@ -50,7 +51,7 @@ export class DashboardUI {
             this._updateRanking();
         });
 
-        // Mise à jour périodique toutes les 5 secondes
+        // Mise à jour périodique toutes les 5 secondes (sécurité)
         if (this._refreshInterval) clearInterval(this._refreshInterval);
         this._refreshInterval = setInterval(() => this._updateRanking(), 5000);
     }
@@ -103,14 +104,20 @@ export class DashboardUI {
     }
 
     _updateRanking() {
+        // Supprimer l'ancien écouteur s'il existe
+        if (this._passagesListener) {
+            firebase.database().ref('arcathlon/live/passages').off('value', this._passagesListener);
+            this._passagesListener = null;
+        }
+
         const state = appState.getState();
         if (!state.equipe) return;
 
         const grid = document.getElementById('maillotsGrid');
         if (!grid) return;
 
-        // Récupérer les passages depuis Firebase
-        firebase.database().ref('arcathlon/live/passages').once('value', snap => {
+        // Créer un écouteur en temps réel
+        const listener = firebase.database().ref('arcathlon/live/passages').on('value', snap => {
             const passages = snap.val() || {};
             const scores = {};
 
@@ -143,7 +150,7 @@ export class DashboardUI {
             const teamTotalEl = document.getElementById('teamTotal');
             if (teamTotalEl) teamTotalEl.textContent = `🏆 Moyenne : ${moyenne} pts/coureur`;
 
-            // Classement global (simplifié)
+            // Classement global
             const container = document.getElementById('rankingContainer');
             if (container) {
                 const totalPts = Object.values(scores).reduce((a, b) => a + b, 0);
@@ -154,6 +161,9 @@ export class DashboardUI {
                 `;
             }
         });
+
+        // Conserver la référence pour pouvoir le supprimer plus tard
+        this._passagesListener = listener;
     }
 
     selectJuge() {
@@ -195,6 +205,11 @@ export class DashboardUI {
     }
 
     logout() {
+        // Nettoyer l'écouteur Firebase
+        if (this._passagesListener) {
+            firebase.database().ref('arcathlon/live/passages').off('value', this._passagesListener);
+            this._passagesListener = null;
+        }
         if (this._refreshInterval) clearInterval(this._refreshInterval);
         appState.reset();
         firebaseService.cleanup();
