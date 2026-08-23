@@ -66,12 +66,12 @@
         .shot-box .shot-score { color: #60a5fa; }
         .valid-btn { margin-top: 8px; }
 
-        /* FEEDBACK DES COUREURS - EN BLANC */
+        /* FEEDBACK DES COUREURS */
         .coureur-feedback {
             font-size: 0.95rem;
             color: #ffffff;
             margin-top: 4px;
-            line-height: 1.6;
+            line-height: 1.8;          /* Augmenté pour lisibilité */
             font-weight: 500;
             width: 100%;
             display: flex;
@@ -80,12 +80,14 @@
         }
         .coureur-feedback .serie-line {
             white-space: nowrap;
+            margin-bottom: 2px;
         }
         .coureur-feedback .serie-line-2 {
             white-space: nowrap;
             font-weight: 400;
             font-size: 0.85rem;
             opacity: 0.9;
+            margin-bottom: 6px;        /* Saut de ligne entre les séries */
         }
         .coureur-feedback .bonifie {
             font-weight: 700;
@@ -140,9 +142,65 @@
             font-weight: 900;
             font-size: 1.6rem;
         }
+
+        /* TOAST pour alerte fugace */
+        #toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ef4444;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            z-index: 9999;
+            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.4);
+            display: none;
+            text-align: center;
+            max-width: 90%;
+            border: 2px solid #fca5a5;
+        }
+        #toast.show {
+            display: block;
+            animation: fadeInDown 0.3s ease-out;
+        }
+        @keyframes fadeInDown {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Sélecteur de juge */
+        .juge-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin: 6px 0 12px 0;
+        }
+        .juge-btn {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            border: 2px solid #334155;
+            background: #1e293b;
+            color: #94a3b8;
+            transition: all 0.15s;
+        }
+        .juge-btn.selected {
+            border-color: #22c55e;
+            background: #22c55e;
+            color: #07150b;
+        }
+        .juge-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
+
+    <!-- TOAST pour alertes fugaces -->
+    <div id="toast"></div>
 
     <!-- En-tête -->
     <div class="flex justify-between items-center mb-3 shrink-0 px-2">
@@ -182,6 +240,11 @@
         <div id="ecranCoureurs" class="hidden flex-col flex-1 overflow-y-auto">
             <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
             <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-2">Équipe X</h2>
+            
+            <!-- Sélecteur du juge iPad -->
+            <div class="text-center text-sm font-bold text-slate-400 mb-1">👤 Juge iPad :</div>
+            <div id="jugeSelector" class="juge-selector"></div>
+
             <div id="teamTotal" class="text-2xl font-black text-emerald-400 text-center mb-4">🏆 Moyenne équipe : 0 pts/coureur</div>
             <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-start"></div>
             <div id="rankingContainer" class="mt-6 space-y-2"></div>
@@ -304,6 +367,7 @@
 
         let equipesConfig = {}, seanceConfig = {}, scoresCoureur = {};
         let currentEq = "", currentPin = "", currentMaillot = "", inputPin = "";
+        let currentJuge = "";   // Nouveau : nom/prénom du juge iPad
         let passageActuel = 1, currentSerie = 0;
         let modeActuel = "sprint";
         let nbFlechesActuel = 2;
@@ -321,6 +385,20 @@
         ];
         let killBillState = { equipeAdverse: "", scoreNous: 0, scoreEux: 0, tirsNous: 0, tirsEux: 0, maxTirs: 2 };
         let timer18Interval = null;
+
+        // =====================================================================
+        // TOAST (alerte fugace)
+        // =====================================================================
+        let toastTimeout = null;
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
 
         // =====================================================================
         // FIREBASE LISTENER (avec persistance)
@@ -402,10 +480,49 @@
                 document.getElementById('ecranCoureurs').classList.remove('hidden');
                 document.getElementById('ecranCoureurs').classList.add('flex');
                 document.getElementById('titreEquipe').textContent = `Équipe ${currentEq}`;
+                // Initialiser le sélecteur de juge
+                initJugeSelector();
                 buildCoureursGrid();
             } else { alert("Code PIN incorrect."); clearPin(); }
         };
-        window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
+        window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
+
+        // =====================================================================
+        // SÉLECTEUR DU JUGE iPad
+        // =====================================================================
+        function initJugeSelector() {
+            const container = document.getElementById('jugeSelector');
+            const membres = equipesConfig[currentEq]?.membres || [];
+            // Filtrer les absents
+            const presents = membres.filter(m => !m.absent);
+            if (presents.length === 0) {
+                container.innerHTML = '<span class="text-xs text-red-400">Aucun membre présent</span>';
+                return;
+            }
+            // Réinitialiser le juge sélectionné
+            currentJuge = '';
+            let html = '';
+            presents.forEach(m => {
+                const nomComplet = m.prenom + ' ' + m.nom.charAt(0) + '.';
+                const isSelected = (currentJuge === nomComplet) ? 'selected' : '';
+                html += `<button class="juge-btn ${isSelected}" onclick="selectJuge('${nomComplet}')">${nomComplet}</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        window.selectJuge = function(nomComplet) {
+            currentJuge = nomComplet;
+            // Mettre à jour l'affichage
+            const btns = document.querySelectorAll('.juge-btn');
+            btns.forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.textContent === nomComplet) {
+                    btn.classList.add('selected');
+                }
+            });
+            // Optionnel : un retour visuel
+            showToast(`Juge sélectionné : ${nomComplet}`, 1500);
+        };
 
         // =====================================================================
         // GRILLE AVEC FEEDBACK, POINTS, MOYENNE, TEMPS CUMULÉ
@@ -501,12 +618,17 @@
 
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
                 const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
+                // Vérifier si un juge est sélectionné avant de permettre l'ouverture
+                const jugeOk = (currentJuge !== '');
+                const clickHandler = (complet || !jugeOk) ? '' : `openAction('${m.maillot}')`;
                 html += `
-                    <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" 
-                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                    <button onclick="${clickHandler}" 
+                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}"
+                            ${!jugeOk && !complet ? 'title="Veuillez d\'abord sélectionner un juge iPad"' : ''}>
                         <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
                         <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
                         ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
+                        ${!complet && !jugeOk ? `<div class="text-xs font-bold text-yellow-400 mt-1">👤 Choisir juge d'abord</div>` : ''}
                         <div class="coureur-points">${totalPoints} pts</div>
                         ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
                         ${tempsCumuleHtml}
@@ -575,9 +697,15 @@
         }
 
         // =====================================================================
-        // OPEN ACTION (inchangé)
+        // OPEN ACTION (avec vérification du juge)
         // =====================================================================
         window.openAction = function(maillot) {
+            // Vérifier qu'un juge est sélectionné
+            if (!currentJuge) {
+                showToast("⚠️ Veuillez d'abord sélectionner un juge iPad !", 2500);
+                return;
+            }
+
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
             currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
@@ -629,6 +757,7 @@
             } else {
                 document.getElementById('giantActionBtn').style.display = 'block';
                 setPhase('course');
+                // Le bouton affiche "Démarrer la course" ou "Arrivée"
                 document.getElementById('giantActionBtn').textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
             }
             document.getElementById('phasePanel').classList.remove('hidden');
@@ -643,7 +772,7 @@
         };
 
         // =====================================================================
-        // PHASE MANAGEMENT (inchangé)
+        // PHASE MANAGEMENT
         // =====================================================================
         function setPhase(phase) {
             currentPhase = phase;
@@ -661,7 +790,8 @@
                 panel.classList.add('panel-course');
                 name.textContent = 'COURSE';
                 giant.style.display = 'block';
-                giant.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                // Texte modifié : "Arrivée" au lieu de "Arrivée au tir"
+                giant.textContent = isRunning ? 'Arrivée' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
                 giant.className = 'btn-action course';
                 document.getElementById('moduleSaisieTir').style.display = 'none';
                 document.getElementById('modulePenalite').classList.add('hidden');
@@ -755,7 +885,7 @@
         function updateGiantButton() {
             const btn = document.getElementById('giantActionBtn');
             if (currentPhase === 'course') {
-                btn.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                btn.textContent = isRunning ? 'Arrivée' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
                 btn.className = 'btn-action course';
                 btn.style.display = 'block';
             } else if (currentPhase === 'tir') {
@@ -886,7 +1016,7 @@
         };
 
         // =====================================================================
-        // FINISH LAP (avec alerte triche)
+        // FINISH LAP (avec alerte triche + toast + juge)
         // =====================================================================
         function finishLap() {
             const errorDiv = document.getElementById('errorMessage');
@@ -915,9 +1045,15 @@
                     alerteTriche = (vitesseNum > 25 || vitesseNum > vmaRef * 1.5);
                 }
 
+                // Si alerte, afficher un toast fugace
+                if (alerteTriche) {
+                    showToast("⚠️ Vitesse suspecte – Le professeur en est informé.", 4000);
+                }
+
                 const passageData = {
                     equipe: currentEq,
                     maillot: currentMaillot,
+                    juge: currentJuge,   // <-- Ajout du juge
                     ptsVMA: Math.round(ptsVMA),
                     ptsTir: Math.round(ptsTir),
                     vitesse: Math.round(vitesse * 10) / 10,
@@ -980,13 +1116,22 @@
                 const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
                 const totalLap = 18000 + lapData.tirMs + lapData.penaliteMs;
                 const passageData = {
-                    equipe: currentEq, maillot: currentMaillot,
-                    ptsVMA: 0, ptsTir: Math.round(ptsTir),
-                    vitesse: 0, temps: Math.round(totalLap),
-                    courseMs: 18000, tirMs: Math.round(lapData.tirMs), penaliteMs: Math.round(lapData.penaliteMs),
+                    equipe: currentEq,
+                    maillot: currentMaillot,
+                    juge: currentJuge,
+                    ptsVMA: 0,
+                    ptsTir: Math.round(ptsTir),
+                    vitesse: 0,
+                    temps: Math.round(totalLap),
+                    courseMs: 18000,
+                    tirMs: Math.round(lapData.tirMs),
+                    penaliteMs: Math.round(lapData.penaliteMs),
                     shots: lapData.shots.map(s => Math.round(s)),
-                    penReq: 0, penDone: 0,
-                    serie: currentSerie + 1, timestamp: Date.now(), mode: 'mille',
+                    penReq: 0,
+                    penDone: 0,
+                    serie: currentSerie + 1,
+                    timestamp: Date.now(),
+                    mode: 'mille',
                     alerteTriche: false
                 };
                 db.ref('arcathlon/live/passages').push().set(passageData)
@@ -1111,7 +1256,7 @@
         };
 
         // =====================================================================
-        // KILL BILL
+        // KILL BILL (avec juge)
         // =====================================================================
         function initKillBill() {
             const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
@@ -1153,11 +1298,17 @@
             let penalite = (diff < 0) ? (Math.abs(diff) < 5 ? 2 : 3) : (diff > 0 ? (diff < 5 ? 0 : 1) : 0);
             const ptsTir = killBillState.scoreNous;
             const passageData = {
-                equipe: currentEq, maillot: currentMaillot,
-                ptsVMA: 0, ptsTir: ptsTir,
+                equipe: currentEq,
+                maillot: currentMaillot,
+                juge: currentJuge,
+                ptsVMA: 0,
+                ptsTir: ptsTir,
                 penalites: penalite,
-                vitesse: 0, temps: 0,
-                serie: currentSerie + 1, timestamp: Date.now(), mode: 'killbill',
+                vitesse: 0,
+                temps: 0,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                mode: 'killbill',
                 alerteTriche: false
             };
             db.ref('arcathlon/live/passages').push().set(passageData)
@@ -1201,7 +1352,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version finale avec moyenne, alerte triche, temps cumulé");
+        console.log("✅ Arcathlon élève - version avec juge, toast et bouton Arrivée");
     </script>
 </body>
 </html>
