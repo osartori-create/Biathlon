@@ -113,17 +113,35 @@ export class DashboardUI {
     }
 
     selectJuge() {
-        const membres = this._config?.equipes[appState.getState().equipe]?.membres || [];
-        const noms = membres.filter(m => m.statut === 'present').map(m => m.code);
-        const choix = prompt(`Choisissez le juge iPad :\n${noms.join('\n')}`);
-        if (choix && noms.includes(choix)) {
-            appState.setState({ juge: choix });
-            toast.success(`👤 Juge : ${choix}`);
-            this.render(this._config);
-        } else if (choix) {
-            toast.error('Nom invalide');
-        }
+    const membres = this._config?.equipes[appState.getState().equipe]?.membres || [];
+    const presents = membres.filter(m => m.statut === 'present');
+    
+    if (presents.length === 0) {
+        toast.show('⚠️ Aucun membre présent pour être juge.', 2000, 'error');
+        return;
     }
+
+    // Construire une liste numérotée des juges disponibles
+    let message = '👤 Choisissez le juge (entrez le numéro) :\n';
+    presents.forEach((m, i) => {
+        message += `  ${i+1}. ${m.code} (VMA: ${m.vma})\n`;
+    });
+
+    const choix = prompt(message);
+    if (choix === null) return; // Annulation
+
+    const idx = parseInt(choix) - 1;
+    if (idx >= 0 && idx < presents.length) {
+        const jugeSelectionne = presents[idx].code;
+        appState.setState({ juge: jugeSelectionne });
+        toast.success(`👤 Juge : ${jugeSelectionne}`);
+        this.render(this._config); // Rafraîchir le dashboard
+    } else {
+        toast.error('❌ Numéro invalide, réessayez.');
+        // Proposer de réessayer
+        setTimeout(() => this.selectJuge(), 500);
+    }
+}
 
     openAction(maillot) {
         appState.setState({ maillot });
