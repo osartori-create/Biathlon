@@ -389,59 +389,89 @@
         // GRILLE AVEC FEEDBACK, POINTS, TOTAL ÉQUIPE ET CLASSEMENT
         // =====================================================================
         function buildCoureursGrid() {
-            const grid = document.getElementById('maillotsGrid');
-            const membres = equipesConfig[currentEq]?.membres || [];
-            let html = "";
-            const colorMap = {
-                'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
-                'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
-                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
-                'Vert': 'bg-green-950/80 border-green-600 text-green-400'
-            };
-            membres.forEach(m => {
-                if (m.absent) return;
-                const key = `${currentEq}-${m.maillot}`;
-                const data = scoresCoureur[key];
-                if (!data) return;
-                const complet = data.complet || data.series.every((s, idx) => {
-                    if (s.course === 0) return false;
-                    if (idx === seanceConfig.nbSeries - 1) return true;
-                    return s.tir > 0;
-                });
-                if (complet) data.complet = true;
+    const grid = document.getElementById('maillotsGrid');
+    const membres = equipesConfig[currentEq]?.membres || [];
+    let html = "";
+    const colorMap = {
+        'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
+        'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
+        'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
+        'Vert': 'bg-green-950/80 border-green-600 text-green-400'
+    };
+    membres.forEach(m => {
+        if (m.absent) return;
+        const key = `${currentEq}-${m.maillot}`;
+        const data = scoresCoureur[key];
+        if (!data) return;
+        const complet = data.complet || data.series.every((s, idx) => {
+            if (s.course === 0) return false;
+            if (idx === seanceConfig.nbSeries - 1) return true;
+            return s.tir > 0;
+        });
+        if (complet) data.complet = true;
 
-                // Calcul des points du coureur
-                let totalPoints = 0;
-                data.series.forEach(s => {
-                    totalPoints += (s.course || 0) + (s.tir || 0);
-                });
+        // Calcul des points du coureur
+        let totalPoints = 0;
+        data.series.forEach(s => {
+            totalPoints += (s.course || 0) + (s.tir || 0);
+        });
 
-                // Feedback des séries
-                let feedback = '';
-                data.series.forEach((s, idx) => {
-                    if (s.course === 0) return;
-                    const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
-                    const tir = (idx === seanceConfig.nbSeries - 1) ? '—' : s.tir;
-                    feedback += `<div class="serie-line">S${idx+1}: ${vitesse}km/h | Tir: ${tir}</div>`;
-                });
+        // --- Feedback avec deux lignes par série ---
+        let feedback = '';
+        const vma = m.vma || 12;
+        data.series.forEach((s, idx) => {
+            if (s.course === 0) return; // série non réalisée
 
-                const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
-                const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
-                html += `
-                    <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" 
-                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
-                        <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
-                        <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
-                        ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
-                        <div class="coureur-points">${totalPoints} pts</div>
-                        ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
-                    </button>
-                `;
-            });
-            grid.innerHTML = html;
-            updateTeamTotal();
-            updateTeamRanking();
-        }
+            const temps = s.temps ? (s.temps / 1000).toFixed(1) : '?';
+            const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
+            const ptsVMA = s.course || 0;
+            const ptsTir = s.tir || 0;
+
+            // Détection de triche
+            const vitesseNum = parseFloat(vitesse);
+            const alerte = (vitesseNum > 25 || vitesseNum > vma * 1.5);
+            const alerteSymbol = alerte ? ' ⚠️' : '';
+
+            // Ligne 1 : temps, vitesse, points VMA
+            let ligne1 = `S${idx+1}: ${temps}s | ${vitesse} km/h${alerteSymbol} | VMA: ${ptsVMA} pts`;
+            feedback += `<div class="serie-line">${ligne1}</div>`;
+
+            // Ligne 2 : tir et bonus (sauf dernière série)
+            if (idx < seanceConfig.nbSeries - 1) {
+                // Calcul du bonus
+                let bonus = 0;
+                if (ptsTir < 7) bonus = 0;
+                else if (ptsTir < 12) bonus = -10;
+                else if (ptsTir < 16) bonus = -15;
+                else bonus = -20;
+
+                const tempsBonifie = (temps !== '?') ? (parseFloat(temps) + bonus).toFixed(1) : '?';
+                const bonusStr = bonus < 0 ? `-${Math.abs(bonus)}s` : `${bonus}s`;
+
+                let ligne2 = `Tir: ${ptsTir} pts | Bonus: ${bonusStr} | Temps bonifié: ${tempsBonifie}s`;
+                // Mettre le temps bonifié en évidence (gras)
+                ligne2 = ligne2.replace(/Temps bonifié: .+?s/, match => `<strong>${match}</strong>`);
+                feedback += `<div class="serie-line" style="font-weight:400; font-size:0.85rem; opacity:0.9;">${ligne2}</div>`;
+            }
+        });
+
+        const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+        const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
+        html += `
+            <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" 
+                    class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
+                ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
+                <div class="coureur-points">${totalPoints} pts</div>
+                ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
+            </button>
+        `;
+    });
+    grid.innerHTML = html;
+    updateTeamTotal();
+    updateTeamRanking();
+}
 
         function updateTeamTotal() {
             const membres = equipesConfig[currentEq]?.membres || [];
@@ -798,7 +828,7 @@
         // =====================================================================
         // FINISH LAP (avec enchaînement automatique)
         // =====================================================================
-        function finishLap() {
+                function finishLap() {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.style.display = 'none';
             try {
@@ -818,17 +848,30 @@
                 if (!isFinite(vitesse)) vitesse = 0;
                 if (!isFinite(ptsVMA)) ptsVMA = 0;
 
+                // --- Détection de triche ---
+                let alerteTriche = false;
+                if (vitesse > 0) {
+                    const vitesseNum = parseFloat(vitesse);
+                    alerteTriche = (vitesseNum > 25 || vitesseNum > vmaRef * 1.5);
+                }
+
                 const passageData = {
-                    equipe: currentEq, maillot: currentMaillot,
-                    ptsVMA: Math.round(ptsVMA), ptsTir: Math.round(ptsTir),
+                    equipe: currentEq,
+                    maillot: currentMaillot,
+                    ptsVMA: Math.round(ptsVMA),
+                    ptsTir: Math.round(ptsTir),
                     vitesse: Math.round(vitesse * 10) / 10,
                     temps: Math.round(totalLap),
                     courseMs: Math.round(lapData.courseMs),
                     tirMs: Math.round(lapData.tirMs),
                     penaliteMs: Math.round(lapData.penaliteMs),
                     shots: lapData.shots.map(s => Math.round(s)),
-                    penReq: lapData.penReq, penDone: lapData.penDone,
-                    serie: currentSerie + 1, timestamp: Date.now(), mode: modeActuel
+                    penReq: lapData.penReq,
+                    penDone: lapData.penDone,
+                    serie: currentSerie + 1,
+                    timestamp: Date.now(),
+                    mode: modeActuel,
+                    alerteTriche: alerteTriche   // <-- NOUVEAU CHAMP
                 };
 
                 db.ref('arcathlon/live/passages').push().set(passageData)
