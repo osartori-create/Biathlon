@@ -113,7 +113,7 @@
                         <div id="phaseName" class="phase-title">COURSE</div>
                         <div id="phaseClock" class="phase-clock">00:00.00</div>
                     </div>
-                    <div class="chip">Série <span id="currentSerieChip">1</span> | Tour <span id="currentLapChip">1</span></div>
+                    <div class="chip">Série <span id="currentSerieChip">1</span>/<span id="totalSeriesChip">3</span> | <span id="distanceChip">400m</span></div>
                 </div>
             </div>
 
@@ -135,13 +135,12 @@
             <!-- Giant Action Button -->
             <button id="giantActionBtn" class="btn-action course" onclick="onGiantAction()">Démarrer la course</button>
 
-            <!-- Phase Content (TIR et PENALITE) -->
+            <!-- Phase Content -->
             <div id="phaseContent" class="flex-1 mt-3 overflow-y-auto" style="min-height: 200px;">
                 
-                <!-- TIR (toujours visible en phase tir) -->
+                <!-- TIR -->
                 <div id="moduleSaisieTir" class="tir-container" style="display:none;">
                     <div class="tir-row">
-                        <!-- Cible -->
                         <div class="tir-target">
                             <svg viewBox="0 0 100 100" style="width:100%; max-width:220px; height:auto;">
                                 <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6)" />
@@ -155,7 +154,6 @@
                             <div class="text-xs text-slate-400 mt-1">Cliquez sur la cible ou les boutons</div>
                         </div>
 
-                        <!-- Flèches -->
                         <div class="tir-shots">
                             <div id="flechesContainer" style="flex:1; display:flex; flex-direction:column; gap:6px;"></div>
                             <div id="resultatTirSpecifique" class="text-center font-black text-sm uppercase text-yellow-400"></div>
@@ -213,7 +211,7 @@
 
     <script>
         // =====================================================================
-        // CONFIG & STATE (identique à la version précédente, avec corrections)
+        // CONFIG & STATE
         // =====================================================================
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
@@ -239,7 +237,9 @@
         let killBillState = { equipeAdverse: "", scoreNous: 0, scoreEux: 0, tirsNous: 0, tirsEux: 0, maxTirs: 2 };
         let timer18Interval = null;
 
-        // Firebase listener
+        // =====================================================================
+        // FIREBASE LISTENER
+        // =====================================================================
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
@@ -253,6 +253,9 @@
             };
             document.getElementById('labelModeActuel').textContent = modeActuel;
             document.getElementById('seanceInfo').textContent = seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : '--';
+            document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
+            document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
+
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
@@ -269,7 +272,9 @@
             if (currentEq && currentMaillot) buildCoureursGrid();
         });
 
-        // LOGIN / GRILLE (identique)
+        // =====================================================================
+        // LOGIN / GRILLE
+        // =====================================================================
         window.checkTeamSelection = function() {
             const val = document.getElementById('selEquipe').value;
             if (val) { currentEq = val; currentPin = equipesConfig[val].pin; inputPin = ""; document.getElementById('pinDisplay').textContent = ""; document.getElementById('numpad').classList.remove('hidden'); document.getElementById('numpad').classList.add('flex'); } 
@@ -311,7 +316,7 @@
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
             currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
-            if(currentSerie === -1) currentSerie = 0;
+            if(currentSerie === -1) currentSerie = 0; // déjà terminé, mais on prend la dernière
 
             document.getElementById('ecranCoureurs').classList.add('hidden');
             document.getElementById('ecranAction').classList.remove('hidden');
@@ -357,6 +362,8 @@
             } else {
                 document.getElementById('giantActionBtn').style.display = 'block';
                 setPhase('course');
+                // Mise à jour du texte du bouton avec la série
+                document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
             }
             document.getElementById('phasePanel').classList.remove('hidden');
         };
@@ -387,7 +394,7 @@
             if (phase === 'course') {
                 panel.classList.add('panel-course');
                 name.textContent = 'COURSE';
-                giant.textContent = (isRunning ? 'Arrivée au tir' : 'Démarrer la course');
+                giant.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (Série ${currentSerie+1})`;
                 giant.className = 'btn-action course';
                 document.getElementById('moduleSaisieTir').style.display = 'none';
                 document.getElementById('modulePenalite').classList.add('hidden');
@@ -396,7 +403,6 @@
                 name.textContent = 'TIR';
                 giant.textContent = 'Valider le tir';
                 giant.className = 'btn-action tir';
-                // Afficher le module de tir
                 document.getElementById('moduleSaisieTir').style.display = 'flex';
                 document.getElementById('modulePenalite').classList.add('hidden');
                 genererZonesFleches();
@@ -410,8 +416,7 @@
                 document.getElementById('modulePenalite').classList.add('flex');
                 renderPenalites();
             }
-            document.getElementById('currentLapChip').textContent = passageActuel;
-            // Cache l'erreur
+            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
             document.getElementById('errorMessage').style.display = 'none';
         }
 
@@ -421,7 +426,7 @@
             if (tickHandle) cancelAnimationFrame(tickHandle);
             tickHandle = null;
             document.getElementById('phaseClock').textContent = '00:00.00';
-            document.getElementById('giantActionBtn').textContent = 'Démarrer la course';
+            document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
             document.getElementById('giantActionBtn').className = 'btn-action course';
             genererZonesFleches();
         }
@@ -479,7 +484,7 @@
 
         function updateGiantButton() {
             const btn = document.getElementById('giantActionBtn');
-            if (currentPhase === 'course') { btn.textContent = isRunning ? 'Arrivée au tir' : 'Démarrer la course'; btn.className = 'btn-action course'; }
+            if (currentPhase === 'course') { btn.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (Série ${currentSerie+1})`; btn.className = 'btn-action course'; }
             else if (currentPhase === 'tir') { btn.textContent = 'Valider le tir'; btn.className = 'btn-action tir'; }
             else if (currentPhase === 'penalite') { btn.textContent = 'Effectuer les pénalités'; btn.className = 'btn-action pen'; }
         }
@@ -516,7 +521,6 @@
             document.getElementById('btnValider').disabled = true;
             document.getElementById('btnValider').classList.add('opacity-40');
             document.getElementById('btnValider').textContent = 'Valider le tir';
-            // cache erreur
             document.getElementById('errorMessage').style.display = 'none';
         }
 
@@ -524,7 +528,6 @@
             if (lapData.shots.length >= nbFlechesActuel) return;
             if (effetCarte === 'halfScore') pts = Math.floor(pts / 2);
             lapData.shots.push(pts);
-            // Met à jour le label
             const label = document.getElementById(`shotLabel${lapData.shots.length}`);
             if (label) label.textContent = pts;
             updateTirUI();
@@ -565,7 +568,6 @@
                 btn.classList.add('opacity-40');
                 document.getElementById('resultatTirSpecifique').textContent = "";
                 btn.textContent = 'Valider le tir';
-                // Afficher le message d'erreur
                 const errorDiv = document.getElementById('errorMessage');
                 errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider. (Actuellement : ${lapData.shots.length})`;
                 errorDiv.style.display = 'block';
@@ -603,7 +605,7 @@
         };
 
         // =====================================================================
-        // FINISH LAP (identique à la version précédente)
+        // FINISH LAP (avec enchaînement des séries)
         // =====================================================================
         function finishLap() {
             const errorDiv = document.getElementById('errorMessage');
@@ -637,13 +639,36 @@
                     penReq: lapData.penReq, penDone: lapData.penDone,
                     serie: currentSerie + 1, timestamp: Date.now(), mode: modeActuel
                 };
+
                 db.ref('arcathlon/live/passages').push().set(passageData)
                     .then(() => {
+                        // Mise à jour locale
                         if (scoresCoureur[key]) {
-                            scoresCoureur[key].series[currentSerie] = { course: passageData.ptsVMA, tir: passageData.ptsTir, temps: passageData.temps, vitesse: passageData.vitesse };
+                            scoresCoureur[key].series[currentSerie] = {
+                                course: passageData.ptsVMA,
+                                tir: passageData.ptsTir,
+                                temps: passageData.temps,
+                                vitesse: passageData.vitesse
+                            };
                         }
-                        passageActuel++;
-                        retourCoureurs();
+                        // Vérifier s'il reste des séries
+                        const nextSerie = currentSerie + 1;
+                        if (nextSerie < seanceConfig.nbSeries) {
+                            // Passer à la série suivante
+                            currentSerie = nextSerie;
+                            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                            document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            // Réinitialiser le tour et repasser en phase course
+                            resetLap(); // remet le chrono et le bouton à zéro
+                            setPhase('course');
+                            document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
+                            // On laisse l'élève démarrer la prochaine course
+                        } else {
+                            // Toutes les séries sont terminées
+                            if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                            passageActuel++;
+                            retourCoureurs();
+                        }
                     })
                     .catch(() => {
                         errorDiv.textContent = "❌ Erreur réseau. Retour à la grille.";
@@ -675,9 +700,22 @@
                 db.ref('arcathlon/live/passages').push().set(passageData)
                     .then(() => {
                         const key = `${currentEq}-${currentMaillot}`;
-                        if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie] = { course: 0, tir: ptsTir, temps: totalLap, vitesse: 0 };
-                        passageActuel++;
-                        retourCoureurs();
+                        if (scoresCoureur[key]) {
+                            scoresCoureur[key].series[currentSerie] = { course: 0, tir: ptsTir, temps: totalLap, vitesse: 0 };
+                        }
+                        const nextSerie = currentSerie + 1;
+                        if (nextSerie < seanceConfig.nbSeries) {
+                            currentSerie = nextSerie;
+                            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                            document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            resetLap();
+                            setPhase('course');
+                            document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
+                        } else {
+                            if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                            passageActuel++;
+                            retourCoureurs();
+                        }
                     })
                     .catch(() => {
                         errorDiv.textContent = "❌ Erreur réseau. Retour à la grille.";
@@ -692,7 +730,7 @@
         }
 
         // =====================================================================
-        // PENALITE
+        // PENALITE (identique)
         // =====================================================================
         function renderPenalites() {
             const row = document.getElementById('penlapsRow');
@@ -828,7 +866,19 @@
                 .then(() => {
                     const key = `${currentEq}-${currentMaillot}`;
                     if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
-                    passageActuel++; retourCoureurs();
+                    const nextSerie = currentSerie + 1;
+                    if (nextSerie < seanceConfig.nbSeries) {
+                        currentSerie = nextSerie;
+                        document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                        document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                        resetLap();
+                        setPhase('course');
+                        document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
+                    } else {
+                        if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                        passageActuel++;
+                        retourCoureurs();
+                    }
                 })
                 .catch(() => { alert("Erreur réseau. Retour à la grille."); retourCoureurs(); });
         };
@@ -853,7 +903,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève chargé (version stable avec cible visible)");
+        console.log("✅ Arcathlon élève - version avec enchaînement des séries");
     </script>
 </body>
 </html>
