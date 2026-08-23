@@ -121,23 +121,24 @@ export class DashboardUI {
         return;
     }
 
-    // Construire une liste numérotée des juges disponibles
+    // Version avec numérotation
     let message = '👤 Choisissez le juge (entrez le numéro) :\n';
     presents.forEach((m, i) => {
-        message += `  ${i+1}. ${m.code} (VMA: ${m.vma})\n`;
+        message += `  ${i+1}. ${m.code}\n`;
     });
+    message += '\n👉 Tapez le numéro (1, 2, 3...)';
 
     const choix = prompt(message);
-    if (choix === null) return; // Annulation
+    if (choix === null) return;
 
     const idx = parseInt(choix) - 1;
     if (idx >= 0 && idx < presents.length) {
         const jugeSelectionne = presents[idx].code;
         appState.setState({ juge: jugeSelectionne });
         toast.success(`👤 Juge : ${jugeSelectionne}`);
-        this.render(this._config); // Rafraîchir le dashboard
+        this.render(this._config);
     } else {
-        toast.error('❌ Numéro invalide, réessayez.');
+        toast.error('❌ Numéro invalide. Entrez 1, 2, 3 ou 4.');
         // Proposer de réessayer
         setTimeout(() => this.selectJuge(), 500);
     }
