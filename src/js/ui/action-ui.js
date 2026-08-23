@@ -15,63 +15,69 @@ export class ActionUI {
     }
 
     render(maillot, controller) {
-        this._maillot = maillot;
-        this._controller = controller;
-        const state = appState.getState();
+    this._maillot = maillot;
+    this._controller = controller;  // ⚠️ CRUCIAL : assigner le contrôleur
+    // Récupérer la config depuis l'application (globale)
+    this._config = window.app?._config || {};
+    const state = appState.getState();
+    // Utiliser une variable locale pour nbSeries
+    const nbSeries = this._controller?._nbSeries || this._config?.nbSeries || 3;
 
-        this._container.innerHTML = `
-            <button onclick="window.app.action.retour()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2">↩ Retour</button>
-            <div id="phasePanel" class="bg-blue-950/80 p-4 rounded-2xl border border-blue-800 mb-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <div id="phaseName" class="text-2xl font-black uppercase text-blue-400">COURSE</div>
-                        <div id="phaseClock" class="text-4xl font-mono font-black text-white">00:00.00</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm font-bold text-slate-400">${state.maillot}</div>
-                        <div id="serieInfo" class="text-xs text-slate-400">Série ${state.currentSerie+1}/${this._controller?._nbSeries || 3}</div>
-                        <div id="handicapDisplay" class="text-xs text-yellow-400 font-bold ${state.handicapMs > 0 ? '' : 'hidden'}">⏱️ +${(state.handicapMs/1000).toFixed(1)}s</div>
-                    </div>
+    this._container.innerHTML = `
+        <button onclick="window.app.action.retour()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2">↩ Retour</button>
+        <div id="phasePanel" class="bg-blue-950/80 p-4 rounded-2xl border border-blue-800 mb-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <div id="phaseName" class="text-2xl font-black uppercase text-blue-400">COURSE</div>
+                    <div id="phaseClock" class="text-4xl font-mono font-black text-white">00:00.00</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm font-bold text-slate-400">${state.maillot}</div>
+                    <div id="serieInfo" class="text-xs text-slate-400">Série ${state.currentSerie+1}/${nbSeries}</div>
+                    <div id="handicapDisplay" class="text-xs text-yellow-400 font-bold ${state.handicapMs > 0 ? '' : 'hidden'}">⏱️ +${(state.handicapMs/1000).toFixed(1)}s</div>
                 </div>
             </div>
+        </div>
 
-            <!-- Zone de tir -->
-            <div id="tirZone" style="display:none;" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 mb-4">
-                <div class="text-center font-bold text-white text-lg mb-2">🎯 Tir</div>
-                <div class="flex justify-center gap-4 flex-wrap">
-                    <div onclick="window.app.action.marquerTir(10)" class="bg-yellow-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-yellow-400">10</div>
-                    <div onclick="window.app.action.marquerTir(8)" class="bg-red-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-red-400">8</div>
-                    <div onclick="window.app.action.marquerTir(6)" class="bg-blue-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-blue-400">6</div>
-                    <div onclick="window.app.action.marquerTir(5)" class="bg-slate-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-slate-400">5</div>
-                    <div onclick="window.app.action.marquerTir(0)" class="bg-red-900 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-red-800">0</div>
-                </div>
-                <div id="tirStatus" class="text-center mt-2 text-slate-400 text-sm">Flèches : 0/${this._controller.tir.maxFleches}</div>
-                <button id="btnValiderTir" onclick="window.app.action.validerTir()" disabled class="mt-3 w-full bg-emerald-600 py-3 rounded-xl font-black text-lg uppercase text-white opacity-40 transition-opacity">Valider le tir</button>
-                <button onclick="window.app.action.annulerTir()" class="mt-2 w-full bg-slate-700 py-2 rounded-xl text-sm font-bold text-slate-300">↩ Annuler flèche</button>
+        <!-- Zone de tir -->
+        <div id="tirZone" style="display:none;" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 mb-4">
+            <div class="text-center font-bold text-white text-lg mb-2">🎯 Tir</div>
+            <div class="flex justify-center gap-4 flex-wrap">
+                <div onclick="window.app.action.marquerTir(10)" class="bg-yellow-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-yellow-400">10</div>
+                <div onclick="window.app.action.marquerTir(8)" class="bg-red-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-red-400">8</div>
+                <div onclick="window.app.action.marquerTir(6)" class="bg-blue-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-blue-400">6</div>
+                <div onclick="window.app.action.marquerTir(5)" class="bg-slate-600 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-slate-400">5</div>
+                <div onclick="window.app.action.marquerTir(0)" class="bg-red-900 w-20 h-20 rounded-full flex items-center justify-center text-2xl font-black cursor-pointer btn-tap border-4 border-red-800">0</div>
             </div>
+            <div id="tirStatus" class="text-center mt-2 text-slate-400 text-sm">Flèches : 0/${this._controller?.tir?.maxFleches || 2}</div>
+            <button id="btnValiderTir" onclick="window.app.action.validerTir()" disabled class="mt-3 w-full bg-emerald-600 py-3 rounded-xl font-black text-lg uppercase text-white opacity-40 transition-opacity">Valider le tir</button>
+            <button onclick="window.app.action.annulerTir()" class="mt-2 w-full bg-slate-700 py-2 rounded-xl text-sm font-bold text-slate-300">↩ Annuler flèche</button>
+        </div>
 
-            <!-- Zone pénalité -->
-            <div id="penaliteZone" style="display:none;" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 mb-4">
-                <div class="text-center font-bold text-white text-lg">🔴 Pénalités</div>
-                <div id="penaliteStatus" class="text-center text-2xl font-black text-yellow-400">0 / 0</div>
-                <button onclick="window.app.action.fairePenalite()" class="mt-3 w-full bg-purple-600 py-3 rounded-xl font-black text-lg uppercase text-white">🏃 Effectuer un tour</button>
-            </div>
+        <!-- Zone pénalité -->
+        <div id="penaliteZone" style="display:none;" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 mb-4">
+            <div class="text-center font-bold text-white text-lg">🔴 Pénalités</div>
+            <div id="penaliteStatus" class="text-center text-2xl font-black text-yellow-400">0 / 0</div>
+            <button onclick="window.app.action.fairePenalite()" class="mt-3 w-full bg-purple-600 py-3 rounded-xl font-black text-lg uppercase text-white">🏃 Effectuer un tour</button>
+        </div>
 
-            <button id="btnAction" onclick="window.app.action.onAction()" class="w-full py-5 rounded-2xl font-black text-xl uppercase tracking-widest text-white bg-blue-600 border-4 border-blue-400 shadow-lg btn-tap">
-                Démarrer la course
-            </button>
-        `;
+        <button id="btnAction" onclick="window.app.action.onAction()" class="w-full py-5 rounded-2xl font-black text-xl uppercase tracking-widest text-white bg-blue-600 border-4 border-blue-400 shadow-lg btn-tap">
+            Démarrer la course
+        </button>
+    `;
 
-        this._timerDisplay = document.getElementById('phaseClock');
-        this._cleanupTimer = this._controller.timer.onTick((ms) => {
-            if (this._timerDisplay) {
-                this._timerDisplay.textContent = formatTime(ms);
-            }
-        });
+    this._timerDisplay = document.getElementById('phaseClock');
+    // Nettoyer l'ancien timer listener
+    if (this._cleanupTimer) this._cleanupTimer();
+    this._cleanupTimer = this._controller.timer.onTick((ms) => {
+        if (this._timerDisplay) {
+            this._timerDisplay.textContent = formatTime(ms);
+        }
+    });
 
-        this._setupEvents();
-        this._updatePhase('course');
-    }
+    this._setupEvents();
+    this._updatePhase('course');
+}
 
     _setupEvents() {
         // Nettoyer les anciens listeners
