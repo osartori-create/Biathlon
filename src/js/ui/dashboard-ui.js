@@ -145,9 +145,12 @@ export class DashboardUI {
 }
 
     openAction(maillot) {
-        appState.setState({ maillot });
-        window.app.action.render(maillot);
+    if (window.app && typeof window.app.startAction === 'function') {
+        window.app.startAction(maillot);
+    } else {
+        toast.error('Erreur : application non initialisée.');
     }
+}
 
     logout() {
         appState.reset();
