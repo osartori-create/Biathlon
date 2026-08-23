@@ -67,14 +67,19 @@
         .valid-btn { margin-top: 8px; }
         /* Feedback des coureurs : taille agrandie pour lisibilité sur iPad */
         .coureur-feedback {
-            font-size: 0.9rem;
-            color: #cbd5e1;
-            margin-top: 4px;
-            line-height: 1.4;
-            font-weight: 500;
-            max-width: 100%;
-            word-break: break-word;
-        }
+    font-size: 0.9rem;
+    color: #ffffff;           /* Blanc pur pour une lisibilité maximale */
+    margin-top: 4px;
+    line-height: 1.6;         /* Espacement vertical entre les lignes */
+    font-weight: 500;
+    width: 100%;
+    display: flex;
+    flex-direction: column;   /* Les éléments s'empilent verticalement */
+    align-items: center;      /* Centré pour rester propre */
+}
+.coureur-feedback .serie-line {
+    white-space: nowrap;      /* Évite que le texte d'une série ne coupe à l'écran */
+}
         /* Éviter que le texte ne déborde sur les petits écrans */
         .coureur-btn-content {
             display: flex;
@@ -359,7 +364,7 @@
                     if (s.course === 0) return;
                     const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
                     const tir = (idx === seanceConfig.nbSeries - 1) ? '—' : s.tir;
-                    feedback += `<span>S${idx+1}: ${vitesse}km/h | Tir: ${tir}</span> `;
+                    feedback += `<div class="serie-line">S${idx+1}: ${vitesse}km/h | Tir: ${tir}</div>`;
                 });
 
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
