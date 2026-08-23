@@ -3,1145 +3,1222 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Arcathlon | Maître (Professeur)</title>
+    <title>Arcathlon | Élève</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        * { touch-action: manipulation; }
-        body { user-select: none; background: #0f172a; color: white; font-family: sans-serif; }
-        .tab-active { border-bottom: 4px solid #3b82f6; color: #3b82f6 !important; font-weight: 900; }
-        .nav-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-        .photo-preview { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
-        .photo-thumb { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-right: 8px; }
-        .alerte-triche { background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem; }
-        .alerte-ok { background: #22c55e; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem; }
-        .stats-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
-        .btn-xs { padding: 2px 8px; font-size: 0.65rem; border-radius: 4px; }
-        .modal-backdrop {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-            display: none; align-items: center; justify-content: center; padding: 12px; z-index: 1000;
+        * { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+        body { background: #0f172a; font-family: sans-serif; }
+        .btn-tap:active { transform: scale(0.96); }
+        .cible-circle { cursor: pointer; transition: opacity 0.15s; }
+        .cible-circle:active { opacity: 0.6; }
+        @keyframes pulse-impact {
+            0% { transform: scale(1); stroke-width: 0; }
+            50% { transform: scale(1.05); stroke-width: 4px; stroke: #fff; }
+            100% { transform: scale(1); stroke-width: 0; }
         }
-        .modal { width: min(520px, 96vw); background: linear-gradient(180deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 16px; max-height: 90vh; overflow-y: auto; }
-        .modal .hd { padding: 14px 16px; border-bottom: 1px solid #334155; font-weight: 800; }
-        .modal .bd { padding: 16px; }
-        .modal .ft { padding: 12px 16px; border-top: 1px solid #334155; display: flex; justify-content: flex-end; gap: 8px; }
-        .show { display: flex; }
-        .input-field { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: white; margin-bottom: 8px; }
-        .input-field:focus { outline: 2px solid #3b82f6; border-color: transparent; }
-        .btn { padding: 8px 16px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; transition: transform 0.1s; }
-        .btn:active { transform: scale(0.97); }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-success { background: #22c55e; color: white; }
-        .btn-warning { background: #f59e0b; color: #1b1200; }
-        .btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #334155; }
-        .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
-        .action-cell { display: flex; gap: 4px; flex-wrap: wrap; }
-        .team-list-sortable { min-height: 60px; }
-        .sortable-ghost { opacity: 0.4; background: #3b82f6; }
-        .journal-photo { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-right: 6px; }
+        .impact { animation: pulse-impact 0.3s ease-out; }
+        .phase-panel { border-radius: 16px; padding: 14px 18px; color: #0a0f1a; transition: background 0.3s; }
+        .panel-course { background: #cfe4ff; }
+        .panel-tir    { background: #ffe1b3; }
+        .panel-pen    { background: #e1d0ff; }
+        .phase-title { font-weight: 1000; text-transform: uppercase; letter-spacing: 0.6px; font-size: 1.4rem; opacity: 0.95; animation: phasePulse 1.5s ease-in-out infinite; transform-origin: left center; }
+        @keyframes phasePulse {
+            0%   { transform: scale(1);    opacity: .95 }
+            50%  { transform: scale(1.20); opacity: .65 }
+            100% { transform: scale(1);    opacity: .95 }
+        }
+        @media (prefers-reduced-motion: reduce) { .phase-title { animation: none; } }
+        .phase-clock { font-size: 2rem; font-weight: 1000; line-height: 1; margin-top: 4px; font-variant-numeric: tabular-nums; }
+        .chip { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.5); color: #0a0f1a; font-weight: 700; font-size: 0.9rem; }
+        .btn-action {
+            width: 100%; padding: 20px 16px; font-size: 1.5rem; border-radius: 16px; font-weight: 900; letter-spacing: 0.3px;
+            border: none; color: #0a0f1a; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-action:active { transform: scale(0.97); }
+        .btn-action.course { background: linear-gradient(180deg, #5b57f1, #4f46e5); color: #fff; }
+        .btn-action.pen    { background: linear-gradient(180deg, #b197ff, #9f86ff); color: #1b1200; }
+        .btn-action.done   { background: #22c55e; color: #07150b; }
+        .penlaps { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .penlap {
+            min-width: 60px; height: 48px; padding: 0 12px; border-radius: 12px; display: grid; place-items: center;
+            cursor: pointer; border: 2px solid rgba(0,0,0,0.15); background: #9f86ff; color: #0a0f1a; font-weight: 900;
+            transition: background 0.2s;
+        }
+        .penlap.done { background: #bbf7d0; border-color: #16a34a; cursor: default; }
+        .error-msg {
+            background: #ef4444;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            margin-top: 8px;
+            display: none;
+            font-size: 1rem;
+        }
+        .tir-container { display: flex; flex-direction: column; height: 100%; min-height: 300px; }
+        .tir-row { display: flex; flex: 1; gap: 16px; align-items: stretch; }
+        .tir-target { flex: 1; background: #0a0f1a; border-radius: 24px; border: 2px solid #1f2937; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; }
+        .tir-target svg { width: 100%; max-width: 220px; height: auto; }
+        .tir-shots { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .tir-shots .shot-box { background: #111827; padding: 8px; border-radius: 12px; border: 1px solid #1f2937; text-align: center; font-weight: bold; font-size: 1rem; }
+        .shot-box .shot-score { color: #60a5fa; }
+        .valid-btn { margin-top: 8px; }
+
+        .coureur-feedback {
+            font-size: 0.95rem;
+            color: #ffffff;
+            margin-top: 4px;
+            line-height: 1.8;
+            font-weight: 500;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .coureur-feedback .serie-line { white-space: nowrap; margin-bottom: 2px; }
+        .coureur-feedback .serie-line-2 { white-space: nowrap; font-weight: 400; font-size: 0.85rem; opacity: 0.9; margin-bottom: 6px; }
+        .coureur-feedback .bonifie { font-weight: 700; color: #facc15; }
+        .coureur-feedback .alerte { color: #ef4444; font-weight: 700; }
+
+        .coureur-points { font-size: 2.2rem; font-weight: 900; color: #facc15; margin-top: 2px; text-shadow: 0 0 10px rgba(250,204,21,0.3); }
+        .coureur-moyenne { font-size: 1.2rem; font-weight: 700; color: #34d399; margin-top: 0px; }
+        .coureur-temps-cumule { font-size: 1rem; font-weight: 600; color: #60a5fa; margin-top: 2px; }
+        #teamTotal { font-size: 1.8rem; font-weight: 900; color: #34d399; text-shadow: 0 0 10px rgba(52,211,153,0.3); }
+        .ranking-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px 14px; border-radius: 12px; border: 1px solid #334155; }
+        .ranking-item .rank { font-weight: 700; color: #e2e8f0; font-size: 1.1rem; }
+        .ranking-item .points { color: #34d399; font-weight: 900; font-size: 1.6rem; }
+
+        #toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #ef4444; color: white; padding: 12px 24px; border-radius: 12px;
+            font-weight: 700; font-size: 1.1rem; z-index: 9999;
+            box-shadow: 0 8px 30px rgba(239,68,68,0.4); display: none;
+            text-align: center; max-width: 90%; border: 2px solid #fca5a5;
+        }
+        #toast.show { display: block; animation: fadeInDown 0.3s ease-out; }
+        @keyframes fadeInDown { 0% { opacity: 0; transform: translateX(-50%) translateY(-20px); } 100% { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+        .juge-selector { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 12px 0; }
+        .juge-btn {
+            padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.8rem;
+            border: 2px solid #334155; background: #1e293b; color: #94a3b8;
+            transition: all 0.15s; cursor: pointer;
+        }
+        .juge-btn.selected { border-color: #22c55e; background: #22c55e; color: #07150b; }
+        .juge-btn:active { transform: scale(0.95); }
     </style>
 </head>
-<body class="p-4 h-screen flex flex-col">
+<body class="text-white p-4 h-screen flex flex-col">
 
-    <!-- En-tête -->
-    <header class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 shrink-0 flex-wrap gap-2">
-        <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-black italic text-blue-500">Arcathlon</h1>
-            <span class="text-[10px] font-black uppercase text-slate-400 border border-slate-700 px-2 py-0.5 rounded-full bg-slate-900">Espace Professeur</span>
-        </div>
-        <div class="flex items-center gap-3">
+    <div id="toast"></div>
+
+    <div class="flex justify-between items-center mb-3 shrink-0 px-2">
+        <div id="connStatus" class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
             <span id="connDot" class="w-3 h-3 rounded-full bg-slate-600"></span>
-            <span id="connLabel" class="text-xs font-bold uppercase text-slate-500">Connexion...</span>
-            <select id="selectClasse" onchange="changeClasse(this.value)" class="bg-slate-800 border border-slate-600 rounded px-3 py-1 text-xs font-bold text-white outline-none">
-                <option value="">-- Classe --</option>
-            </select>
-            <button onclick="addClasse()" class="bg-blue-600 px-3 py-1 rounded text-xs font-black uppercase">+ Classe</button>
+            <span id="connLabel">Connexion...</span>
         </div>
-    </header>
+        <div class="text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-800 px-3 py-1 rounded-full bg-blue-950/40">
+            Mode: <span id="labelModeActuel">Sprint</span> | <span id="seanceInfo">--</span>
+        </div>
+    </div>
 
-    <!-- Navigation -->
-    <nav class="nav-scroll flex border-b border-slate-800 mb-4 font-bold text-xs uppercase tracking-widest shrink-0">
-        <button id="btnTab1" onclick="switchTab('import')" class="px-4 py-2 text-slate-500 tab-active text-blue-500 whitespace-nowrap">📋 Élèves</button>
-        <button id="btnTab2" onclick="switchTab('equipes')" class="px-4 py-2 text-slate-500 whitespace-nowrap">👥 Équipes & Lancement</button>
-        <button id="btnTab3" onclick="switchTab('live')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📊 Résultats Direct</button>
-        <button id="btnTab4" onclick="switchTab('statistiques')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📈 Statistiques</button>
-        <button id="btnTab5" onclick="switchTab('historique')" class="px-4 py-2 text-slate-500 whitespace-nowrap">📜 Historique</button>
-    </nav>
-
-    <div class="flex-1 overflow-hidden relative">
+    <div class="bg-slate-900 border-4 border-slate-800 p-6 rounded-[2.5rem] shadow-2xl flex-1 flex flex-col max-w-4xl mx-auto w-full relative overflow-hidden">
         
-        <!-- ONGLET 1 : IMPORT & ELEVES -->
-        <div id="viewImport" class="h-full flex flex-col absolute inset-0">
-            <div class="flex flex-wrap items-center gap-3 mb-4 shrink-0 bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
-                <button onclick="document.getElementById('csvFile').click()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs border border-emerald-400">📄 Import CSV VMA</button>
-                <input type="file" id="csvFile" accept=".csv" class="hidden">
-                <button onclick="document.getElementById('zipFile').click()" class="bg-indigo-600 px-4 py-2 rounded-xl font-bold text-xs border border-indigo-400">📸 Import ZIP Photos</button>
-                <input type="file" id="zipFile" accept=".zip" class="hidden">
-                <button onclick="addManualEleve()" class="bg-slate-700 px-3 py-2 rounded-xl font-bold text-xs border border-slate-500">+ Élève</button>
-                <button onclick="purgeEleves()" class="bg-red-950/60 text-red-400 px-3 py-2 rounded-xl font-bold text-xs border border-red-800">🗑 Purger</button>
-                <button onclick="exportData()" class="bg-slate-800 px-3 py-2 rounded-xl font-bold text-xs border border-slate-600">💾 Sauvegarde</button>
-                <button onclick="document.getElementById('importDataInput').click()" class="bg-slate-800 px-3 py-2 rounded-xl font-bold text-xs border border-slate-600">📥 Restaurer</button>
-                <input type="file" id="importDataInput" accept=".json" class="hidden">
+        <div id="ecranLogin" class="flex flex-col items-center justify-center flex-1">
+            <h1 class="text-5xl font-black text-center text-blue-500 uppercase tracking-widest mb-8 italic">Arcathlon</h1>
+            <select id="selEquipe" onchange="checkTeamSelection()" class="w-full max-w-md bg-black p-5 rounded-2xl text-2xl font-black uppercase text-center border-4 border-slate-700 outline-none mb-6 text-white">
+                <option value="">-- CHOISIR L'ÉQUIPE --</option>
+            </select>
+            <div id="numpad" class="hidden flex-col items-center">
+                <div class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Code PIN (3 chiffres)</div>
+                <div id="pinDisplay" class="bg-slate-950 border-2 border-slate-700 w-48 h-14 rounded-xl flex items-center justify-center text-3xl font-mono tracking-[0.6em] mb-4 text-emerald-400 shadow-inner"></div>
+                <div class="grid grid-cols-3 gap-3">
+                    <script>
+                        for(let i=1; i<=9; i++) document.write(`<button onclick="addPin(${i})" class="btn-tap bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">${i}</button>`);
+                    </script>
+                    <button onclick="clearPin()" class="btn-tap bg-red-950 text-red-400 w-16 h-16 rounded-xl text-xs font-black uppercase border border-red-800 active:bg-red-800">Effacer</button>
+                    <button onclick="addPin(0)" class="btn-tap bg-slate-800 w-16 h-16 rounded-xl text-2xl font-black active:bg-blue-600">0</button>
+                    <button onclick="validatePin()" class="btn-tap bg-emerald-600 text-white w-16 h-16 rounded-xl text-xs font-black uppercase border-2 border-emerald-400 active:bg-emerald-700">OK</button>
+                </div>
             </div>
-            <div id="elevesGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3 overflow-y-auto pb-6 pr-1 content-start flex-1"></div>
         </div>
 
-        <!-- ONGLET 2 : ÉQUIPES & CONFIG -->
-        <div id="viewEquipes" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
-            <div class="flex flex-wrap items-center justify-between mb-4 gap-3 border-b border-slate-800 pb-3 shrink-0">
-                <div class="flex items-center gap-3">
-                    <button onclick="generateTeams()" class="bg-orange-600 px-5 py-2.5 rounded-xl font-black uppercase text-xs border border-orange-400">🔄 Générer Équipes</button>
-                    <span class="text-xs text-slate-400">(glisser-déposer pour modifier)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-xs text-slate-400">Coureurs/équipe :</label>
-                    <input type="number" id="nbCoureursEquipe" value="3" min="2" max="4" class="bg-slate-900 border border-slate-700 rounded w-12 text-center font-bold text-emerald-400">
+        <div id="ecranCoureurs" class="hidden flex-col flex-1 overflow-y-auto">
+            <button onclick="resetLogin()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-4">↩ Changer d'équipe</button>
+            <h2 id="titreEquipe" class="text-3xl font-black text-center text-slate-200 uppercase tracking-widest mb-2">Équipe X</h2>
+            
+            <div class="text-center text-sm font-bold text-slate-400 mb-1">👤 Juge iPad :</div>
+            <div id="jugeSelector" class="juge-selector"></div>
+
+            <div id="teamTotal" class="text-2xl font-black text-emerald-400 text-center mb-4">🏆 Moyenne équipe : 0 pts/coureur</div>
+            <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-start"></div>
+            <div id="rankingContainer" class="mt-6 space-y-2"></div>
+        </div>
+
+        <div id="ecranAction" class="hidden flex-col h-full">
+            <button onclick="retourCoureurs()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
+            
+            <div id="phasePanel" class="phase-panel panel-course" style="margin-bottom:12px">
+                <div style="display:flex; align-items:end; justify-content:space-between; gap:12px; flex-wrap:wrap">
+                    <div>
+                        <div id="phaseName" class="phase-title">COURSE</div>
+                        <div id="phaseClock" class="phase-clock">00:00.00</div>
+                    </div>
+                    <div class="chip">Course <span id="currentSerieChip">1</span>/<span id="totalSeriesChip">3</span> | <span id="distanceChip">400m</span></div>
                 </div>
             </div>
 
-            <div class="bg-slate-800/80 p-5 rounded-2xl border-2 border-slate-700 mb-6 shadow-lg">
-                <h3 class="font-black text-blue-400 uppercase text-sm mb-4">🚀 Configuration & Lancement</h3>
-                <div class="flex flex-wrap gap-4 mb-4">
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="block font-bold text-slate-400 uppercase text-xs mb-1">Mode d'épreuve :</label>
-                        <select id="modeEpreuve" class="w-full bg-slate-900 border-2 border-slate-600 rounded-xl p-3 text-sm font-bold text-white outline-none">
-                            <option value="sprint">🏃 Sprint (Standard)</option>
-                            <option value="poursuite">⏱️ Poursuite Inversée</option>
-                            <option value="relais">🃏 Relais (Cartes)</option>
-                            <option value="mille">🎯 Dans le 1000 (18s)</option>
-                            <option value="killbill">⚔️ Kill Bill (Duel)</option>
-                        </select>
+            <div class="text-center font-black text-xl text-slate-300 mb-2 bg-slate-950 py-2 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4 flex-wrap">
+                <span id="coureurLabel">Maillot</span>
+                <span id="infoSerieVMA" class="text-sm font-bold text-slate-400"></span>
+            </div>
+
+            <div id="errorMessage" class="error-msg"></div>
+
+            <div id="moduleRelais" class="hidden flex-col items-center mb-3">
+                <button id="btnTirerCarte" onclick="tirerCarteRelais()" class="bg-purple-600 px-6 py-2 rounded-xl font-black text-base uppercase shadow-lg shadow-purple-900/50 btn-tap border-2 border-purple-400">🃏 Tirer une Carte</button>
+                <div id="carteAffichee" class="text-lg font-bold text-center bg-slate-800 p-3 rounded-xl border-2 border-purple-500 hidden text-purple-300 mt-2 w-full max-w-md"></div>
+            </div>
+
+            <button id="giantActionBtn" class="btn-action course" onclick="onGiantAction()">Démarrer la course</button>
+
+            <div id="phaseContent" class="flex-1 mt-3 overflow-y-auto" style="min-height: 200px;">
+                
+                <div id="moduleSaisieTir" class="tir-container" style="display:none;">
+                    <div class="tir-row">
+                        <div class="tir-target">
+                            <svg viewBox="0 0 100 100" style="width:100%; max-width:220px; height:auto;">
+                                <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="marquerTir(6)" />
+                                <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="marquerTir(8)" />
+                                <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="marquerTir(10)" />
+                            </svg>
+                            <div style="display:flex; gap:8px; margin-top:8px; width:100%; justify-content:center;">
+                                <button onclick="marquerTir(5)" class="btn-tap bg-slate-700 text-xs font-bold py-2 px-4 rounded-xl border border-slate-500">+5 (Bord)</button>
+                                <button onclick="marquerTir(0)" class="btn-tap bg-red-900/50 text-xs font-bold py-2 px-4 rounded-xl border border-red-700">0 (Manqué)</button>
+                            </div>
+                            <div class="text-xs text-slate-400 mt-1">Cliquez sur la cible ou les boutons</div>
+                        </div>
+
+                        <div class="tir-shots">
+                            <div id="flechesContainer" style="flex:1; display:flex; flex-direction:column; gap:6px;"></div>
+                            <div id="resultatTirSpecifique" class="text-center font-black text-sm uppercase text-yellow-400"></div>
+                            <button id="btnValider" onclick="validerTir()" disabled class="valid-btn btn-tap bg-emerald-600 border-2 border-emerald-400 py-3 rounded-2xl font-black text-lg uppercase tracking-widest text-white shadow-xl opacity-40 transition-opacity">
+                                Valider le tir
+                            </button>
+                            <button onclick="annulerTir()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler flèche</button>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-4">
-                    <div>
-                        <label class="block font-bold text-slate-400 uppercase mb-1">Longueur Piste (m)</label>
-                        <input type="number" id="longueurPiste" value="100" min="50" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
+
+                <div id="modulePenalite" class="hidden flex-col items-center">
+                    <div class="text-center font-bold text-lg">Pénalités à effectuer</div>
+                    <div class="penlaps" id="penlapsRow"></div>
+                    <div class="chip mt-2">Requis : <span id="penReq">0</span> &nbsp;|&nbsp; Faits : <span id="penDone">0</span></div>
+                    <div class="text-xs text-slate-400 mt-2">Cliquez sur chaque tour après l'avoir couru.</div>
+                </div>
+            </div>
+
+            <div id="moduleKillBill" class="hidden flex-1 flex-col gap-3 mt-2">
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-center">
+                    <div class="text-sm font-bold text-slate-400">Adversaire : <span id="adversaireLabel" class="text-white">--</span></div>
+                    <div class="flex justify-around mt-2 text-2xl font-black">
+                        <span>Nous : <span id="scoreNous" class="text-emerald-400">0</span></span>
+                        <span>Eux : <span id="scoreEux" class="text-red-400">0</span></span>
                     </div>
-                    <div>
-                        <label class="block font-bold text-slate-400 uppercase mb-1">Tours / Série</label>
-                        <select id="nbTours" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
-                            <option value="1">1 tour</option><option value="2" selected>2 tours</option><option value="3">3 tours</option><option value="4">4 tours</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-bold text-slate-400 uppercase mb-1">Nombre de Séries</label>
-                        <select id="nbSeries" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
-                            <option value="1">1 série</option><option value="2">2 séries</option><option value="3" selected>3 séries</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-bold text-slate-400 uppercase mb-1">Flèches / Tir</label>
-                        <select id="nbFleches" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
-                            <option value="1">1 flèche</option><option value="2" selected>2 flèches</option><option value="3">3 flèches</option>
-                        </select>
+                    <div id="messageDuel" class="text-sm font-bold text-yellow-400 mt-2">Tire une flèche</div>
+                </div>
+                <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-2 flex flex-col items-center justify-center">
+                    <svg viewBox="0 0 100 100" class="w-full max-w-[200px] mx-auto drop-shadow-2xl">
+                        <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="tirerDuel(6)" />
+                        <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="tirerDuel(8)" />
+                        <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="tirerDuel(10)" />
+                    </svg>
+                    <div class="flex gap-2 mt-4 w-full px-2">
+                        <button onclick="tirerDuel(5)" class="flex-1 btn-tap bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300">+5</button>
+                        <button onclick="tirerDuel(0)" class="flex-1 btn-tap bg-red-950/50 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400">0</button>
                     </div>
                 </div>
-                <button onclick="pushConfig()" class="w-full bg-blue-600 py-4 rounded-xl font-black text-lg uppercase tracking-widest text-white border-4 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.5)] active:scale-[0.98] transition-transform">
-                    📡 Transmettre aux iPads Élèves
+                <button id="btnValiderDuel" onclick="validerDuel()" disabled class="btn-tap bg-emerald-600 border-2 border-emerald-400 py-3 rounded-2xl font-black text-lg uppercase tracking-widest text-white shadow-xl opacity-40 transition-opacity">
+                    Valider le Duel
                 </button>
+                <button onclick="annulerDuel()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler</button>
             </div>
 
-            <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6 content-start"></div>
-        </div>
-
-        <!-- ONGLET 3 : LIVE -->
-        <div id="viewLive" class="h-full flex flex-col hidden absolute inset-0">
-            <div class="flex justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
-                <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode : <span id="liveModeBadge" class="text-white">--</span></div>
-                <div class="flex gap-2">
-                    <button onclick="exportResults()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs uppercase border border-emerald-400">📤 Export CSV</button>
-                    <button onclick="purgeLive()" class="bg-red-950/60 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚠️ Purger</button>
-                </div>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-1 space-y-6">
-                <div>
-                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Classement par Équipe (moyenne)</h3>
-                    <div id="grosGlobe" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"></div>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-400 border-b border-slate-800 pb-2 mb-3 text-xs uppercase tracking-widest">Journal des Passages</h3>
-                    <div id="journalPassages" class="flex flex-col gap-2"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ONGLET 4 : STATISTIQUES DÉTAILLÉES -->
-        <div id="viewStatistiques" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
-            <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
-                <button onclick="loadStats()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Charger</button>
-                <button onclick="exportStatsCSV()" class="bg-emerald-600 px-6 py-2 rounded-xl font-bold text-xs uppercase">📥 Export CSV détaillé</button>
-            </div>
-            <div class="stats-card">
-                <div class="stats-grid" id="statsSummary"></div>
-            </div>
-            <div style="height: 300px; margin-bottom: 20px;">
-                <canvas id="statsChart"></canvas>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs" id="statsDetailTable">
-                    <thead>
-                        <tr>
-                            <th>Photo</th><th>Nom</th><th>Équipe</th><th>Maillot</th><th>Série</th>
-                            <th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
-                            <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié</th>
-                            <th>Total pts</th><th>Alerte</th><th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- ONGLET 5 : HISTORIQUE -->
-        <div id="viewHistorique" class="h-full flex flex-col hidden absolute inset-0">
-            <div class="flex flex-wrap gap-3 mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700">
-                <select id="selectSeance" class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-xs font-bold text-white outline-none flex-1 max-w-xs">
-                    <option value="">-- Sélectionner une séance --</option>
-                </select>
-                <button onclick="loadHistorique()" class="bg-blue-600 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">🔍 Consulter</button>
-            </div>
-            <div class="flex-1 overflow-y-auto pr-1"><div id="historiqueContainer" class="space-y-4"></div></div>
-        </div>
-    </div>
-
-    <!-- MODAL ÉDITION ÉLÈVE -->
-    <div id="editModal" class="modal-backdrop">
-        <div class="modal">
-            <div class="hd">✏️ Modifier l'élève</div>
-            <div class="bd">
-                <input type="text" id="editPrenom" class="input-field" placeholder="Prénom">
-                <input type="text" id="editNom" class="input-field" placeholder="Nom">
-                <input type="number" id="editVMA" class="input-field" placeholder="VMA" step="0.1">
-                <select id="editSexe" class="input-field">
-                    <option value="M">Masculin</option>
-                    <option value="F">Féminin</option>
-                </select>
-                <input type="hidden" id="editIndex">
-            </div>
-            <div class="ft">
-                <button onclick="closeEditModal()" class="btn btn-ghost">Annuler</button>
-                <button onclick="saveEleveEdit()" class="btn btn-primary">💾 Enregistrer</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL ACTION SUR PASSAGE -->
-    <div id="actionModal" class="modal-backdrop">
-        <div class="modal">
-            <div class="hd">⚙️ Action sur le passage</div>
-            <div class="bd">
-                <p class="text-sm text-slate-400 mb-4">Que souhaitez-vous faire ?</p>
-                <div class="flex flex-col gap-3">
-                    <button onclick="applyMalus(300)" class="btn btn-warning w-full">⏱️ Appliquer malus 5 min (+300s)</button>
-                    <button onclick="applyMalus(60)" class="btn btn-warning w-full">⏱️ Appliquer malus 1 min (+60s)</button>
-                    <button onclick="disqualifyPassage()" class="btn btn-danger w-full">🚫 Disqualifier ce passage</button>
-                    <button onclick="editTirPoints()" class="btn btn-primary w-full">🎯 Modifier les points de tir</button>
-                    <button onclick="closeActionModal()" class="btn btn-ghost w-full">Annuler</button>
-                </div>
-                <input type="hidden" id="actionPassageId">
-                <input type="hidden" id="actionPassageKey">
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL ÉDITION TIR -->
-    <div id="tirModal" class="modal-backdrop">
-        <div class="modal">
-            <div class="hd">🎯 Modifier les points de tir</div>
-            <div class="bd">
-                <p class="text-sm text-slate-400 mb-2">Points de tir actuels : <span id="tirCurrentPts" class="font-bold text-yellow-400"></span></p>
-                <input type="number" id="tirNewPts" class="input-field" placeholder="Nouveaux points" min="0" max="20">
-                <div class="text-xs text-slate-400 mt-2">Entrez la nouvelle valeur (0 à 20). Le bonus sera recalculé automatiquement.</div>
-                <input type="hidden" id="tirPassageKey">
-                <input type="hidden" id="tirPassageId">
-            </div>
-            <div class="ft">
-                <button onclick="closeTirModal()" class="btn btn-ghost">Annuler</button>
-                <button onclick="saveTirEdit()" class="btn btn-primary">💾 Enregistrer</button>
+            <div id="moduleMille" class="hidden flex-1 flex-col items-center justify-center gap-4">
+                <div id="chrono18s" class="text-8xl font-mono font-black text-emerald-400 bg-black px-12 py-8 rounded-3xl border-4 border-slate-700">18</div>
+                <button id="btnStart18" onclick="startTimer18()" class="btn-tap bg-blue-600 px-12 py-6 rounded-2xl font-black text-3xl uppercase border-4 border-blue-400 shadow-xl">Top Départ</button>
             </div>
         </div>
     </div>
 
     <script>
         // =====================================================================
-        // FIREBASE CONFIG
+        // CONFIG & STATE
         // =====================================================================
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // =====================================================================
-        // STATE
-        // =====================================================================
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v11')) || {
-            classes: {}, equipes: {}, activeCl: "", seances: {}
-        };
-        let dbPhotos;
-        const request = indexedDB.open("Arcathlon_Prof_DB", 1);
-        request.onupgradeneeded = e => {
-            dbPhotos = e.target.result;
-            if (!dbPhotos.objectStoreNames.contains("eleves")) {
-                dbPhotos.createObjectStore("eleves", { keyPath: "id" });
-            }
-        };
-        request.onsuccess = e => {
-            dbPhotos = e.target.result;
-            initUI();
-        };
-        request.onerror = e => console.error("IndexedDB error", e);
+        let equipesConfig = {}, seanceConfig = {}, scoresCoureur = {};
+        let currentEq = "", currentPin = "", currentMaillot = "", inputPin = "";
+        let currentJuge = "";
+        let passageActuel = 1, currentSerie = 0;
+        let modeActuel = "sprint";
+        let nbFlechesActuel = 2;
+        let currentPhase = 'course';
+        let phaseStartTime = null, phaseAccum = 0, globalAccum = 0, isRunning = false, tickHandle = null;
+        let lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 };
+        let effetCarte = null;
+        const cartesRelais = [
+            { nom: "Tir mauvaise main !", effet: () => { nbFlechesActuel = 1; updateInfoFleches(); } },
+            { nom: "1 tour effacé !", effet: () => {} },
+            { nom: "Cible éloignée (7m50)", effet: () => {} },
+            { nom: "Départ retardé (+10s)", effet: () => { globalAccum += 10000; } },
+            { nom: "Volée > 10 pts = 0 pénalité", effet: () => { effetCarte = 'noPenalty'; } },
+            { nom: "Cible Scarface (Moitié compte)", effet: () => { effetCarte = 'halfScore'; } }
+        ];
+        let killBillState = { equipeAdverse: "", scoreNous: 0, scoreEux: 0, tirsNous: 0, tirsEux: 0, maxTirs: 2 };
+        let timer18Interval = null;
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v11', JSON.stringify(state)); }
-        function savePhoto(id, blob) {
-            if (!dbPhotos) return;
-            const tx = dbPhotos.transaction("eleves", "readwrite");
-            tx.objectStore("eleves").put({ id, blob });
+        let toastTimeout = null;
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, duration);
         }
-        function getPhotoUrl(id) {
-            return new Promise(resolve => {
-                if (!dbPhotos) return resolve(null);
-                const tx = dbPhotos.transaction("eleves", "readonly");
-                const req = tx.objectStore("eleves").get(id);
-                req.onsuccess = () => resolve(req.result ? URL.createObjectURL(req.result.blob) : null);
-                req.onerror = () => resolve(null);
+
+        // =====================================================================
+        // FIREBASE LISTENER
+        // =====================================================================
+        db.ref('arcathlon/config').on('value', snap => {
+            const config = snap.val() || {};
+            equipesConfig = config.equipes || {};
+            modeActuel = config.mode || "sprint";
+            seanceConfig = {
+                seanceId: config.seanceId,
+                distanceTotale: config.distanceTotale || 1200,
+                nbSeries: config.nbSeries || 3,
+                nbFleches: config.nbFleches || 2,
+                vmaReference: config.vmaReference || {}
+            };
+            document.getElementById('labelModeActuel').textContent = modeActuel;
+            document.getElementById('seanceInfo').textContent = seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : '--';
+            document.getElementById('totalSeriesChip').textContent = seanceConfig.nbSeries;
+            document.getElementById('distanceChip').textContent = seanceConfig.distanceTotale + 'm';
+
+            scoresCoureur = {};
+            Object.keys(equipesConfig).forEach(eq => {
+                (equipesConfig[eq].membres || []).forEach(m => {
+                    scoresCoureur[`${eq}-${m.maillot}`] = {
+                        series: Array(seanceConfig.nbSeries).fill(0).map(() => ({ course: 0, tir: 0, temps: 0, vitesse: 0 })),
+                        complet: false
+                    };
+                });
             });
-        }
-        function clePhoto(nom, prenom) {
-            const n = (nom || "").trim().toUpperCase().replace(/\s+/g, "");
-            const p = (prenom || "").trim().toUpperCase().charAt(0);
-            return n + "_" + p;
-        }
-        function normalizeText(str) {
-            if (!str) return "";
-            let s = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            s = s.replace(/╠/g, 'i').replace(/╣/g, 'u').replace(/╔/g, 'e');
-            s = s.replace(/[^a-zA-Z\s\-]/g, '');
-            return s.trim();
-        }
 
-        let currentPassageKey = null;
-        let currentPassageData = null;
-
-        // =====================================================================
-        // INIT UI
-        // =====================================================================
-        function initUI() {
-            updateClSelect();
-            if (state.activeCl && state.classes[state.activeCl]) {
-                renderEleves();
-                renderTeams();
-            }
-            updateSeancesList();
-
-            db.ref('.info/connected').on('value', snap => {
-                document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
-                document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
+            db.ref('arcathlon/live/passages').once('value', snapPass => {
+                const passages = snapPass.val() || {};
+                Object.values(passages).forEach(p => {
+                    const key = `${p.equipe}-${p.maillot}`;
+                    if (scoresCoureur[key]) {
+                        const idx = p.serie - 1;
+                        if (idx >= 0 && idx < scoresCoureur[key].series.length) {
+                            scoresCoureur[key].series[idx] = {
+                                course: p.ptsVMA || 0,
+                                tir: p.ptsTir || 0,
+                                temps: p.temps || 0,
+                                vitesse: p.vitesse || 0
+                            };
+                        }
+                    }
+                });
+                Object.keys(scoresCoureur).forEach(k => {
+                    const data = scoresCoureur[k];
+                    const allDone = data.series.every((s, i) => {
+                        if (s.course === 0) return false;
+                        if (i === seanceConfig.nbSeries - 1) return true;
+                        return s.tir > 0;
+                    });
+                    if (allDone) data.complet = true;
+                });
+                const sel = document.getElementById('selEquipe');
+                const valActuelle = sel.value;
+                sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
+                if (valActuelle && equipesConfig[valActuelle]) sel.value = valActuelle;
+                if (currentEq && currentMaillot) {
+                    initJugeSelector();
+                    buildCoureursGrid();
+                } else if (currentEq) {
+                    initJugeSelector();
+                    buildCoureursGrid();
+                }
             });
-            db.ref('arcathlon/config/mode').on('value', snap => {
-                document.getElementById('liveModeBadge').textContent = snap.val() || '--';
-            });
-            db.ref('arcathlon/live/passages').on('value', snap => {
-                updateLiveScores(snap.val() || {});
-            });
-        }
+        });
 
         // =====================================================================
-        // CLASSES (inchangé)
+        // LOGIN / GRILLE
         // =====================================================================
-        function updateClSelect() {
-            const sel = document.getElementById('selectClasse');
-            const current = state.activeCl;
-            sel.innerHTML = Object.keys(state.classes).map(c =>
-                `<option value="${c}" ${c === current ? 'selected' : ''}>${c}</option>`
-            ).join('');
-        }
-        window.changeClasse = function(val) { state.activeCl = val; saveToLocal(); renderEleves(); renderTeams(); };
-        window.addClasse = function() {
-            const nom = prompt("Nom de la nouvelle classe ?");
-            if (nom && !state.classes[nom]) {
-                state.classes[nom] = [];
-                state.equipes[nom] = [];
-                state.activeCl = nom;
-                updateClSelect();
-                saveToLocal();
-                renderEleves();
-                renderTeams();
-            }
+        window.checkTeamSelection = function() {
+            const val = document.getElementById('selEquipe').value;
+            if (val) { currentEq = val; currentPin = equipesConfig[val].pin; inputPin = ""; document.getElementById('pinDisplay').textContent = ""; document.getElementById('numpad').classList.remove('hidden'); document.getElementById('numpad').classList.add('flex'); } 
+            else { document.getElementById('numpad').classList.add('hidden'); }
         };
-        window.purgeEleves = function() {
-            if (!state.activeCl) return alert("Sélectionnez une classe.");
-            if (!confirm(`Supprimer tous les élèves de la classe ${state.activeCl} ?`)) return;
-            state.classes[state.activeCl] = [];
-            state.equipes[state.activeCl] = [];
-            saveToLocal();
-            renderEleves();
-            renderTeams();
+        window.addPin = function(num) { if (inputPin.length < 3) { inputPin += num; document.getElementById('pinDisplay').textContent = "•".repeat(inputPin.length); } };
+        window.clearPin = function() { inputPin = ""; document.getElementById('pinDisplay').textContent = ""; };
+        window.validatePin = function() {
+            if (inputPin === currentPin) {
+                document.getElementById('ecranLogin').classList.add('hidden');
+                document.getElementById('ecranCoureurs').classList.remove('hidden');
+                document.getElementById('ecranCoureurs').classList.add('flex');
+                document.getElementById('titreEquipe').textContent = `Équipe ${currentEq}`;
+                initJugeSelector();
+                buildCoureursGrid();
+            } else { alert("Code PIN incorrect."); clearPin(); }
         };
-        window.addManualEleve = function() {
-            if (!state.activeCl) return alert("Sélectionnez une classe.");
-            const prenom = prompt("Prénom ?");
-            const nom = prompt("Nom ?");
-            const vma = parseFloat(prompt("VMA ?"));
-            const sexe = prompt("Sexe (M/F) ?") || "M";
-            if (prenom && nom && vma) {
-                const id = clePhoto(nom, prenom);
-                state.classes[state.activeCl].push({ Nom: nom.toUpperCase(), Prenom: prenom, VMA: vma, Sexe: sexe.toUpperCase(), idPhoto: id });
-                saveToLocal();
-                renderEleves();
-            }
-        };
-        window.removeEleve = function(idx) {
-            if (!state.activeCl) return;
-            if (!confirm("Supprimer cet élève ?")) return;
-            state.classes[state.activeCl].splice(idx, 1);
-            saveToLocal();
-            renderEleves();
-        };
+        window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
-        // RENDER ELEVES
+        // SÉLECTEUR DU JUGE iPad (corrigé : utilise m.code)
         // =====================================================================
-        async function renderEleves() {
-            const container = document.getElementById('elevesGrid');
-            if (!container || !state.activeCl) return;
-            const eleves = state.classes[state.activeCl] || [];
-            let html = "";
-            for (let i = 0; i < eleves.length; i++) {
-                const e = eleves[i];
-                const url = e.idPhoto ? await getPhotoUrl(e.idPhoto) : null;
-                const photoHtml = url ? `<img src="${url}" class="photo-preview">` : `<div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">👤</div>`;
-                html += `
-                    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-3 flex flex-col items-center relative">
-                        <button onclick="removeEleve(${i})" class="absolute top-2 right-2 text-slate-500 hover:text-red-400 font-bold">&times;</button>
-                        <button onclick="openEditModal(${i})" class="absolute top-2 left-2 text-slate-500 hover:text-blue-400 text-xs font-bold">✏️</button>
-                        ${photoHtml}
-                        <p class="font-black text-sm mt-2 text-center leading-tight">${e.Prenom}</p>
-                        <p class="text-[9px] text-slate-400 uppercase font-bold">${e.Nom}</p>
-                        <span class="mt-2 text-[10px] font-bold text-emerald-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">VMA: ${e.VMA}</span>
-                        <span class="text-[9px] text-slate-500">${e.Sexe || 'M'}</span>
-                    </div>
-                `;
+        function initJugeSelector() {
+            const container = document.getElementById('jugeSelector');
+            const membres = equipesConfig[currentEq]?.membres || [];
+            const presents = membres.filter(m => !m.absent);
+            if (presents.length === 0) {
+                container.innerHTML = '<span class="text-xs text-red-400">Aucun membre présent</span>';
+                return;
             }
+            // Réinitialiser si le juge sélectionné n'est plus présent
+            if (currentJuge && !presents.some(m => (m.code || `${currentEq} - ${m.maillot}`) === currentJuge)) {
+                currentJuge = '';
+            }
+            let html = '';
+            presents.forEach(m => {
+                const code = m.code || `${currentEq} - ${m.maillot}`;
+                const isSelected = (currentJuge === code) ? 'selected' : '';
+                html += `<button class="juge-btn ${isSelected}" onclick="selectJuge('${code}')">${code}</button>`;
+            });
             container.innerHTML = html;
         }
 
-        // =====================================================================
-        // MODAL ÉDITION ÉLÈVE (inchangé)
-        // =====================================================================
-        window.openEditModal = function(idx) {
-            const eleves = state.classes[state.activeCl] || [];
-            const e = eleves[idx];
-            if (!e) return;
-            document.getElementById('editIndex').value = idx;
-            document.getElementById('editPrenom').value = e.Prenom || '';
-            document.getElementById('editNom').value = e.Nom || '';
-            document.getElementById('editVMA').value = e.VMA || '';
-            document.getElementById('editSexe').value = e.Sexe || 'M';
-            document.getElementById('editModal').classList.add('show');
-        };
-        window.closeEditModal = function() { document.getElementById('editModal').classList.remove('show'); };
-        window.saveEleveEdit = function() {
-            const idx = parseInt(document.getElementById('editIndex').value);
-            const eleves = state.classes[state.activeCl] || [];
-            if (idx < 0 || idx >= eleves.length) return;
-            const prenom = document.getElementById('editPrenom').value.trim();
-            const nom = document.getElementById('editNom').value.trim().toUpperCase();
-            const vma = parseFloat(document.getElementById('editVMA').value);
-            const sexe = document.getElementById('editSexe').value;
-            if (!prenom || !nom || isNaN(vma)) { alert("Veuillez remplir tous les champs."); return; }
-            eleves[idx].Prenom = prenom;
-            eleves[idx].Nom = nom;
-            eleves[idx].VMA = vma;
-            eleves[idx].Sexe = sexe;
-            const newId = clePhoto(nom, prenom);
-            if (eleves[idx].idPhoto !== newId) eleves[idx].idPhoto = newId;
-            saveToLocal();
-            closeEditModal();
-            renderEleves();
-            renderTeams();
-        };
-
-        // =====================================================================
-        // IMPORT CSV
-        // =====================================================================
-        document.getElementById('csvFile').addEventListener('change', function(e) {
-            if (!state.activeCl) return alert("Sélectionnez une classe.");
-            const file = e.target.files[0];
-            if (!file) return;
-            Papa.parse(file, {
-                delimiter: ";", header: false, skipEmptyLines: true,
-                complete: function(results) {
-                    results.data.forEach(row => {
-                        if (!row[0] || row[0].toLowerCase().includes("luc")) return;
-                        const parts = row[0].trim().split(" ");
-                        const prenom = parts[0];
-                        const nom = parts.slice(1).join(" ").toUpperCase();
-                        const vma = parseFloat(row[1] ? String(row[1]).replace(",", ".") : 0);
-                        if (!vma || !prenom || !nom) return;
-                        const cle = clePhoto(nom, prenom);
-                        let existing = state.classes[state.activeCl].find(el => clePhoto(el.Nom, el.Prenom) === cle);
-                        if (existing) existing.VMA = vma;
-                        else state.classes[state.activeCl].push({ Nom: nom, Prenom: prenom, VMA: vma, Sexe: 'M', idPhoto: cle });
-                    });
-                    saveToLocal();
-                    renderEleves();
-                    e.target.value = '';
+        window.selectJuge = function(code) {
+            currentJuge = code;
+            const btns = document.querySelectorAll('.juge-btn');
+            btns.forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.textContent === code) {
+                    btn.classList.add('selected');
                 }
             });
-        });
+            buildCoureursGrid();
+            showToast(`Juge sélectionné : ${code}`, 1500);
+        };
 
         // =====================================================================
-        // IMPORT PHOTOS
+        // GRILLE (inchangée, utilise currentJuge)
         // =====================================================================
-        document.getElementById('zipFile').addEventListener('change', function(e) {
-            if (!state.activeCl) return alert("Sélectionnez une classe.");
-            const file = e.target.files[0];
-            if (!file) return;
-            JSZip.loadAsync(file).then(function(zip) {
-                const promises = [];
-                const eleves = state.classes[state.activeCl] || [];
-                zip.forEach((relativePath, zipEntry) => {
-                    if (!zipEntry.name.match(/\.(jpg|jpeg|png|gif)$/i)) return;
-                    promises.push(zipEntry.async('blob').then(blob => {
-                        const basename = zipEntry.name.split('/').pop() || '';
-                        const match = basename.match(/^_(.+),_(.+)_([MF])\./i);
-                        if (!match) { console.warn("Nom non reconnu:", basename); return; }
-                        let nomBrut = match[1].trim();
-                        let prenomBrut = match[2].trim();
-                        const nom = normalizeText(nomBrut);
-                        const prenom = normalizeText(prenomBrut);
-                        const cle = clePhoto(nom, prenom);
-                        let eleve = eleves.find(e => clePhoto(e.Nom, e.Prenom) === cle);
-                        if (!eleve) {
-                            eleve = eleves.find(e => normalizeText(e.Nom) === nom && normalizeText(e.Prenom) === prenom);
-                            if (!eleve) { console.warn("Élève non trouvé:", nom, prenom); return; }
-                        }
-                        savePhoto(cle, blob);
-                        if (!eleve.idPhoto) eleve.idPhoto = cle;
-                    }));
-                });
-                Promise.all(promises).then(() => {
-                    alert(`Photos importées (${promises.length} traités)`);
-                    saveToLocal();
-                    renderEleves();
-                });
-            }).catch(err => { console.error(err); alert("Erreur ZIP"); });
-            e.target.value = '';
-        });
-
-        // =====================================================================
-        // GENERATE TEAMS (avec initialisation Sortable après rendu)
-        // =====================================================================
-        window.generateTeams = function() {
-            if (!state.activeCl) return alert("Sélectionnez une classe.");
-            const eleves = state.classes[state.activeCl] || [];
-            const nbParEquipe = parseInt(document.getElementById('nbCoureursEquipe').value) || 3;
-            if (eleves.length < nbParEquipe) return alert(`Il faut au moins ${nbParEquipe} élèves.`);
-            let ordre = [...eleves].sort((a, b) => b.VMA - a.VMA);
-            const nbEq = Math.ceil(ordre.length / nbParEquipe);
-            let eqList = Array.from({ length: nbEq }, () => ({ membres: [], sumVMA: 0 }));
-            ordre.forEach(el => {
-                let minIdx = 0, minSum = Infinity;
-                eqList.forEach((eq, idx) => {
-                    if (eq.membres.length < nbParEquipe && eq.sumVMA < minSum) { minSum = eq.sumVMA; minIdx = idx; }
-                });
-                eqList[minIdx].membres.push(el);
-                eqList[minIdx].sumVMA += el.VMA;
-            });
-            const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
-            const styleMap = {
-                'Rouge': 'text-red-400 bg-red-950/40 border-red-800',
-                'Jaune': 'text-yellow-400 bg-yellow-950/40 border-yellow-800',
-                'Bleu': 'text-blue-400 bg-blue-950/40 border-blue-800',
-                'Vert': 'text-green-400 bg-green-950/40 border-green-800'
+        function buildCoureursGrid() {
+            const grid = document.getElementById('maillotsGrid');
+            const membres = equipesConfig[currentEq]?.membres || [];
+            let html = "";
+            const colorMap = {
+                'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
+                'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
+                'Vert': 'bg-green-950/80 border-green-600 text-green-400'
             };
-            state.equipes[state.activeCl] = eqList.map((eq, idx) => {
-                eq.membres.sort((a, b) => b.VMA - a.VMA);
-                return {
-                    id: `EQ${idx + 1}`,
-                    pin: Math.floor(100 + Math.random() * 900).toString(),
-                    sumVMA: eq.sumVMA,
-                    membres: eq.membres.map((m, j) => ({
-                        prenom: m.Prenom,
-                        nom: m.Nom,
-                        vma: m.VMA,
-                        sexe: m.Sexe || 'M',
-                        maillot: couleurs[j % couleurs.length],
-                        style: styleMap[couleurs[j % couleurs.length]] || 'bg-slate-800 border-slate-600 text-white',
-                        idPhoto: m.idPhoto || clePhoto(m.Nom, m.Prenom),
-                        absent: false,
-                        idUnique: `${m.Nom}_${m.Prenom}_${j}`
-                    }))
-                };
-            });
-            saveToLocal();
-            renderTeams();
-            initSortable();
-        };
+            membres.forEach(m => {
+                if (m.absent) return;
+                const key = `${currentEq}-${m.maillot}`;
+                const data = scoresCoureur[key];
+                if (!data) return;
+                const complet = data.complet || data.series.every((s, idx) => {
+                    if (s.course === 0) return false;
+                    if (idx === seanceConfig.nbSeries - 1) return true;
+                    return s.tir > 0;
+                });
+                if (complet) data.complet = true;
 
-        // =====================================================================
-        // RENDER TEAMS
-        // =====================================================================
-        async function renderTeams() {
-            const container = document.getElementById('teamsGrid');
-            if (!container || !state.activeCl) return;
-            const equipes = state.equipes[state.activeCl] || [];
-            container.innerHTML = "";
-            for (let eq of equipes) {
-                let html = `
-                    <div class="bg-slate-900 rounded-2xl border border-slate-800 p-4 flex flex-col" data-team-id="${eq.id}">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="font-black text-lg text-slate-200">${eq.id}</h3>
-                            <span class="text-xs font-bold text-slate-400">PIN: <strong class="text-emerald-400 font-mono">${eq.pin}</strong></span>
-                        </div>
-                        <div class="team-list-sortable flex-1 space-y-2 border border-dashed border-slate-800 rounded-xl p-2 min-h-[60px]" data-team="${eq.id}">
-                `;
-                for (let m of eq.membres) {
-                    const url = m.idPhoto ? await getPhotoUrl(m.idPhoto) : null;
-                    const photo = url ? `<img src="${url}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-700"></div>`;
-                    html += `
-                        <div class="flex items-center justify-between border border-slate-800 p-2 rounded-lg ${m.style} bg-slate-950" data-id="${m.idUnique || m.prenom+'_'+m.nom}">
-                            <div class="flex items-center gap-2">
-                                ${photo}
-                                <div>
-                                    <div class="font-bold text-xs text-white">${m.prenom} ${m.nom.charAt(0)}.</div>
-                                    <div class="text-[9px] uppercase font-bold tracking-widest text-slate-400">${m.maillot} | VMA ${m.vma}</div>
-                                </div>
-                            </div>
-                            <button onclick="toggleAbsent('${eq.id}','${m.maillot}')" class="text-xs font-bold px-2 py-1 rounded ${m.absent ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}">
-                                ${m.absent ? 'Absent' : 'Présent'}
-                            </button>
-                        </div>
-                    `;
-                }
-                html += `</div></div>`;
-                container.innerHTML += html;
-            }
-            // Réinitialiser Sortable après le rendu
-            initSortable();
-        }
+                let totalPoints = 0;
+                data.series.forEach(s => { totalPoints += (s.course || 0) + (s.tir || 0); });
 
-        // =====================================================================
-        // SORTABLE (glisser-déposer) - VERSION CORRIGÉE
-        // =====================================================================
-        let sortableInstances = [];
+                let tempsBonifieCumule = 0;
+                let seriesValides = 0;
+                data.series.forEach((s, idx) => {
+                    if (s.course === 0) return;
+                    const temps = s.temps ? s.temps / 1000 : 0;
+                    const ptsTir = s.tir || 0;
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
+                    tempsBonifieCumule += temps + bonus;
+                    seriesValides++;
+                });
 
-        function initSortable() {
-            // Détruire les anciennes instances
-            sortableInstances.forEach(s => s.destroy());
-            sortableInstances = [];
-
-            const containers = document.querySelectorAll('.team-list-sortable');
-            containers.forEach(container => {
-                const sortable = new Sortable(container, {
-                    group: 'teams',
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    onEnd: function(evt) {
-                        const fromTeam = evt.from.dataset.team;
-                        const toTeam = evt.to.dataset.team;
-                        const itemId = evt.item.dataset.id;
-                        
-                        // Si même équipe ou élément non trouvé, on ignore
-                        if (fromTeam === toTeam) return;
-                        
-                        // Trouver l'élément déplacé
-                        let movedEleve = null;
-                        const equipes = state.equipes[state.activeCl] || [];
-                        
-                        // Retirer de l'équipe source
-                        const fromEq = equipes.find(e => e.id === fromTeam);
-                        if (!fromEq) return;
-                        const idx = fromEq.membres.findIndex(m => (m.idUnique || m.prenom+'_'+m.nom) === itemId);
-                        if (idx === -1) return;
-                        movedEleve = fromEq.membres.splice(idx, 1)[0];
-                        
-                        // Ajouter à l'équipe destination
-                        if (movedEleve && toTeam) {
-                            const toEq = equipes.find(e => e.id === toTeam);
-                            if (!toEq) {
-                                // Si l'équipe destination n'existe pas, on remet l'élève dans l'équipe source
-                                fromEq.membres.splice(idx, 0, movedEleve);
-                                return;
-                            }
-                            toEq.membres.push(movedEleve);
-                        } else {
-                            // Réinsérer si problème
-                            fromEq.membres.splice(idx, 0, movedEleve);
-                            return;
-                        }
-                        
-                        // Réattribuer les couleurs à toutes les équipes
-                        const couleurs = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
-                        equipes.forEach(eq => {
-                            eq.membres.forEach((m, idx) => {
-                                m.maillot = couleurs[idx % couleurs.length];
-                                m.style = {
-                                    'Rouge': 'text-red-400 bg-red-950/40 border-red-800',
-                                    'Jaune': 'text-yellow-400 bg-yellow-950/40 border-yellow-800',
-                                    'Bleu': 'text-blue-400 bg-blue-950/40 border-blue-800',
-                                    'Vert': 'text-green-400 bg-green-950/40 border-green-800'
-                                }[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
-                            });
-                        });
-                        saveToLocal();
-                        renderTeams();
+                let feedback = '';
+                const vma = m.vma || 12;
+                data.series.forEach((s, idx) => {
+                    if (s.course === 0) return;
+                    const temps = s.temps ? (s.temps / 1000).toFixed(1) : '?';
+                    const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
+                    const ptsVMA = s.course || 0;
+                    const ptsTir = s.tir || 0;
+                    const vitesseNum = parseFloat(vitesse);
+                    const alerte = (vitesseNum > 25 || vitesseNum > vma * 1.5);
+                    const alerteHtml = alerte ? '<span class="alerte">⚠️ Vitesse suspecte – Le professeur en est informé.</span>' : '';
+                    let ligne1 = `S${idx+1}: ${temps}s | ${vitesse} km/h | VMA: ${ptsVMA} pts`;
+                    if (alerteHtml) ligne1 += ` ${alerteHtml}`;
+                    feedback += `<div class="serie-line">${ligne1}</div>`;
+                    if (idx < seanceConfig.nbSeries - 1) {
+                        let bonus = 0;
+                        if (ptsTir < 7) bonus = 0;
+                        else if (ptsTir < 12) bonus = -10;
+                        else if (ptsTir < 16) bonus = -15;
+                        else bonus = -20;
+                        const tempsBonifie = (temps !== '?') ? (parseFloat(temps) + bonus).toFixed(1) : '?';
+                        const bonusStr = bonus < 0 ? `-${Math.abs(bonus)}s` : `${bonus}s`;
+                        let ligne2 = `Tir: ${ptsTir} pts | Bonus: ${bonusStr} | Temps bonifié: <span class="bonifie">${tempsBonifie}s</span>`;
+                        feedback += `<div class="serie-line-2">${ligne2}</div>`;
                     }
                 });
-                sortableInstances.push(sortable);
+
+                let tempsCumuleHtml = '';
+                if (seriesValides > 0) {
+                    tempsCumuleHtml = `<div class="coureur-temps-cumule">⏱ Temps cumulé bonifié : ${tempsBonifieCumule.toFixed(1)}s</div>`;
+                }
+
+                const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
+                const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
+                const jugeOk = (currentJuge !== '');
+                const clickHandler = (complet || !jugeOk) ? '' : `openAction('${m.maillot}')`;
+                html += `
+                    <button onclick="${clickHandler}" 
+                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}"
+                            ${!jugeOk && !complet ? 'title="Veuillez d\'abord sélectionner un juge iPad"' : ''}>
+                        <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                        <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
+                        ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
+                        ${!complet && !jugeOk ? `<div class="text-xs font-bold text-yellow-400 mt-1">👤 Choisir juge d'abord</div>` : ''}
+                        <div class="coureur-points">${totalPoints} pts</div>
+                        ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
+                        ${tempsCumuleHtml}
+                    </button>
+                `;
             });
+            grid.innerHTML = html;
+            updateTeamTotal();
+            updateTeamRanking();
         }
 
-        window.toggleAbsent = function(eqId, maillot) {
-            const eq = state.equipes[state.activeCl].find(e => e.id === eqId);
-            if (!eq) return;
-            const membre = eq.membres.find(m => m.maillot === maillot);
-            if (!membre) return;
-            membre.absent = !membre.absent;
-            saveToLocal();
-            renderTeams();
-        };
-
-        // =====================================================================
-        // PUSH CONFIG
-        // =====================================================================
-        window.pushConfig = function() {
-            if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
-                return alert("Générez les équipes d'abord.");
-            }
-            const seanceId = `SEANCE_${Date.now()}`;
-            const modeChoisi = document.getElementById('modeEpreuve').value;
-            const configObj = {
-                seanceId: seanceId,
-                mode: modeChoisi,
-                longueurPiste: parseInt(document.getElementById('longueurPiste').value) || 100,
-                nbTours: parseInt(document.getElementById('nbTours').value) || 2,
-                nbSeries: parseInt(document.getElementById('nbSeries').value) || 3,
-                nbFleches: parseInt(document.getElementById('nbFleches').value) || 2,
-                distanceTotale: (parseInt(document.getElementById('longueurPiste').value) || 100) * (parseInt(document.getElementById('nbTours').value) || 2),
-                equipes: {},
-                vmaReference: {}
-            };
-            state.equipes[state.activeCl].forEach(eq => {
-                configObj.equipes[eq.id] = {
-                    pin: eq.pin,
-                    membres: eq.membres.map(m => ({ maillot: m.maillot, vma: m.vma, absent: m.absent || false }))
-                };
-                eq.membres.forEach(m => {
-                    configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma;
-                });
-            });
-            if (!state.seances) state.seances = {};
-            state.seances[seanceId] = { configObj, date: new Date().toISOString() };
-            saveToLocal();
-            updateSeancesList();
-
-            db.ref('arcathlon/config').set(configObj)
-                .then(() => alert(`🚀 Configuration transmise ! (Mode : ${modeChoisi.toUpperCase()})`))
-                .catch(err => { console.error(err); alert("Erreur de transmission."); });
-        };
-
-        // =====================================================================
-        // LIVE (avec photos dans le journal)
-        // =====================================================================
-        async function updateLiveScores(passages) {
-            const container = document.getElementById('journalPassages');
-            const globe = document.getElementById('grosGlobe');
-            if (!container) return;
-            const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
-            
-            let journalHtml = '';
-            for (let i = 0; i < Math.min(entries.length, 30); i++) {
-                const [key, p] = entries[i];
-                const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '<span class="alerte-ok">✓ OK</span>';
-                const actionBtn = `<button onclick="openActionModal('${key}')" class="btn btn-ghost btn-xs">⚙️</button>`;
-                
-                let photoHtml = '';
-                const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
-                if (eqProf) {
-                    const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                    if (mProf && mProf.idPhoto) {
-                        const url = await getPhotoUrl(mProf.idPhoto);
-                        if (url) {
-                            photoHtml = `<img src="${url}" class="journal-photo">`;
-                        }
+        function updateTeamTotal() {
+            const membres = equipesConfig[currentEq]?.membres || [];
+            let totalPoints = 0;
+            let nbCoureurs = 0;
+            membres.forEach(m => {
+                if (m.absent) return;
+                const key = `${currentEq}-${m.maillot}`;
+                const data = scoresCoureur[key];
+                if (data) {
+                    let pts = 0;
+                    data.series.forEach(s => { pts += (s.course || 0) + (s.tir || 0); });
+                    if (pts > 0 || data.complet) {
+                        totalPoints += pts;
+                        nbCoureurs++;
                     }
                 }
-                
-                journalHtml += `
-                    <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm flex-wrap gap-2">
-                        <div class="flex items-center gap-2">
-                            ${photoHtml}
-                            <span class="text-slate-500 font-mono">${h}</span>
-                        </div>
-                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
-                        <span class="text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
-                        ${alerte}
-                        ${actionBtn}
-                    </div>
-                `;
-            }
-            container.innerHTML = journalHtml;
-
-            // Classement par moyenne
-            const scoresEquipes = {};
-            const nbCoureurs = {};
-            (state.equipes[state.activeCl] || []).forEach(eq => { 
-                scoresEquipes[eq.id] = 0; 
-                nbCoureurs[eq.id] = 0;
             });
-            entries.forEach(([key, p]) => {
-                if (scoresEquipes[p.equipe] !== undefined) {
-                    scoresEquipes[p.equipe] += (p.ptsVMA + p.ptsTir);
-                    nbCoureurs[p.equipe]++;
-                }
-            });
-            const sorted = Object.keys(scoresEquipes).map(eqId => ({
-                id: eqId,
-                moyenne: nbCoureurs[eqId] > 0 ? scoresEquipes[eqId] / nbCoureurs[eqId] : 0
-            })).sort((a, b) => b.moyenne - a.moyenne);
+            const moyenne = nbCoureurs > 0 ? (totalPoints / nbCoureurs).toFixed(1) : 0;
+            document.getElementById('teamTotal').textContent = `🏆 Moyenne équipe : ${moyenne} pts/coureur`;
+        }
 
-            globe.innerHTML = sorted.map((r, idx) => `
-                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center">
-                    <span class="font-black text-slate-300 text-base">${idx+1}. ${r.id}</span>
-                    <span class="text-emerald-400 font-black text-xl">${r.moyenne.toFixed(1)} pts</span>
+        function updateTeamRanking() {
+            const equipes = Object.keys(equipesConfig);
+            const ranking = equipes.map(eqId => {
+                let totalPoints = 0;
+                let nbCoureurs = 0;
+                const membres = equipesConfig[eqId]?.membres || [];
+                membres.forEach(m => {
+                    if (m.absent) return;
+                    const key = `${eqId}-${m.maillot}`;
+                    const data = scoresCoureur[key];
+                    if (data) {
+                        let pts = 0;
+                        data.series.forEach(s => { pts += (s.course || 0) + (s.tir || 0); });
+                        if (pts > 0 || data.complet) {
+                            totalPoints += pts;
+                            nbCoureurs++;
+                        }
+                    }
+                });
+                const moyenne = nbCoureurs > 0 ? totalPoints / nbCoureurs : 0;
+                return { id: eqId, points: moyenne };
+            });
+            ranking.sort((a, b) => b.points - a.points);
+            const container = document.getElementById('rankingContainer');
+            container.innerHTML = ranking.map((r, i) => `
+                <div class="ranking-item">
+                    <span class="rank">${i+1}. ${r.id}</span>
+                    <span class="points">${r.points.toFixed(1)} pts</span>
                 </div>
             `).join('');
         }
 
-        window.purgeLive = function() {
-            if (confirm("Réinitialiser le direct ?")) db.ref('arcathlon/live').remove();
-        };
-
         // =====================================================================
-        // MODAL ACTION (inchangé)
+        // OPEN ACTION (avec vérification du juge)
         // =====================================================================
-        window.openActionModal = function(key) {
-            currentPassageKey = key;
-            document.getElementById('actionPassageKey').value = key;
-            document.getElementById('actionModal').classList.add('show');
-        };
-        window.closeActionModal = function() {
-            document.getElementById('actionModal').classList.remove('show');
-            currentPassageKey = null;
-        };
-        window.applyMalus = function(secondes) {
-            if (!currentPassageKey) return;
-            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
-            ref.once('value', snap => {
-                const data = snap.val() || {};
-                const tempsActuel = data.temps || 0;
-                const nouveauTemps = tempsActuel + (secondes * 1000);
-                ref.update({ temps: nouveauTemps, malus: secondes, modifiePar: 'professeur' })
-                    .then(() => { alert(`✅ Malus de ${secondes}s appliqué.`); closeActionModal(); })
-                    .catch(err => { alert("Erreur : " + err.message); });
-            });
-        };
-        window.disqualifyPassage = function() {
-            if (!currentPassageKey) return;
-            if (!confirm("⚠️ Confirmer la disqualification de ce passage ?")) return;
-            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
-            ref.update({ disqualifie: true, modifiePar: 'professeur' })
-                .then(() => { alert("✅ Passage disqualifié."); closeActionModal(); })
-                .catch(err => { alert("Erreur : " + err.message); });
-        };
-        window.editTirPoints = function() {
-            if (!currentPassageKey) return;
-            const ref = db.ref(`arcathlon/live/passages/${currentPassageKey}`);
-            ref.once('value', snap => {
-                const data = snap.val() || {};
-                document.getElementById('tirCurrentPts').textContent = data.ptsTir || 0;
-                document.getElementById('tirPassageKey').value = currentPassageKey;
-                document.getElementById('tirModal').classList.add('show');
-                closeActionModal();
-            });
-        };
-        window.closeTirModal = function() { document.getElementById('tirModal').classList.remove('show'); };
-        window.saveTirEdit = function() {
-            const key = document.getElementById('tirPassageKey').value;
-            const newPts = parseInt(document.getElementById('tirNewPts').value);
-            if (isNaN(newPts) || newPts < 0 || newPts > 20) {
-                alert("Entrez une valeur entre 0 et 20.");
+        window.openAction = function(maillot) {
+            if (!currentJuge) {
+                showToast("⚠️ Veuillez d'abord sélectionner un juge iPad !", 2500);
                 return;
             }
-            const ref = db.ref(`arcathlon/live/passages/${key}`);
-            ref.update({ ptsTir: newPts, modifiePar: 'professeur' })
-                .then(() => { alert("✅ Points de tir modifiés."); closeTirModal(); document.getElementById('tirNewPts').value = ''; })
-                .catch(err => { alert("Erreur : " + err.message); });
+            currentMaillot = maillot;
+            const key = `${currentEq}-${maillot}`;
+            currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
+            if (currentSerie === -1) {
+                alert("Toutes les séries sont déjà terminées.");
+                return;
+            }
+
+            document.getElementById('ecranCoureurs').classList.add('hidden');
+            document.getElementById('ecranAction').classList.remove('hidden');
+            document.getElementById('ecranAction').classList.add('flex');
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot] || 'text-white';
+            document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">${maillot}</span>`;
+            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+
+            resetLap();
+            currentPhase = 'course';
+            nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches;
+            effetCarte = null;
+            updateInfoFleches();
+
+            document.getElementById('moduleSaisieTir').style.display = 'none';
+            document.getElementById('modulePenalite').classList.add('hidden');
+            document.getElementById('moduleKillBill').classList.add('hidden');
+            document.getElementById('moduleMille').classList.add('hidden');
+            document.getElementById('moduleRelais').classList.add('hidden');
+
+            if (modeActuel === 'relais') {
+                document.getElementById('moduleRelais').classList.remove('hidden');
+                document.getElementById('moduleRelais').classList.add('flex');
+                document.getElementById('btnTirerCarte').classList.remove('hidden');
+                document.getElementById('carteAffichee').classList.add('hidden');
+            }
+
+            if (modeActuel === 'mille') {
+                document.getElementById('moduleMille').classList.remove('hidden');
+                document.getElementById('moduleMille').classList.add('flex');
+                document.getElementById('chrono18s').textContent = "18";
+                document.getElementById('btnStart18').classList.remove('hidden');
+                document.getElementById('giantActionBtn').style.display = 'none';
+            } else if (modeActuel === 'killbill') {
+                document.getElementById('moduleKillBill').classList.remove('hidden');
+                document.getElementById('moduleKillBill').classList.add('flex');
+                initKillBill();
+                document.getElementById('giantActionBtn').style.display = 'none';
+            } else {
+                document.getElementById('giantActionBtn').style.display = 'block';
+                setPhase('course');
+                document.getElementById('giantActionBtn').textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+            }
+            document.getElementById('phasePanel').classList.remove('hidden');
+        };
+
+        window.retourCoureurs = function() {
+            stopAllTimers();
+            document.getElementById('ecranAction').classList.add('hidden');
+            document.getElementById('ecranCoureurs').classList.remove('hidden');
+            document.getElementById('ecranCoureurs').classList.add('flex');
+            initJugeSelector();
+            buildCoureursGrid();
         };
 
         // =====================================================================
-        // STATISTIQUES DÉTAILLÉES
+        // PHASE MANAGEMENT (inchangé)
         // =====================================================================
-        let statsChart = null;
+        function setPhase(phase) {
+            currentPhase = phase;
+            const panel = document.getElementById('phasePanel');
+            const name = document.getElementById('phaseName');
+            const clock = document.getElementById('phaseClock');
+            const giant = document.getElementById('giantActionBtn');
 
-        window.loadStats = function() {
-            db.ref('arcathlon/live/passages').once('value', async (snap) => {
-                const passages = snap.val() || {};
-                const data = Object.values(passages).filter(p => !p.disqualifie);
-                if (!data.length) { alert("Aucune donnée."); return; }
+            phaseAccum = 0;
+            phaseStartTime = isRunning ? Date.now() : null;
+            clock.textContent = '00:00.00';
 
-                const enriched = await Promise.all(data.map(async (p) => {
-                    let prenom = "", nom = "", photoUrl = null, sexe = "";
-                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
-                    if (eqProf) {
-                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) { 
-                            prenom = mProf.prenom; 
-                            nom = mProf.nom;
-                            sexe = mProf.sexe || 'M';
-                            if (mProf.idPhoto) {
-                                photoUrl = await getPhotoUrl(mProf.idPhoto);
-                            }
-                        }
-                    }
-                    return { ...p, prenom, nom, photoUrl, sexe };
-                }));
-
-                // Summary
-                const totalLaps = enriched.length;
-                const totalPts = enriched.reduce((s, p) => s + p.ptsVMA + p.ptsTir, 0);
-                const totalTirPts = enriched.reduce((s, p) => s + p.ptsTir, 0);
-                const totalCoursePts = enriched.reduce((s, p) => s + p.ptsVMA, 0);
-                document.getElementById('statsSummary').innerHTML = `
-                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Passages</span><br><span class="text-2xl font-bold">${totalLaps}</span></div>
-                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Total pts</span><br><span class="text-2xl font-bold">${totalPts}</span></div>
-                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Tir</span><br><span class="text-2xl font-bold">${totalTirPts}</span></div>
-                    <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
-                `;
-
-                const tbody = document.querySelector('#statsDetailTable tbody');
-                let rows = '';
-                enriched.forEach(p => {
-                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
-                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
-                    const ptsTir = p.ptsTir || 0;
-                    let bonus = 0;
-                    if (ptsTir < 7) bonus = 0;
-                    else if (ptsTir < 12) bonus = -10;
-                    else if (ptsTir < 16) bonus = -15;
-                    else bonus = -20;
-                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    const alerte = p.alerteTriche ? '⚠️' : '✓';
-                    const photoHtml = p.photoUrl ? `<img src="${p.photoUrl}" class="photo-thumb">` : `<div class="w-8 h-8 rounded-full bg-slate-700 inline-block"></div>`;
-                    rows += `
-                        <tr>
-                            <td>${photoHtml}</td>
-                            <td><strong>${p.prenom} ${p.nom ? p.nom.charAt(0)+'.' : ''}</strong></td>
-                            <td>${p.equipe}</td>
-                            <td>${p.maillot}</td>
-                            <td>${p.serie || 1}</td>
-                            <td>${temps}</td>
-                            <td>${vitesse}</td>
-                            <td>${p.ptsVMA || 0}</td>
-                            <td>${ptsTir}</td>
-                            <td>${bonus}</td>
-                            <td><strong class="text-emerald-400">${tempsBonifie}</strong></td>
-                            <td>${(p.ptsVMA||0) + ptsTir}</td>
-                            <td>${alerte}</td>
-                            <td>
-                                <button onclick="openActionModalFromStats('${p.equipe}','${p.maillot}',${p.serie||1})" class="btn btn-ghost btn-xs">⚙️</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                tbody.innerHTML = rows;
-
-                // Chart
-                const ctx = document.getElementById('statsChart').getContext('2d');
-                if (statsChart) statsChart.destroy();
-                const labels = enriched.map((_, i) => `#${i+1}`);
-                const tempsData = enriched.map(p => p.temps ? p.temps/1000 : 0);
-                statsChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { label: 'Temps (s)', data: tempsData, backgroundColor: '#4f46e5' },
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Temps (s)' } } },
-                        plugins: { legend: { position: 'top' } }
-                    }
-                });
-            });
-        };
-
-        window.openActionModalFromStats = function(equipe, maillot, serie) {
-            db.ref('arcathlon/live/passages').once('value', snap => {
-                const passages = snap.val() || {};
-                let foundKey = null;
-                for (const [key, p] of Object.entries(passages)) {
-                    if (p.equipe === equipe && p.maillot === maillot && p.serie === serie) {
-                        foundKey = key;
-                        break;
-                    }
-                }
-                if (foundKey) {
-                    openActionModal(foundKey);
-                } else {
-                    alert("Passage non trouvé.");
-                }
-            });
-        };
-
-        window.exportStatsCSV = function() {
-            db.ref('arcathlon/live/passages').once('value', snap => {
-                const passages = snap.val() || {};
-                const data = Object.values(passages).filter(p => !p.disqualifie);
-                if (!data.length) return alert("Aucune donnée.");
-                let csv = "Équipe;Maillot;Prénom;Nom;Sexe;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte;Malus;Disqualifié\n";
-                data.forEach(p => {
-                    let prenom = "", nom = "", sexe = "";
-                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
-                    if (eqProf) {
-                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) { prenom = mProf.prenom; nom = mProf.nom; sexe = mProf.sexe || 'M'; }
-                    }
-                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
-                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
-                    const ptsTir = p.ptsTir || 0;
-                    let bonus = 0;
-                    if (ptsTir < 7) bonus = 0;
-                    else if (ptsTir < 12) bonus = -10;
-                    else if (ptsTir < 16) bonus = -15;
-                    else bonus = -20;
-                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
-                    const malus = p.malus || 0;
-                    const disqualifie = p.disqualifie ? 'Oui' : 'Non';
-                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${sexe};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte};${malus};${disqualifie}\n`;
-                });
-                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `Arcathlon_stats_${Date.now()}.csv`;
-                a.click();
-            });
-        };
-
-        // =====================================================================
-        // HISTORIQUE (inchangé)
-        // =====================================================================
-        function updateSeancesList() {
-            const select = document.getElementById('selectSeance');
-            select.innerHTML = '<option value="">-- Sélectionner une séance --</option>' +
-                Object.entries(state.seances || {})
-                .sort((a, b) => new Date(b[1].date) - new Date(a[1].date))
-                .map(([id, s]) => `<option value="${id}">${new Date(s.date).toLocaleString('fr-FR')}</option>`)
-                .join('');
+            panel.className = 'phase-panel';
+            if (phase === 'course') {
+                panel.classList.add('panel-course');
+                name.textContent = 'COURSE';
+                giant.style.display = 'block';
+                giant.textContent = isRunning ? 'Arrivée' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                giant.className = 'btn-action course';
+                document.getElementById('moduleSaisieTir').style.display = 'none';
+                document.getElementById('modulePenalite').classList.add('hidden');
+                document.getElementById('errorMessage').style.display = 'none';
+            } else if (phase === 'tir') {
+                panel.classList.add('panel-tir');
+                name.textContent = 'TIR';
+                giant.style.display = 'none';
+                document.getElementById('moduleSaisieTir').style.display = 'flex';
+                document.getElementById('modulePenalite').classList.add('hidden');
+                genererZonesFleches();
+            } else if (phase === 'penalite') {
+                panel.classList.add('panel-pen');
+                name.textContent = 'PÉNALITÉ';
+                giant.style.display = 'block';
+                giant.textContent = 'Effectuer les pénalités';
+                giant.className = 'btn-action pen';
+                document.getElementById('moduleSaisieTir').style.display = 'none';
+                document.getElementById('modulePenalite').classList.remove('hidden');
+                document.getElementById('modulePenalite').classList.add('flex');
+                renderPenalites();
+                document.getElementById('errorMessage').style.display = 'none';
+            }
+            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
         }
-        window.loadHistorique = function() {
-            const seanceId = document.getElementById('selectSeance').value;
-            const container = document.getElementById('historiqueContainer');
-            if (!seanceId || !state.seances[seanceId]) {
-                container.innerHTML = "<p class='text-slate-500 text-sm'>Sélectionnez une séance.</p>";
+
+        function resetLap() {
+            lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 };
+            globalAccum = 0; phaseAccum = 0; isRunning = false;
+            if (tickHandle) cancelAnimationFrame(tickHandle);
+            tickHandle = null;
+            document.getElementById('phaseClock').textContent = '00:00.00';
+            const btn = document.getElementById('giantActionBtn');
+            btn.textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+            btn.className = 'btn-action course';
+            genererZonesFleches();
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+            const now = Date.now();
+            phaseStartTime = now;
+            isRunning = true;
+            tickLoop();
+            updateGiantButton();
+        }
+
+        function stopTimer() {
+            if (!isRunning) return;
+            const now = Date.now();
+            if (phaseStartTime) {
+                phaseAccum += (now - phaseStartTime);
+                phaseStartTime = null;
+            }
+            isRunning = false;
+            if (tickHandle) cancelAnimationFrame(tickHandle);
+            tickHandle = null;
+            updateGiantButton();
+        }
+
+        function tickLoop() {
+            const update = () => {
+                if (!isRunning) return;
+                const now = Date.now();
+                let phaseElapsed = phaseAccum + (phaseStartTime ? (now - phaseStartTime) : 0);
+                document.getElementById('phaseClock').textContent = formatTime(phaseElapsed);
+                if (currentPhase === 'course') lapData.courseMs = phaseElapsed;
+                else if (currentPhase === 'tir') lapData.tirMs = phaseElapsed;
+                else if (currentPhase === 'penalite') lapData.penaliteMs = phaseElapsed;
+                tickHandle = requestAnimationFrame(update);
+            };
+            tickHandle = requestAnimationFrame(update);
+        }
+
+        function formatTime(ms) {
+            ms = Math.max(0, Math.round(ms));
+            const cs = Math.floor((ms % 1000) / 10);
+            const s = Math.floor(ms / 1000) % 60;
+            const m = Math.floor(ms / 60000);
+            const pad = (n, l = 2) => String(n).padStart(l, '0');
+            return `${pad(m)}:${pad(s)}.${pad(cs)}`;
+        }
+
+        function stopAllTimers() {
+            if (isRunning) stopTimer();
+            if (tickHandle) cancelAnimationFrame(tickHandle);
+            tickHandle = null;
+        }
+
+        function updateGiantButton() {
+            const btn = document.getElementById('giantActionBtn');
+            if (currentPhase === 'course') {
+                btn.textContent = isRunning ? 'Arrivée' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                btn.className = 'btn-action course';
+                btn.style.display = 'block';
+            } else if (currentPhase === 'tir') {
+                btn.style.display = 'none';
+            } else if (currentPhase === 'penalite') {
+                btn.textContent = 'Effectuer les pénalités';
+                btn.className = 'btn-action pen';
+                btn.style.display = 'block';
+            }
+        }
+
+        window.onGiantAction = function() {
+            if (modeActuel === 'mille' || modeActuel === 'killbill') return;
+            if (currentPhase === 'course') {
+                if (!isRunning) { startTimer(); }
+                else {
+                    stopTimer();
+                    lapData.courseMs = phaseAccum;
+                    if (currentSerie === seanceConfig.nbSeries - 1) {
+                        finishLap();
+                    } else {
+                        setPhase('tir');
+                    }
+                }
+            } else if (currentPhase === 'penalite') {
+                document.getElementById('errorMessage').textContent = "Cliquez sur chaque tour de pénalité effectué.";
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        };
+
+        // =====================================================================
+        // TIR MODULE
+        // =====================================================================
+        function genererZonesFleches() {
+            const container = document.getElementById('flechesContainer');
+            let html = '';
+            for (let i = 0; i < nbFlechesActuel; i++) {
+                html += `<div class="shot-box">Flèche ${i+1} : <span id="shotLabel${i+1}" class="shot-score">--</span></div>`;
+            }
+            container.innerHTML = html;
+            document.getElementById('resultatTirSpecifique').textContent = "";
+            lapData.shots = [];
+            document.getElementById('btnValider').disabled = true;
+            document.getElementById('btnValider').classList.add('opacity-40');
+            document.getElementById('btnValider').textContent = 'Valider le tir';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        window.marquerTir = function(pts) {
+            if (lapData.shots.length >= nbFlechesActuel) return;
+            if (effetCarte === 'halfScore') pts = Math.floor(pts / 2);
+            lapData.shots.push(pts);
+            const label = document.getElementById(`shotLabel${lapData.shots.length}`);
+            if (label) label.textContent = pts;
+            updateTirUI();
+        };
+
+        window.annulerTir = function() {
+            if (lapData.shots.length === 0) return;
+            const idx = lapData.shots.length;
+            lapData.shots.pop();
+            const label = document.getElementById(`shotLabel${idx}`);
+            if (label) label.textContent = '--';
+            updateTirUI();
+        };
+
+        function updateTirUI() {
+            const btn = document.getElementById('btnValider');
+            const errorDiv = document.getElementById('errorMessage');
+            
+            if (lapData.shots.length === nbFlechesActuel) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-40');
+                errorDiv.style.display = 'none';
+                const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+                const resDiv = document.getElementById('resultatTirSpecifique');
+                if (modeActuel === 'poursuite' || modeActuel === 'relais') {
+                    let pen = (ptsTir < 7) ? 3 : (ptsTir < 12) ? 2 : (ptsTir < 16) ? 1 : 0;
+                    if (effetCarte === 'noPenalty' && ptsTir > 10) pen = 0;
+                    lapData.penReq = pen;
+                    resDiv.innerHTML = `Pénalité : <span class="text-red-400 text-lg">${pen} tour(s)</span>`;
+                    btn.textContent = pen > 0 ? 'Valider & pénalités' : 'Valider le tir';
+                } else if (modeActuel === 'sprint') {
+                    let bonus = (ptsTir < 7) ? 0 : (ptsTir < 12) ? 10 : (ptsTir < 16) ? 15 : 20;
+                    resDiv.innerHTML = `Bonus : <span class="text-emerald-400 text-lg">-${bonus} sec</span>`;
+                    btn.textContent = 'Valider le tir';
+                } else {
+                    resDiv.innerHTML = `Total : <span class="text-blue-400 text-lg">${ptsTir} pts</span>`;
+                    btn.textContent = 'Valider le tir';
+                }
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-40');
+                document.getElementById('resultatTirSpecifique').textContent = "";
+                btn.textContent = 'Valider le tir';
+                errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider. (Actuellement : ${lapData.shots.length})`;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        window.validerTir = function() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+
+            if (lapData.shots.length !== nbFlechesActuel) {
+                errorDiv.textContent = `❗ Vous devez tirer ${nbFlechesActuel} flèche(s) avant de valider. (Actuellement : ${lapData.shots.length})`;
+                errorDiv.style.display = 'block';
                 return;
             }
-            const data = state.seances[seanceId].configObj;
-            let html = `<div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <h4 class="font-bold text-blue-400">${seanceId}</h4>
-                <p class="text-xs text-slate-400">Mode: ${data.mode} | Séries: ${data.nbSeries} | Flèches: ${data.nbFleches}</p>
-                <div class="mt-2 text-xs">
-                    <strong>Équipes :</strong>
-                    ${Object.keys(data.equipes).map(eqId => {
-                        const eq = data.equipes[eqId];
-                        const membres = eq.membres.map(m => `${m.maillot} (VMA ${m.vma})`).join(', ');
-                        return `<div>${eqId} (PIN ${eq.pin}) : ${membres}</div>`;
-                    }).join('')}
-                </div>
-            </div>`;
-            container.innerHTML = html;
+
+            if (isRunning) stopTimer();
+            lapData.tirMs = phaseAccum;
+
+            if (modeActuel === 'mille') {
+                finishMille();
+                return;
+            }
+
+            if (lapData.penReq > 0 && (modeActuel === 'poursuite' || modeActuel === 'relais')) {
+                setPhase('penalite');
+                renderPenalites();
+                return;
+            }
+
+            finishLap();
         };
 
         // =====================================================================
-        // EXPORT RESULTS
+        // FINISH LAP (avec alerte triche + toast + juge)
         // =====================================================================
-        window.exportResults = function() {
-            db.ref('arcathlon/live/passages').once('value', snap => {
-                const passages = snap.val() || {};
-                const data = Object.values(passages).filter(p => !p.disqualifie);
-                let csv = "Équipe;Maillot;Prénom;Nom;Sexe;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Horodatage\n";
-                data.forEach(p => {
-                    let prenom = "", nom = "", sexe = "";
-                    const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
-                    if (eqProf) {
-                        const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
-                        if (mProf) { prenom = mProf.prenom; nom = mProf.nom; sexe = mProf.sexe || 'M'; }
+        function finishLap() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+            try {
+                const totalLap = lapData.courseMs + lapData.tirMs + lapData.penaliteMs;
+                const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+                let vitesse = 0, ptsVMA = 0;
+                const key = `${currentEq}-${currentMaillot}`;
+                const vmaRef = seanceConfig.vmaReference[key] || 12;
+                if (lapData.courseMs > 0) {
+                    const distanceKm = seanceConfig.distanceTotale / 1000;
+                    const tempsHeures = (lapData.courseMs / 1000) / 3600;
+                    if (tempsHeures > 0) {
+                        vitesse = distanceKm / tempsHeures;
+                        ptsVMA = (vitesse >= vmaRef + 1) ? 3 : (vitesse >= vmaRef - 0.5) ? 2 : (vitesse >= vmaRef - 1) ? 1 : 0;
                     }
-                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
-                    const ptsTir = p.ptsTir || 0;
-                    let bonus = 0;
-                    if (ptsTir < 7) bonus = 0;
-                    else if (ptsTir < 12) bonus = -10;
-                    else if (ptsTir < 16) bonus = -15;
-                    else bonus = -20;
-                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
-                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
-                    const malus = p.malus || 0;
-                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${sexe};${p.serie||1};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${new Date(p.timestamp).toLocaleString()}\n`;
-                });
-                const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `Arcathlon_Prof_${state.activeCl}_${Date.now()}.csv`;
-                a.click();
-            });
+                }
+                if (!isFinite(vitesse)) vitesse = 0;
+                if (!isFinite(ptsVMA)) ptsVMA = 0;
+
+                let alerteTriche = false;
+                if (vitesse > 0) {
+                    const vitesseNum = parseFloat(vitesse);
+                    alerteTriche = (vitesseNum > 25 || vitesseNum > vmaRef * 1.5);
+                }
+
+                if (alerteTriche) {
+                    showToast("⚠️ Vitesse suspecte – Le professeur en est informé.", 4000);
+                }
+
+                const passageData = {
+                    equipe: currentEq,
+                    maillot: currentMaillot,
+                    juge: currentJuge,
+                    ptsVMA: Math.round(ptsVMA),
+                    ptsTir: Math.round(ptsTir),
+                    vitesse: Math.round(vitesse * 10) / 10,
+                    temps: Math.round(totalLap),
+                    courseMs: Math.round(lapData.courseMs),
+                    tirMs: Math.round(lapData.tirMs),
+                    penaliteMs: Math.round(lapData.penaliteMs),
+                    shots: lapData.shots.map(s => Math.round(s)),
+                    penReq: lapData.penReq,
+                    penDone: lapData.penDone,
+                    serie: currentSerie + 1,
+                    timestamp: Date.now(),
+                    mode: modeActuel,
+                    alerteTriche: alerteTriche
+                };
+
+                db.ref('arcathlon/live/passages').push().set(passageData)
+                    .then(() => {
+                        if (scoresCoureur[key]) {
+                            scoresCoureur[key].series[currentSerie] = {
+                                course: passageData.ptsVMA,
+                                tir: passageData.ptsTir,
+                                temps: passageData.temps,
+                                vitesse: passageData.vitesse
+                            };
+                        }
+                        const nextSerie = currentSerie + 1;
+                        if (nextSerie < seanceConfig.nbSeries) {
+                            currentSerie = nextSerie;
+                            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            resetLap();
+                            setPhase('course');
+                            startTimer();
+                        } else {
+                            if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                            passageActuel++;
+                            retourCoureurs();
+                        }
+                    })
+                    .catch(() => {
+                        errorDiv.textContent = "❌ Erreur réseau. Retour à la grille.";
+                        errorDiv.style.display = 'block';
+                        setTimeout(() => retourCoureurs(), 2000);
+                    });
+            } catch (e) {
+                errorDiv.textContent = "❌ Erreur interne. Retour à la grille.";
+                errorDiv.style.display = 'block';
+                setTimeout(() => retourCoureurs(), 2000);
+            }
+        }
+
+        // =====================================================================
+        // FINISH MILLE
+        // =====================================================================
+        function finishMille() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
+            try {
+                const ptsTir = lapData.shots.reduce((a, b) => a + b, 0);
+                const totalLap = 18000 + lapData.tirMs + lapData.penaliteMs;
+                const passageData = {
+                    equipe: currentEq,
+                    maillot: currentMaillot,
+                    juge: currentJuge,
+                    ptsVMA: 0,
+                    ptsTir: Math.round(ptsTir),
+                    vitesse: 0,
+                    temps: Math.round(totalLap),
+                    courseMs: 18000,
+                    tirMs: Math.round(lapData.tirMs),
+                    penaliteMs: Math.round(lapData.penaliteMs),
+                    shots: lapData.shots.map(s => Math.round(s)),
+                    penReq: 0,
+                    penDone: 0,
+                    serie: currentSerie + 1,
+                    timestamp: Date.now(),
+                    mode: 'mille',
+                    alerteTriche: false
+                };
+                db.ref('arcathlon/live/passages').push().set(passageData)
+                    .then(() => {
+                        const key = `${currentEq}-${currentMaillot}`;
+                        if (scoresCoureur[key]) {
+                            scoresCoureur[key].series[currentSerie] = { course: 0, tir: ptsTir, temps: totalLap, vitesse: 0 };
+                        }
+                        const nextSerie = currentSerie + 1;
+                        if (nextSerie < seanceConfig.nbSeries) {
+                            currentSerie = nextSerie;
+                            document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            resetLap();
+                            setPhase('course');
+                            startTimer();
+                        } else {
+                            if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                            passageActuel++;
+                            retourCoureurs();
+                        }
+                    })
+                    .catch(() => {
+                        errorDiv.textContent = "❌ Erreur réseau. Retour à la grille.";
+                        errorDiv.style.display = 'block';
+                        setTimeout(() => retourCoureurs(), 2000);
+                    });
+            } catch (e) {
+                errorDiv.textContent = "❌ Erreur interne. Retour à la grille.";
+                errorDiv.style.display = 'block';
+                setTimeout(() => retourCoureurs(), 2000);
+            }
+        }
+
+        // =====================================================================
+        // PENALITE
+        // =====================================================================
+        function renderPenalites() {
+            const row = document.getElementById('penlapsRow');
+            row.innerHTML = '';
+            for (let i = 0; i < lapData.penReq; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'penlap' + (i < lapData.penDone ? ' done' : '');
+                btn.textContent = `Tour ${i+1}`;
+                btn.onclick = () => clickPenalty(i);
+                row.appendChild(btn);
+            }
+            document.getElementById('penReq').textContent = lapData.penReq;
+            document.getElementById('penDone').textContent = lapData.penDone;
+            if (!isRunning) startTimer();
+            document.getElementById('giantActionBtn').textContent = 'Effectuer les pénalités';
+            document.getElementById('giantActionBtn').className = 'btn-action pen';
+            document.getElementById('giantActionBtn').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function clickPenalty(index) {
+            const btns = document.querySelectorAll('#penlapsRow .penlap');
+            if (index >= btns.length || btns[index].classList.contains('done')) return;
+            btns[index].classList.add('done');
+            lapData.penDone++;
+            document.getElementById('penDone').textContent = lapData.penDone;
+            if (lapData.penDone >= lapData.penReq) {
+                if (isRunning) stopTimer();
+                lapData.penaliteMs = phaseAccum;
+                finishLap();
+            }
+        }
+
+        // =====================================================================
+        // RELAIS CARTES
+        // =====================================================================
+        window.tirerCarteRelais = function() {
+            const carte = cartesRelais[Math.floor(Math.random() * cartesRelais.length)];
+            document.getElementById('btnTirerCarte').classList.add('hidden');
+            const affichage = document.getElementById('carteAffichee');
+            affichage.textContent = carte.nom;
+            affichage.classList.remove('hidden');
+            if (carte.effet) carte.effet();
+        };
+
+        function updateInfoFleches() {
+            let span = document.getElementById('infoFleches');
+            if (!span) { span = document.createElement('span'); span.id = 'infoFleches'; span.className = 'text-xs font-bold text-slate-400 ml-2'; document.getElementById('infoSerieVMA').appendChild(span); }
+            span.textContent = `Flèches : ${nbFlechesActuel}`;
+        }
+
+        // =====================================================================
+        // MILLE (18s)
+        // =====================================================================
+        window.startTimer18 = function() {
+            let timeLeft = 18;
+            document.getElementById('btnStart18').classList.add('hidden');
+            const display = document.getElementById('chrono18s');
+            display.textContent = timeLeft;
+            display.classList.replace('text-emerald-400', 'text-yellow-400');
+            timer18Interval = setInterval(() => {
+                timeLeft--;
+                display.textContent = timeLeft;
+                if (timeLeft <= 5) display.classList.replace('text-yellow-400', 'text-red-500');
+                if (timeLeft <= 0) {
+                    clearInterval(timer18Interval);
+                    display.classList.replace('text-red-500', 'text-emerald-400');
+                    display.textContent = "TIR !";
+                    document.getElementById('moduleMille').classList.add('hidden');
+                    currentPhase = 'tir';
+                    document.getElementById('moduleSaisieTir').style.display = 'flex';
+                    genererZonesFleches();
+                    const panel = document.getElementById('phasePanel');
+                    panel.className = 'phase-panel panel-tir';
+                    document.getElementById('phaseName').textContent = 'TIR';
+                    document.getElementById('phaseClock').textContent = '00:00.00';
+                    phaseAccum = 0;
+                    phaseStartTime = Date.now();
+                    isRunning = true;
+                    tickLoop();
+                    document.getElementById('giantActionBtn').style.display = 'none';
+                    document.getElementById('btnValider').textContent = 'Valider le tir (Mille)';
+                    document.getElementById('errorMessage').style.display = 'none';
+                }
+            }, 1000);
         };
 
         // =====================================================================
-        // SAUVEGARDE / RESTAURATION
+        // KILL BILL
         // =====================================================================
-        window.exportData = function() {
-            const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `Arcathlon_Prof_Backup.json`;
-            a.click();
+        function initKillBill() {
+            const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
+            killBillState.equipeAdverse = autres.length ? autres[0] : 'Équipe X';
+            document.getElementById('adversaireLabel').textContent = killBillState.equipeAdverse;
+            killBillState.scoreNous = 0; killBillState.scoreEux = 0; killBillState.tirsNous = 0; killBillState.tirsEux = 0;
+            killBillState.maxTirs = seanceConfig.nbFleches || 2;
+            document.getElementById('scoreNous').textContent = '0'; document.getElementById('scoreEux').textContent = '0';
+            document.getElementById('messageDuel').textContent = `Tire une flèche pour ton équipe (1/${killBillState.maxTirs})`;
+            document.getElementById('btnValiderDuel').disabled = true;
+            document.getElementById('btnValiderDuel').classList.add('opacity-40');
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        window.tirerDuel = function(pts) {
+            if (killBillState.tirsNous < killBillState.maxTirs) {
+                killBillState.scoreNous += pts; killBillState.tirsNous++;
+                document.getElementById('scoreNous').textContent = killBillState.scoreNous;
+                document.getElementById('messageDuel').textContent = killBillState.tirsNous < killBillState.maxTirs ? 
+                    `Tire une flèche pour ton équipe (${killBillState.tirsNous+1}/${killBillState.maxTirs})` : 
+                    `Tire maintenant pour l'équipe adverse (1/${killBillState.maxTirs})`;
+            } else if (killBillState.tirsEux < killBillState.maxTirs) {
+                killBillState.scoreEux += pts; killBillState.tirsEux++;
+                document.getElementById('scoreEux').textContent = killBillState.scoreEux;
+                document.getElementById('messageDuel').textContent = killBillState.tirsEux < killBillState.maxTirs ? 
+                    `Tire pour l'adversaire (${killBillState.tirsEux+1}/${killBillState.maxTirs})` : 
+                    "Duel terminé ! Clique sur Valider";
+                if (killBillState.tirsEux >= killBillState.maxTirs) {
+                    document.getElementById('btnValiderDuel').disabled = false;
+                    document.getElementById('btnValiderDuel').classList.remove('opacity-40');
+                }
+            }
         };
-        document.getElementById('importDataInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                try { state = JSON.parse(ev.target.result); saveToLocal(); initUI(); alert("Restauré !"); } catch (err) { alert("Fichier invalide."); }
+
+        window.annulerDuel = function() { initKillBill(); };
+
+        window.validerDuel = function() {
+            const diff = killBillState.scoreNous - killBillState.scoreEux;
+            let penalite = (diff < 0) ? (Math.abs(diff) < 5 ? 2 : 3) : (diff > 0 ? (diff < 5 ? 0 : 1) : 0);
+            const ptsTir = killBillState.scoreNous;
+            const passageData = {
+                equipe: currentEq,
+                maillot: currentMaillot,
+                juge: currentJuge,
+                ptsVMA: 0,
+                ptsTir: ptsTir,
+                penalites: penalite,
+                vitesse: 0,
+                temps: 0,
+                serie: currentSerie + 1,
+                timestamp: Date.now(),
+                mode: 'killbill',
+                alerteTriche: false
             };
-            reader.readAsText(file);
-            e.target.value = '';
-        });
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    const key = `${currentEq}-${currentMaillot}`;
+                    if (scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
+                    const nextSerie = currentSerie + 1;
+                    if (nextSerie < seanceConfig.nbSeries) {
+                        currentSerie = nextSerie;
+                        document.getElementById('currentSerieChip').textContent = currentSerie + 1;
+                        document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                        resetLap();
+                        setPhase('course');
+                        startTimer();
+                    } else {
+                        if (scoresCoureur[key]) scoresCoureur[key].complet = true;
+                        passageActuel++;
+                        retourCoureurs();
+                    }
+                })
+                .catch(() => { alert("Erreur réseau. Retour à la grille."); retourCoureurs(); });
+        };
 
         // =====================================================================
-        // SWITCH TABS
+        // CONNEXION
         // =====================================================================
-        window.switchTab = function(t) {
-            ['viewImport', 'viewEquipes', 'viewLive', 'viewStatistiques', 'viewHistorique'].forEach(id =>
-                document.getElementById(id).classList.add('hidden')
-            );
-            ['btnTab1', 'btnTab2', 'btnTab3', 'btnTab4', 'btnTab5'].forEach(id => {
-                document.getElementById(id).classList.remove('tab-active', 'text-blue-500');
-                document.getElementById(id).classList.add('text-slate-500');
-            });
-            const map = { 'import': '1', 'equipes': '2', 'live': '3', 'statistiques': '4', 'historique': '5' };
-            document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
-            document.getElementById('btnTab' + map[t]).classList.add('tab-active', 'text-blue-500');
-            if (t === 'statistiques') loadStats();
-        };
+        db.ref('.info/connected').on('value', snap => {
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
+        });
 
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version corrigée (glisser-déposer OK)");
+        document.addEventListener('DOMContentLoaded', function() {
+            const info = document.getElementById('infoSerieVMA');
+            const span = document.createElement('span');
+            span.id = 'infoFleches';
+            span.className = 'text-xs font-bold text-slate-400 ml-2';
+            span.textContent = 'Flèches : 2';
+            info.appendChild(span);
+            document.getElementById('phasePanel').classList.add('hidden');
+        });
+        console.log("✅ Arcathlon élève - version anonymisée (code)");
     </script>
 </body>
 </html>
