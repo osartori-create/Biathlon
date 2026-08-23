@@ -145,6 +145,18 @@
             50% { transform: scale(1.3); opacity: 1; }
             100% { transform: scale(1); opacity: 1; }
         }
+
+        .temps-bonifie-global {
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: #facc15;
+            background: #0a0f1a;
+            padding: 4px 12px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-top: 4px;
+            border: 1px solid #facc15;
+        }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
@@ -235,7 +247,7 @@
                 <div id="carteAffichee" class="text-lg font-bold text-center bg-slate-800 p-3 rounded-xl border-2 border-purple-500 hidden text-purple-300 mt-2 w-full max-w-md"></div>
             </div>
 
-            <!-- Giant Action Button (caché en mode poursuite avec départ centralisé) -->
+            <!-- Giant Action Button -->
             <button id="giantActionBtn" class="btn-action course" onclick="onGiantAction()">Démarrer la course</button>
 
             <!-- Phase Content -->
@@ -327,10 +339,11 @@
         let modeActuel = "sprint";
         let nbFlechesActuel = 2;
         let currentPhase = 'course';
-        let phaseStartTime = null, phaseAccum = 0, globalAccum = 0, isRunning = false, tickHandle = null;
+        let startTime = 0, elapsed = 0, running = false, frameHandle = null;
+        let phaseAccum = 0, globalAccum = 0;
         let lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 };
         let effetCarte = null;
-        let handicapMs = 0;  // Pour la poursuite inversée
+        let handicapMs = 0;
         let departSignalReceived = false;
         let departCountdown = null;
         let departPanelTimeout = null;
@@ -428,23 +441,21 @@
         });
 
         // =====================================================================
-        // ÉCOUTE DU DÉPART CENTRALISÉ
+        // ÉCOUTE DU DÉPART CENTRALISÉ (avec compte à rebours)
         // =====================================================================
         db.ref('arcathlon/commandes/depart').on('value', snap => {
             const data = snap.val();
             if (!data || !data.timestamp) {
-                // Pas de départ en attente
                 document.getElementById('departPanel').classList.remove('active');
                 if (departPanelTimeout) clearTimeout(departPanelTimeout);
+                if (departCountdown) clearInterval(departCountdown);
                 return;
             }
 
-            // Afficher le panneau de départ
             const panel = document.getElementById('departPanel');
             const chrono = document.getElementById('departChrono');
             const handicapEl = document.getElementById('departHandicap');
             
-            // Calculer le délai restant
             const now = Date.now();
             const delai = data.delai || 0;
             const departTimestamp = data.timestamp + (delai * 1000);
@@ -455,7 +466,6 @@
                 chrono.textContent = remaining + 's';
                 chrono.className = 'depart-chrono';
                 handicapEl.textContent = handicapMs > 0 ? `Handicap : +${(handicapMs/1000).toFixed(1)}s` : '';
-                // Compter à rebours
                 if (departCountdown) clearInterval(departCountdown);
                 departCountdown = setInterval(() => {
                     const newRemaining = Math.max(0, Math.round((departTimestamp - Date.now()) / 1000));
@@ -465,12 +475,10 @@
                         clearInterval(departCountdown);
                         chrono.textContent = 'GO ! 🚀';
                         chrono.className = 'depart-go';
-                        // Déclencher le départ
                         if (!departSignalReceived) {
                             departSignalReceived = true;
                             startTimer();
                         }
-                        // Fermer le panneau après 2s
                         departPanelTimeout = setTimeout(() => {
                             panel.classList.remove('active');
                             chrono.textContent = '--';
@@ -480,7 +488,6 @@
                     }
                 }, 200);
             } else {
-                // Départ immédiat
                 panel.classList.add('active');
                 chrono.textContent = 'GO ! 🚀';
                 chrono.className = 'depart-go';
@@ -518,7 +525,7 @@
                 buildCoureursGrid();
             } else { alert("Code PIN incorrect."); clearPin(); }
         };
-        window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
+        window.resetLogin = function() { stopTimer(); currentEq = ""; inputPin = ""; currentMaillot = ""; currentJuge = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
 
         // =====================================================================
         // SÉLECTEUR DU JUGE iPad
@@ -557,7 +564,7 @@
         };
 
         // =====================================================================
-        // GRILLE
+        // GRILLE (avec affichage du temps bonifié)
         // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
@@ -723,7 +730,6 @@
                 return;
             }
 
-            // Récupérer le handicap pour ce coureur (poursuite inversée)
             handicapMs = 0;
             const handicapKey = `${currentEq}-${maillot}`;
             if (seanceConfig.handicaps && seanceConfig.handicaps[handicapKey]) {
@@ -740,7 +746,6 @@
             document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
             document.getElementById('currentSerieChip').textContent = currentSerie + 1;
 
-            // Afficher le handicap si > 0
             const handicapDisplay = document.getElementById('handicapDisplay');
             if (handicapMs > 0) {
                 handicapDisplay.classList.remove('hidden');
@@ -782,7 +787,6 @@
             } else {
                 document.getElementById('giantActionBtn').style.display = 'block';
                 setPhase('course');
-                // Si mode poursuite, le départ est centralisé, on désactive le bouton manuel
                 if (modeActuel === 'poursuite') {
                     document.getElementById('giantActionBtn').textContent = '⏳ Attente du départ...';
                     document.getElementById('giantActionBtn').className = 'btn-action waiting';
@@ -798,7 +802,7 @@
         };
 
         window.retourCoureurs = function() {
-            stopAllTimers();
+            stopTimer();
             document.getElementById('ecranAction').classList.add('hidden');
             document.getElementById('ecranCoureurs').classList.remove('hidden');
             document.getElementById('ecranCoureurs').classList.add('flex');
@@ -817,7 +821,7 @@
             const giant = document.getElementById('giantActionBtn');
 
             phaseAccum = 0;
-            phaseStartTime = isRunning ? Date.now() : null;
+            startTime = running ? performance.now() : 0;
             clock.textContent = '00:00.00';
 
             panel.className = 'phase-panel';
@@ -825,11 +829,11 @@
                 panel.classList.add('panel-course');
                 name.textContent = 'COURSE';
                 giant.style.display = 'block';
-                if (modeActuel === 'poursuite' && !isRunning) {
+                if (modeActuel === 'poursuite' && !running) {
                     giant.textContent = '⏳ Attente du départ...';
                     giant.className = 'btn-action waiting';
                     giant.disabled = true;
-                } else if (isRunning) {
+                } else if (running) {
                     giant.textContent = 'Arrivée';
                     giant.className = 'btn-action course';
                     giant.disabled = false;
@@ -866,9 +870,9 @@
 
         function resetLap() {
             lapData = { courseMs: 0, tirMs: 0, penaliteMs: 0, shots: [], penReq: 0, penDone: 0 };
-            globalAccum = 0; phaseAccum = 0; isRunning = false;
-            if (tickHandle) cancelAnimationFrame(tickHandle);
-            tickHandle = null;
+            globalAccum = 0; phaseAccum = 0; running = false;
+            if (frameHandle) cancelAnimationFrame(frameHandle);
+            frameHandle = null;
             document.getElementById('phaseClock').textContent = '00:00.00';
             const btn = document.getElementById('giantActionBtn');
             if (modeActuel === 'poursuite') {
@@ -884,42 +888,38 @@
             document.getElementById('errorMessage').style.display = 'none';
         }
 
+        // =====================================================================
+        // Chronométrage avec performance.now()
+        // =====================================================================
         function startTimer() {
-            if (isRunning) return;
-            const now = Date.now();
-            phaseStartTime = now;
-            isRunning = true;
-            tickLoop();
-            updateGiantButton();
-            // Cacher le panneau de départ s'il est encore visible
-            document.getElementById('departPanel').classList.remove('active');
+            if (running) return;
+            startTime = performance.now();
+            running = true;
+            tick();
         }
 
         function stopTimer() {
-            if (!isRunning) return;
-            const now = Date.now();
-            if (phaseStartTime) {
-                phaseAccum += (now - phaseStartTime);
-                phaseStartTime = null;
-            }
-            isRunning = false;
-            if (tickHandle) cancelAnimationFrame(tickHandle);
-            tickHandle = null;
+            if (!running) return;
+            running = false;
+            if (frameHandle) cancelAnimationFrame(frameHandle);
+            frameHandle = null;
+            // le temps écoulé est déjà dans elapsed, on l'ajoute à phaseAccum
+            phaseAccum += elapsed;
+            elapsed = 0;
             updateGiantButton();
         }
 
-        function tickLoop() {
-            const update = () => {
-                if (!isRunning) return;
-                const now = Date.now();
-                let phaseElapsed = phaseAccum + (phaseStartTime ? (now - phaseStartTime) : 0);
-                document.getElementById('phaseClock').textContent = formatTime(phaseElapsed);
-                if (currentPhase === 'course') lapData.courseMs = phaseElapsed;
-                else if (currentPhase === 'tir') lapData.tirMs = phaseElapsed;
-                else if (currentPhase === 'penalite') lapData.penaliteMs = phaseElapsed;
-                tickHandle = requestAnimationFrame(update);
-            };
-            tickHandle = requestAnimationFrame(update);
+        function tick() {
+            if (!running) return;
+            const now = performance.now();
+            elapsed = now - startTime;
+            let total = phaseAccum + elapsed;
+            // Mettre à jour l'affichage
+            document.getElementById('phaseClock').textContent = formatTime(total);
+            if (currentPhase === 'course') lapData.courseMs = total;
+            else if (currentPhase === 'tir') lapData.tirMs = total;
+            else if (currentPhase === 'penalite') lapData.penaliteMs = total;
+            frameHandle = requestAnimationFrame(tick);
         }
 
         function formatTime(ms) {
@@ -932,19 +932,19 @@
         }
 
         function stopAllTimers() {
-            if (isRunning) stopTimer();
-            if (tickHandle) cancelAnimationFrame(tickHandle);
-            tickHandle = null;
+            if (running) stopTimer();
+            if (frameHandle) cancelAnimationFrame(frameHandle);
+            frameHandle = null;
         }
 
         function updateGiantButton() {
             const btn = document.getElementById('giantActionBtn');
             if (currentPhase === 'course') {
-                if (modeActuel === 'poursuite' && !isRunning) {
+                if (modeActuel === 'poursuite' && !running) {
                     btn.textContent = '⏳ Attente du départ...';
                     btn.className = 'btn-action waiting';
                     btn.disabled = true;
-                } else if (isRunning) {
+                } else if (running) {
                     btn.textContent = 'Arrivée';
                     btn.className = 'btn-action course';
                     btn.disabled = false;
@@ -967,8 +967,7 @@
         window.onGiantAction = function() {
             if (modeActuel === 'mille' || modeActuel === 'killbill') return;
             if (currentPhase === 'course') {
-                if (!isRunning) {
-                    // Si mode poursuite, le départ est centralisé, on ne démarre pas manuellement
+                if (!running) {
                     if (modeActuel === 'poursuite') {
                         showToast("⏳ Attendez le départ depuis l'iPad du professeur.", 2000);
                         return;
@@ -976,7 +975,7 @@
                     startTimer();
                 } else {
                     stopTimer();
-                    lapData.courseMs = phaseAccum;
+                    lapData.courseMs = phaseAccum + elapsed;
                     if (currentSerie === seanceConfig.nbSeries - 1) {
                         finishLap();
                     } else {
@@ -990,7 +989,7 @@
         };
 
         // =====================================================================
-        // TIR MODULE
+        // TIR MODULE (inchangé)
         // =====================================================================
         function genererZonesFleches() {
             const container = document.getElementById('flechesContainer');
@@ -1069,8 +1068,8 @@
                 return;
             }
 
-            if (isRunning) stopTimer();
-            lapData.tirMs = phaseAccum;
+            if (running) stopTimer();
+            lapData.tirMs = phaseAccum + elapsed;
 
             if (modeActuel === 'mille') {
                 finishMille();
@@ -1087,7 +1086,7 @@
         };
 
         // =====================================================================
-        // FINISH LAP (avec handicap et alerte triche)
+        // FINISH LAP (avec handicap)
         // =====================================================================
         function finishLap() {
             const errorDiv = document.getElementById('errorMessage');
@@ -1157,7 +1156,6 @@
                             document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
                             resetLap();
                             setPhase('course');
-                            // Si poursuite, on attend le prochain départ centralisé
                             if (modeActuel === 'poursuite') {
                                 document.getElementById('giantActionBtn').textContent = '⏳ Attente du départ...';
                                 document.getElementById('giantActionBtn').className = 'btn-action waiting';
@@ -1185,7 +1183,7 @@
         }
 
         // =====================================================================
-        // FINISH MILLE
+        // FINISH MILLE (inchangé)
         // =====================================================================
         function finishMille() {
             const errorDiv = document.getElementById('errorMessage');
@@ -1253,7 +1251,7 @@
         }
 
         // =====================================================================
-        // PENALITE
+        // PENALITE (inchangé)
         // =====================================================================
         function renderPenalites() {
             const row = document.getElementById('penlapsRow');
@@ -1267,7 +1265,7 @@
             }
             document.getElementById('penReq').textContent = lapData.penReq;
             document.getElementById('penDone').textContent = lapData.penDone;
-            if (!isRunning) startTimer();
+            if (!running) startTimer();
             document.getElementById('giantActionBtn').textContent = 'Effectuer les pénalités';
             document.getElementById('giantActionBtn').className = 'btn-action pen';
             document.getElementById('giantActionBtn').style.display = 'block';
@@ -1282,14 +1280,14 @@
             lapData.penDone++;
             document.getElementById('penDone').textContent = lapData.penDone;
             if (lapData.penDone >= lapData.penReq) {
-                if (isRunning) stopTimer();
-                lapData.penaliteMs = phaseAccum;
+                if (running) stopTimer();
+                lapData.penaliteMs = phaseAccum + elapsed;
                 finishLap();
             }
         }
 
         // =====================================================================
-        // RELAIS CARTES
+        // RELAIS CARTES (inchangé)
         // =====================================================================
         window.tirerCarteRelais = function() {
             const carte = cartesRelais[Math.floor(Math.random() * cartesRelais.length)];
@@ -1307,7 +1305,7 @@
         }
 
         // =====================================================================
-        // MILLE (18s)
+        // MILLE (18s) (inchangé)
         // =====================================================================
         window.startTimer18 = function() {
             let timeLeft = 18;
@@ -1332,9 +1330,9 @@
                     document.getElementById('phaseName').textContent = 'TIR';
                     document.getElementById('phaseClock').textContent = '00:00.00';
                     phaseAccum = 0;
-                    phaseStartTime = Date.now();
-                    isRunning = true;
-                    tickLoop();
+                    startTime = performance.now();
+                    running = true;
+                    tick();
                     document.getElementById('giantActionBtn').style.display = 'none';
                     document.getElementById('btnValider').textContent = 'Valider le tir (Mille)';
                     document.getElementById('errorMessage').style.display = 'none';
@@ -1343,7 +1341,7 @@
         };
 
         // =====================================================================
-        // KILL BILL
+        // KILL BILL (inchangé)
         // =====================================================================
         function initKillBill() {
             const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
@@ -1447,7 +1445,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version avec départ centralisé, handicaps, boucle pénalité");
+        console.log("✅ Arcathlon élève - version avec performance.now(), départ centralisé paramétrable, temps bonifié affiché");
     </script>
 </body>
 </html>
