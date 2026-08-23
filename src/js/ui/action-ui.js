@@ -1,4 +1,5 @@
 import { appState } from '../core/state.js';
+import { firebaseService } from '../core/firebase-service.js';
 import { toast } from '../services/toast-service.js';
 import { formatTime } from '../utils/format.js';
 
@@ -10,17 +11,31 @@ export class ActionUI {
         this._timerDisplay = null;
         this._cleanupTimer = null;
         this._cleanupEvents = [];
-        this._config = null;
+        this._config = {};
     }
 
     render(maillot, controller) {
         this._maillot = maillot;
-        this._controller = controller;
-        // Récupérer la config depuis window.app
+        // Si un contrôleur est passé, on l'utilise, sinon on essaie de le récupérer depuis window.app
+        if (controller) {
+            this._controller = controller;
+        } else {
+            // Fallback : récupérer depuis l'application globale
+            const mode = window.app?._config?.mode || 'sprint';
+            this._controller = mode === 'poursuite' ? window.app?.poursuite : window.app?.sprint;
+        }
+
+        // Si toujours pas de contrôleur, on ne peut pas continuer
+        if (!this._controller) {
+            toast.error('Erreur : contrôleur non disponible');
+            return;
+        }
+
+        // Récupérer la config depuis l'application
         this._config = window.app?._config || {};
         const state = appState.getState();
         const nbSeries = this._controller?._nbSeries || this._config?.nbSeries || 3;
-        const maxFleches = this._controller?.tir?.maxFleches || 2;
+        const maxFleches = this._controller?.tir?.maxFleches || this._config?.nbFleches || 2;
 
         this._container.innerHTML = `
             <button onclick="window.app.action.retour()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2">↩ Retour</button>
@@ -68,13 +83,11 @@ export class ActionUI {
         this._timerDisplay = document.getElementById('phaseClock');
         // Nettoyer l'ancien timer listener
         if (this._cleanupTimer) this._cleanupTimer();
-        if (this._controller && this._controller.timer) {
-            this._cleanupTimer = this._controller.timer.onTick((ms) => {
-                if (this._timerDisplay) {
-                    this._timerDisplay.textContent = formatTime(ms);
-                }
-            });
-        }
+        this._cleanupTimer = this._controller.timer.onTick((ms) => {
+            if (this._timerDisplay) {
+                this._timerDisplay.textContent = formatTime(ms);
+            }
+        });
 
         this._setupEvents();
         this._updatePhase('course');
@@ -85,6 +98,7 @@ export class ActionUI {
         this._cleanupEvents.forEach(fn => fn());
         this._cleanupEvents = [];
 
+        // Écouter les événements personnalisés
         const handlers = {
             'show-penalite': (e) => {
                 const { penReq, done } = e.detail;
@@ -109,8 +123,8 @@ export class ActionUI {
                 btn.className = 'w-full py-5 rounded-2xl font-black text-xl uppercase tracking-widest text-white bg-yellow-600 border-4 border-yellow-400 shadow-lg opacity-70';
                 btn.disabled = true;
             },
-            'timer-tick': (e) => {
-                // mise à jour si besoin
+            'timer-tick': () => {
+                // mise à jour gérée par le timer
             }
         };
 
@@ -118,6 +132,11 @@ export class ActionUI {
             const fn = handlers[eventName];
             window.addEventListener(eventName, fn);
             this._cleanupEvents.push(() => window.removeEventListener(eventName, fn));
+        });
+
+        // Nettoyage supplémentaire au retour
+        this._cleanupEvents.push(() => {
+            if (this._cleanupTimer) this._cleanupTimer();
         });
     }
 
@@ -143,43 +162,39 @@ export class ActionUI {
             document.getElementById('tirZone').style.display = 'block';
             document.getElementById('penaliteZone').style.display = 'none';
             btn.style.display = 'none';
-            // Réinitialiser le tir si le contrôleur existe
-            if (this._controller && this._controller.tir) {
+            // Réinitialiser le tir
+            if (this._controller?.tir) {
                 this._controller.tir.reset(this._controller.tir.maxFleches);
-                const max = this._controller.tir.maxFleches;
-                document.getElementById('tirStatus').textContent = `Flèches : 0/${max}`;
-                document.getElementById('btnValiderTir').disabled = true;
-                document.getElementById('btnValiderTir').classList.add('opacity-40');
             }
+            const maxFleches = this._controller?.tir?.maxFleches || 2;
+            document.getElementById('tirStatus').textContent = `Flèches : 0/${maxFleches}`;
+            document.getElementById('btnValiderTir').disabled = true;
+            document.getElementById('btnValiderTir').classList.add('opacity-40');
         }
     }
 
     onAction() {
         const state = appState.getState();
+        if (!this._controller) {
+            toast.error('Erreur : contrôleur non initialisé');
+            return;
+        }
         if (state.currentPhase === 'course') {
             if (!state.isRunning) {
-                if (this._controller && typeof this._controller.startCourse === 'function') {
-                    this._controller.startCourse();
-                    document.getElementById('btnAction').textContent = '🏁 Arrivée';
-                    document.getElementById('btnAction').className = 'w-full py-5 rounded-2xl font-black text-xl uppercase tracking-widest text-white bg-green-600 border-4 border-green-400 shadow-lg btn-tap';
-                } else {
-                    toast.error('Contrôleur non disponible');
-                }
+                this._controller.startCourse();
+                document.getElementById('btnAction').textContent = '🏁 Arrivée';
+                document.getElementById('btnAction').className = 'w-full py-5 rounded-2xl font-black text-xl uppercase tracking-widest text-white bg-green-600 border-4 border-green-400 shadow-lg btn-tap';
             } else {
-                if (this._controller && typeof this._controller.stopCourse === 'function') {
-                    this._controller.stopCourse();
-                    this._updatePhase('tir');
-                    toast.info('🎯 Passez au tir !');
-                } else {
-                    toast.error('Contrôleur non disponible');
-                }
+                this._controller.stopCourse();
+                this._updatePhase('tir');
+                toast.info('🎯 Passez au tir !');
             }
         }
     }
 
     marquerTir(pts) {
-        if (!this._controller || !this._controller.tir) {
-            toast.error('Service de tir non disponible');
+        if (!this._controller?.tir) {
+            toast.error('Erreur : service de tir non disponible');
             return;
         }
         const success = this._controller.tir.fire(pts);
@@ -202,7 +217,7 @@ export class ActionUI {
     }
 
     annulerTir() {
-        if (!this._controller || !this._controller.tir) return;
+        if (!this._controller?.tir) return;
         const success = this._controller.tir.undoLast();
         if (success) {
             const status = document.getElementById('tirStatus');
@@ -216,40 +231,39 @@ export class ActionUI {
     }
 
     validerTir() {
-        if (!this._controller || !this._controller.tir) {
-            toast.error('Service de tir non disponible');
+        if (!this._controller) {
+            toast.error('Erreur : contrôleur non disponible');
             return;
         }
         if (!this._controller.tir.isComplete()) {
             toast.show('Tirez toutes les flèches !', 2000, 'error');
             return;
         }
-        if (typeof this._controller.finishSerie === 'function') {
-            this._controller.finishSerie();
-        } else {
-            toast.error('Méthode finishSerie manquante');
-        }
+        this._controller.finishSerie();
     }
 
     fairePenalite() {
-        if (this._controller && typeof this._controller.onPenaliteDone === 'function') {
+        if (this._controller?.onPenaliteDone) {
             this._controller.onPenaliteDone();
         } else {
-            toast.error('Méthode de pénalité non disponible');
+            toast.error('Erreur : gestion des pénalités non disponible');
         }
     }
 
     retour() {
-        // Nettoyer
+        // Nettoyer les listeners
         this._cleanupEvents.forEach(fn => fn());
         this._cleanupEvents = [];
         if (this._cleanupTimer) {
             this._cleanupTimer();
             this._cleanupTimer = null;
         }
-        if (this._controller && this._controller.timer) {
+        if (this._controller?.timer) {
             this._controller.timer.stop();
         }
-        window.app.dashboard.render(window.app._config);
+        // Revenir au dashboard
+        if (window.app?.dashboard) {
+            window.app.dashboard.render(window.app._config);
+        }
     }
 }
