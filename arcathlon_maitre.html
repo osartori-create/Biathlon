@@ -19,6 +19,7 @@
         .alerte-triche { background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 0.65rem; }
         .stats-card { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+        .serie-detail { font-size: 0.75rem; color: #94a3b8; line-height: 1.4; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col">
@@ -70,7 +71,8 @@
         <div id="viewEquipes" class="h-full flex flex-col hidden absolute inset-0 overflow-y-auto pr-1">
             <div class="flex flex-wrap items-center justify-between mb-4 gap-3 border-b border-slate-800 pb-3 shrink-0">
                 <div class="flex items-center gap-3">
-                    <button onclick="generateTeams()" class="bg-orange-600 px-5 py-2.5 rounded-xl font-black uppercase text-xs border border-orange-400">🔄 Générer Équipes</button>
+                    <button onclick="generateTeams()" class="bg-orange-600 px-5 py-2.5 rounded-xl font-black uppercase text-xs border border-orange-400">🔄 Générer Équipes (3 coureurs)</button>
+                    <span class="text-xs text-slate-400">(par défaut 3 par équipe)</span>
                 </div>
             </div>
 
@@ -87,6 +89,10 @@
                             <option value="mille">🎯 Dans le 1000 (18 secondes)</option>
                             <option value="killbill">⚔️ Kill Bill (Duel 2v2)</option>
                         </select>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block font-bold text-slate-400 uppercase text-xs mb-1">Coureurs par équipe</label>
+                        <input type="number" id="nbCoureursEquipe" value="3" min="2" max="4" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-4">
@@ -156,7 +162,14 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-xs" id="statsDetailTable">
-                    <thead><tr><th>Équipe</th><th>Maillot</th><th>Série</th><th>Course (s)</th><th>Tir (s)</th><th>Pénalité (s)</th><th>Total (s)</th><th>Points Tir</th><th>Points VMA</th><th>Total pts</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Équipe</th><th>Maillot</th><th>Série</th>
+                            <th>Temps (s)</th><th>Vitesse</th><th>Pts VMA</th>
+                            <th>Tir (pts)</th><th>Bonus (s)</th><th>Temps bonifié (s)</th>
+                            <th>Total pts</th><th>Alerte</th>
+                        </tr>
+                    </thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -188,7 +201,7 @@
         // =====================================================================
         // STATE
         // =====================================================================
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v8')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v9')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -205,7 +218,7 @@
         };
         request.onerror = e => console.error("IndexedDB error", e);
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v8', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v9', JSON.stringify(state)); }
         function savePhoto(id, blob) {
             if (!dbPhotos) return;
             const tx = dbPhotos.transaction("eleves", "readwrite");
@@ -401,19 +414,20 @@
         });
 
         // =====================================================================
-        // GENERATE TEAMS
+        // GENERATE TEAMS (3 coureurs par défaut)
         // =====================================================================
         window.generateTeams = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
             const eleves = state.classes[state.activeCl] || [];
-            if (eleves.length < 4) return alert("Il faut au moins 4 élèves.");
+            const nbParEquipe = parseInt(document.getElementById('nbCoureursEquipe').value) || 3;
+            if (eleves.length < nbParEquipe) return alert(`Il faut au moins ${nbParEquipe} élèves.`);
             let ordre = [...eleves].sort((a, b) => b.VMA - a.VMA);
-            const nbEq = Math.ceil(ordre.length / 4);
+            const nbEq = Math.ceil(ordre.length / nbParEquipe);
             let eqList = Array.from({ length: nbEq }, () => ({ membres: [], sumVMA: 0 }));
             ordre.forEach(el => {
                 let minIdx = 0, minSum = Infinity;
                 eqList.forEach((eq, idx) => {
-                    if (eq.membres.length < 4 && eq.sumVMA < minSum) { minSum = eq.sumVMA; minIdx = idx; }
+                    if (eq.membres.length < nbParEquipe && eq.sumVMA < minSum) { minSum = eq.sumVMA; minIdx = idx; }
                 });
                 eqList[minIdx].membres.push(el);
                 eqList[minIdx].sumVMA += el.VMA;
@@ -435,8 +449,8 @@
                         prenom: m.Prenom,
                         nom: m.Nom,
                         vma: m.VMA,
-                        maillot: couleurs[j % 4],
-                        style: styleMap[couleurs[j % 4]],
+                        maillot: couleurs[j % couleurs.length],
+                        style: styleMap[couleurs[j % couleurs.length]] || 'bg-slate-800 border-slate-600 text-white',
                         idPhoto: m.idPhoto || clePhoto(m.Nom, m.Prenom),
                         absent: false
                     }))
@@ -545,12 +559,13 @@
             const entries = Object.entries(passages).sort((a, b) => b[1].timestamp - a[1].timestamp);
             container.innerHTML = entries.slice(0, 20).map(([key, p]) => {
                 const h = new Date(p.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                const alerte = p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse suspecte</span>' : '';
                 return `
                     <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm">
                         <span class="text-slate-500 font-mono">${h}</span>
                         <span class="font-bold text-slate-200">${p.equipe} — Maillot ${p.maillot}</span>
                         <span class="font-bold text-emerald-400">Course +${p.ptsVMA} | Tir +${p.ptsTir}</span>
-                        ${p.alerteTriche ? '<span class="alerte-triche">⚠️ Vitesse</span>' : ''}
+                        ${alerte}
                     </div>
                 `;
             }).join('');
@@ -598,44 +613,54 @@
                     <div class="bg-slate-900 p-3 rounded"><span class="text-slate-400">Points Course</span><br><span class="text-2xl font-bold">${totalCoursePts}</span></div>
                 `;
 
-                // Table
+                // Table détaillée avec temps et bonus
                 const tbody = document.querySelector('#statsDetailTable tbody');
-                tbody.innerHTML = data.map(p => `
-                    <tr>
-                        <td>${p.equipe}</td>
-                        <td>${p.maillot}</td>
-                        <td>${p.serie || 1}</td>
-                        <td>${p.courseMs ? (p.courseMs/1000).toFixed(2) : '-'}</td>
-                        <td>${p.tirMs ? (p.tirMs/1000).toFixed(2) : '-'}</td>
-                        <td>${p.penaliteMs ? (p.penaliteMs/1000).toFixed(2) : '-'}</td>
-                        <td>${p.temps ? (p.temps/1000).toFixed(2) : '-'}</td>
-                        <td>${p.ptsTir}</td>
-                        <td>${p.ptsVMA}</td>
-                        <td>${p.ptsVMA + p.ptsTir}</td>
-                    </tr>
-                `).join('');
+                tbody.innerHTML = data.map(p => {
+                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
+                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
+                    const ptsTir = p.ptsTir || 0;
+                    // Calcul bonus selon les règles du sprint
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
+                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
+                    const alerte = p.alerteTriche ? '⚠️' : '';
+                    return `
+                        <tr>
+                            <td>${p.equipe}</td>
+                            <td>${p.maillot}</td>
+                            <td>${p.serie || 1}</td>
+                            <td>${temps}</td>
+                            <td>${vitesse}</td>
+                            <td>${p.ptsVMA || 0}</td>
+                            <td>${ptsTir}</td>
+                            <td>${bonus}</td>
+                            <td><strong>${tempsBonifie}</strong></td>
+                            <td>${(p.ptsVMA||0) + ptsTir}</td>
+                            <td>${alerte}</td>
+                        </tr>
+                    `;
+                }).join('');
 
-                // Chart: temps par série (course, tir, penalite)
+                // Chart
                 const ctx = document.getElementById('statsChart').getContext('2d');
                 if (statsChart) statsChart.destroy();
                 const labels = data.map((_, i) => `#${i+1}`);
-                const courseData = data.map(p => p.courseMs ? p.courseMs/1000 : 0);
-                const tirData = data.map(p => p.tirMs ? p.tirMs/1000 : 0);
-                const penData = data.map(p => p.penaliteMs ? p.penaliteMs/1000 : 0);
+                const tempsData = data.map(p => p.temps ? p.temps/1000 : 0);
                 statsChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: labels,
                         datasets: [
-                            { label: 'Course (s)', data: courseData, backgroundColor: '#4f46e5' },
-                            { label: 'Tir (s)', data: tirData, backgroundColor: '#f59e0b' },
-                            { label: 'Pénalité (s)', data: penData, backgroundColor: '#9f86ff' }
+                            { label: 'Temps (s)', data: tempsData, backgroundColor: '#4f46e5' },
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: { y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Temps (s)' } } },
+                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Temps (s)' } } },
                         plugins: { legend: { position: 'top' } }
                     }
                 });
@@ -647,9 +672,19 @@
                 const passages = snap.val() || {};
                 const data = Object.values(passages);
                 if (!data.length) return alert("Aucune donnée.");
-                let csv = "Équipe;Maillot;Série;Course(s);Tir(s);Pénalité(s);Total(s);Pts Tir;Pts Course;Total pts\n";
+                let csv = "Équipe;Maillot;Série;Temps(s);Vitesse;Pts VMA;Pts Tir;Bonus(s);Temps bonifié(s);Total pts;Alerte\n";
                 data.forEach(p => {
-                    csv += `${p.equipe};${p.maillot};${p.serie||1};${(p.courseMs||0)/1000};${(p.tirMs||0)/1000};${(p.penaliteMs||0)/1000};${(p.temps||0)/1000};${p.ptsTir};${p.ptsVMA};${p.ptsVMA+p.ptsTir}\n`;
+                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
+                    const vitesse = p.vitesse ? p.vitesse.toFixed(1) : '-';
+                    const ptsTir = p.ptsTir || 0;
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
+                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
+                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
+                    csv += `${p.equipe};${p.maillot};${p.serie||1};${temps};${vitesse};${p.ptsVMA||0};${ptsTir};${bonus};${tempsBonifie};${(p.ptsVMA||0)+ptsTir};${alerte}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
@@ -701,7 +736,7 @@
         window.exportResults = function() {
             db.ref('arcathlon/live/passages').once('value', snap => {
                 const passages = snap.val() || {};
-                let csv = "Équipe;Maillot;Prénom (Prof);Nom (Prof);Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps total;Course(s);Tir(s);Pénalité(s);Horodatage\n";
+                let csv = "Équipe;Maillot;Prénom (Prof);Nom (Prof);Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps total;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Horodatage\n";
                 Object.values(passages).forEach(p => {
                     let prenom = "", nom = "";
                     const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -709,7 +744,16 @@
                         const mProf = eqProf.membres.find(m => m.maillot === p.maillot);
                         if (mProf) { prenom = mProf.prenom; nom = mProf.nom; }
                     }
-                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${p.serie};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${p.temps ? (p.temps/1000).toFixed(2) : ''};${p.courseMs ? (p.courseMs/1000).toFixed(2) : ''};${p.tirMs ? (p.tirMs/1000).toFixed(2) : ''};${p.penaliteMs ? (p.penaliteMs/1000).toFixed(2) : ''};${new Date(p.timestamp).toLocaleString()}\n`;
+                    const ptsTir = p.ptsTir || 0;
+                    let bonus = 0;
+                    if (ptsTir < 7) bonus = 0;
+                    else if (ptsTir < 12) bonus = -10;
+                    else if (ptsTir < 16) bonus = -15;
+                    else bonus = -20;
+                    const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
+                    const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
+                    const alerte = p.alerteTriche ? 'Oui' : 'Non';
+                    csv += `${p.equipe};${p.maillot};${prenom};${nom};${p.serie};${p.mode};${p.ptsVMA};${p.ptsTir};${p.ptsVMA + p.ptsTir};${p.vitesse ? p.vitesse.toFixed(2) : ''};${p.temps ? (p.temps/1000).toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${new Date(p.timestamp).toLocaleString()}\n`;
                 });
                 const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
                 const a = document.createElement('a');
@@ -760,7 +804,7 @@
         // =====================================================================
         // INIT
         // =====================================================================
-        console.log("Arcathlon professeur chargé - Version améliorée");
+        console.log("Arcathlon professeur chargé - Version avec alertes, 3 coureurs, temps bonifié");
     </script>
 </body>
 </html>
