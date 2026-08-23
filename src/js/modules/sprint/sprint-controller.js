@@ -72,6 +72,15 @@ export class SprintController {
             const ptsVMA = this._calculatePointsVMA(vitesse);
             const ptsTir = this.tir.getTotal();
 
+            // 🔍 DEBUG - Juste avant l'envoi
+            console.log('🔍 DEBUG - Calcul du passage :');
+            console.log('  Temps ms :', tempsMs);
+            console.log('  Distance :', this._distanceTotale);
+            console.log('  Vitesse calculée :', vitesse);
+            console.log('  VMA référence :', this._currentVMA);
+            console.log('  Points VMA :', ptsVMA);
+            console.log('  Points Tir :', ptsTir);
+
             const passageData = {
                 equipe: state.equipe,
                 maillot: state.maillot,
