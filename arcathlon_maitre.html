@@ -748,21 +748,25 @@
                 for (let m of eq.membres) {
                     const idPhoto = currentIdPhoto(m);
                     const url = idPhoto ? await getPhotoUrl(idPhoto) : null;
-                    const photo = url ? `<img src="${url}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-700"></div>`;
-                    html += `
-                        <div class="flex items-center justify-between border border-slate-800 p-2 rounded-lg ${m.style} bg-slate-950" data-id="${m.idUnique || m.prenom+'_'+m.nom}">
-                            <div class="flex items-center gap-2">
-                                ${photo}
-                                <div>
-                                    <div class="font-bold text-xs text-white">${m.prenom} ${m.nom.charAt(0)}.</div>
-                                    <div class="text-[9px] uppercase font-bold tracking-widest text-slate-400">${m.maillot} | VMA ${m.vma}</div>
-                                </div>
-                            </div>
-                            <button onclick="toggleAbsent('${eq.id}','${m.maillot}')" class="text-xs font-bold px-2 py-1 rounded ${m.absent ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}">
-                                ${m.absent ? 'Absent' : 'Présent'}
-                            </button>
-                        </div>
-                    `;
+                    // Nouveau code (sécurisé) :
+const prenom = m.prenom || '?';
+const nom = m.nom || '?';
+const initiale = nom.charAt(0) || '?';
+const photo = url ? `<img src="${url}" class="w-8 h-8 rounded-full object-cover">` : `<div class="w-8 h-8 rounded-full bg-slate-700"></div>`;
+html += `
+    <div class="flex items-center justify-between border border-slate-800 p-2 rounded-lg ${m.style} bg-slate-950" data-id="${m.idUnique || (prenom+'_'+nom)}">
+        <div class="flex items-center gap-2">
+            ${photo}
+            <div>
+                <div class="font-bold text-xs text-white">${prenom} ${initiale}.</div>
+                <div class="text-[9px] uppercase font-bold tracking-widest text-slate-400">${m.maillot} | VMA ${m.vma}</div>
+            </div>
+        </div>
+        <button onclick="toggleAbsent('${eq.id}','${m.maillot}')" class="text-xs font-bold px-2 py-1 rounded ${m.absent ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}">
+            ${m.absent ? 'Absent' : 'Présent'}
+        </button>
+    </div>
+`;
                 }
                 html += `</div></div>`;
                 container.innerHTML += html;
