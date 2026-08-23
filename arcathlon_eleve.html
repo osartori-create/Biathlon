@@ -38,7 +38,6 @@
         }
         .btn-action:active { transform: scale(0.97); }
         .btn-action.course { background: linear-gradient(180deg, #5b57f1, #4f46e5); color: #fff; }
-        .btn-action.tir    { background: linear-gradient(180deg, #ffcc80, #f59e0b); color: #1b1200; }
         .btn-action.pen    { background: linear-gradient(180deg, #b197ff, #9f86ff); color: #1b1200; }
         .btn-action.done   { background: #22c55e; color: #07150b; }
         .penlaps { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
@@ -57,6 +56,7 @@
         .tir-shots .shot-box { background: #111827; padding: 8px; border-radius: 12px; border: 1px solid #1f2937; text-align: center; font-weight: bold; }
         .shot-box .shot-score { color: #60a5fa; }
         .valid-btn { margin-top: 8px; }
+        .coureur-feedback { font-size: 0.6rem; color: #94a3b8; margin-top: 2px; line-height: 1.2; }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
@@ -113,7 +113,7 @@
                         <div id="phaseName" class="phase-title">COURSE</div>
                         <div id="phaseClock" class="phase-clock">00:00.00</div>
                     </div>
-                    <div class="chip">Série <span id="currentSerieChip">1</span>/<span id="totalSeriesChip">3</span> | <span id="distanceChip">400m</span></div>
+                    <div class="chip">Course <span id="currentSerieChip">1</span>/<span id="totalSeriesChip">3</span> | <span id="distanceChip">400m</span></div>
                 </div>
             </div>
 
@@ -126,13 +126,13 @@
             <!-- Message d'erreur -->
             <div id="errorMessage" class="error-msg"></div>
 
-            <!-- RELAIS Cartes -->
+            <!-- RELAIS Cartes (uniquement pour ce mode) -->
             <div id="moduleRelais" class="hidden flex-col items-center mb-3">
                 <button id="btnTirerCarte" onclick="tirerCarteRelais()" class="bg-purple-600 px-6 py-2 rounded-xl font-black text-base uppercase shadow-lg shadow-purple-900/50 btn-tap border-2 border-purple-400">🃏 Tirer une Carte</button>
                 <div id="carteAffichee" class="text-lg font-bold text-center bg-slate-800 p-3 rounded-xl border-2 border-purple-500 hidden text-purple-300 mt-2 w-full max-w-md"></div>
             </div>
 
-            <!-- Giant Action Button -->
+            <!-- Giant Action Button (visible seulement en course et pénalité) -->
             <button id="giantActionBtn" class="btn-action course" onclick="onGiantAction()">Démarrer la course</button>
 
             <!-- Phase Content -->
@@ -174,7 +174,7 @@
                 </div>
             </div>
 
-            <!-- KILL BILL -->
+            <!-- KILL BILL (mode spécial) -->
             <div id="moduleKillBill" class="hidden flex-1 flex-col gap-3 mt-2">
                 <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-center">
                     <div class="text-sm font-bold text-slate-400">Adversaire : <span id="adversaireLabel" class="text-white">--</span></div>
@@ -201,7 +201,7 @@
                 <button onclick="annulerDuel()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler</button>
             </div>
 
-            <!-- MILLE -->
+            <!-- MILLE (mode spécial) -->
             <div id="moduleMille" class="hidden flex-1 flex-col items-center justify-center gap-4">
                 <div id="chrono18s" class="text-8xl font-mono font-black text-emerald-400 bg-black px-12 py-8 rounded-3xl border-4 border-slate-700">18</div>
                 <button id="btnStart18" onclick="startTimer18()" class="btn-tap bg-blue-600 px-12 py-6 rounded-2xl font-black text-3xl uppercase border-4 border-blue-400 shadow-xl">Top Départ</button>
@@ -292,19 +292,57 @@
             } else { alert("Code PIN incorrect."); clearPin(); }
         };
         window.resetLogin = function() { stopAllTimers(); currentEq = ""; inputPin = ""; currentMaillot = ""; document.getElementById('selEquipe').value = ""; document.getElementById('numpad').classList.add('hidden'); document.getElementById('ecranCoureurs').classList.add('hidden'); document.getElementById('ecranAction').classList.add('hidden'); document.getElementById('ecranLogin').classList.remove('hidden'); document.getElementById('ecranLogin').classList.add('flex'); };
+
+        // =====================================================================
+        // GRILLE AVEC FEEDBACK
+        // =====================================================================
         function buildCoureursGrid() {
             const grid = document.getElementById('maillotsGrid');
             const membres = equipesConfig[currentEq]?.membres || [];
             let html = "";
-            const colorMap = { 'Rouge': 'bg-red-950/80 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400', 'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400', 'Vert': 'bg-green-950/80 border-green-600 text-green-400' };
+            const colorMap = {
+                'Rouge': 'bg-red-950/80 border-red-600 text-red-400',
+                'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
+                'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400',
+                'Vert': 'bg-green-950/80 border-green-600 text-green-400'
+            };
             membres.forEach(m => {
                 if (m.absent) return;
                 const key = `${currentEq}-${m.maillot}`;
-                const scores = scoresCoureur[key] || { series: [], complet: false };
-                const complet = scores.complet || scores.series.every(s => s.course > 0 || s.tir > 0);
+                const data = scoresCoureur[key];
+                if (!data) return;
+                // Vérifier si toutes les séries sont complètes
+                const allCoursesDone = data.series.every((s, idx) => {
+                    // Une série est considérée comme faite si :
+                    // - la course est enregistrée (course > 0)
+                    // - et soit c'est la dernière série (pas de tir attendu), soit le tir est enregistré
+                    if (s.course === 0) return false;
+                    if (idx === seanceConfig.nbSeries - 1) return true; // dernière course, pas de tir
+                    return s.tir > 0;
+                });
+                const complet = data.complet || allCoursesDone;
+                if (complet) data.complet = true;
+
+                // Construire le feedback pour chaque série
+                let feedback = '';
+                data.series.forEach((s, idx) => {
+                    if (s.course === 0) return;
+                    const vitesse = s.vitesse ? s.vitesse.toFixed(1) : '?';
+                    const tir = (idx === seanceConfig.nbSeries - 1) ? '—' : s.tir;
+                    feedback += `S${idx+1}: ${vitesse}km/h | Tir: ${tir}  `;
+                });
+
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
                 const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
-                html += `<button onclick="${complet ? '' : `openAction('${m.maillot}')`}" class="${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}"><span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span><span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}</button>`;
+                html += `
+                    <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" 
+                            class="${cClass} border-4 py-4 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
+                        <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
+                        <span class="text-xs font-bold mt-1 text-slate-300">VMA: ${m.vma || '12'}</span>
+                        ${complet ? `<div class="text-xs font-bold text-emerald-400 mt-2">✓ Terminé</div>` : ''}
+                        ${feedback ? `<div class="coureur-feedback text-center">${feedback}</div>` : ''}
+                    </button>
+                `;
             });
             grid.innerHTML = html;
         }
@@ -315,8 +353,13 @@
         window.openAction = function(maillot) {
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
+            // Trouver la première série non encore courue (course === 0)
             currentSerie = scoresCoureur[key].series.findIndex(s => s.course === 0);
-            if(currentSerie === -1) currentSerie = 0; // déjà terminé, mais on prend la dernière
+            if (currentSerie === -1) {
+                // Toutes les courses sont faites, on devrait normalement avoir complet à true
+                alert("Toutes les séries sont déjà terminées.");
+                return;
+            }
 
             document.getElementById('ecranCoureurs').classList.add('hidden');
             document.getElementById('ecranAction').classList.remove('hidden');
@@ -325,9 +368,10 @@
             
             const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot] || 'text-white';
             document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">${maillot}</span>`;
-            document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
             document.getElementById('currentSerieChip').textContent = currentSerie + 1;
 
+            // Réinitialisation
             resetLap();
             currentPhase = 'course';
             nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches;
@@ -341,6 +385,7 @@
             document.getElementById('moduleMille').classList.add('hidden');
             document.getElementById('moduleRelais').classList.add('hidden');
 
+            // Modes spéciaux
             if (modeActuel === 'relais') {
                 document.getElementById('moduleRelais').classList.remove('hidden');
                 document.getElementById('moduleRelais').classList.add('flex');
@@ -360,10 +405,11 @@
                 initKillBill();
                 document.getElementById('giantActionBtn').style.display = 'none';
             } else {
+                // Modes standards : course/tir/pénalité
                 document.getElementById('giantActionBtn').style.display = 'block';
                 setPhase('course');
-                // Mise à jour du texte du bouton avec la série
-                document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
+                // Le bouton affiche le bon texte
+                document.getElementById('giantActionBtn').textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
             }
             document.getElementById('phasePanel').classList.remove('hidden');
         };
@@ -394,21 +440,23 @@
             if (phase === 'course') {
                 panel.classList.add('panel-course');
                 name.textContent = 'COURSE';
-                giant.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (Série ${currentSerie+1})`;
+                giant.style.display = 'block';
+                giant.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
                 giant.className = 'btn-action course';
                 document.getElementById('moduleSaisieTir').style.display = 'none';
                 document.getElementById('modulePenalite').classList.add('hidden');
             } else if (phase === 'tir') {
                 panel.classList.add('panel-tir');
                 name.textContent = 'TIR';
-                giant.textContent = 'Valider le tir';
-                giant.className = 'btn-action tir';
+                // On cache le gros bouton en phase tir (on utilise le bouton vert)
+                giant.style.display = 'none';
                 document.getElementById('moduleSaisieTir').style.display = 'flex';
                 document.getElementById('modulePenalite').classList.add('hidden');
                 genererZonesFleches();
             } else if (phase === 'penalite') {
                 panel.classList.add('panel-pen');
                 name.textContent = 'PÉNALITÉ';
+                giant.style.display = 'block';
                 giant.textContent = 'Effectuer les pénalités';
                 giant.className = 'btn-action pen';
                 document.getElementById('moduleSaisieTir').style.display = 'none';
@@ -426,8 +474,9 @@
             if (tickHandle) cancelAnimationFrame(tickHandle);
             tickHandle = null;
             document.getElementById('phaseClock').textContent = '00:00.00';
-            document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
-            document.getElementById('giantActionBtn').className = 'btn-action course';
+            const btn = document.getElementById('giantActionBtn');
+            btn.textContent = `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+            btn.className = 'btn-action course';
             genererZonesFleches();
         }
 
@@ -484,9 +533,17 @@
 
         function updateGiantButton() {
             const btn = document.getElementById('giantActionBtn');
-            if (currentPhase === 'course') { btn.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (Série ${currentSerie+1})`; btn.className = 'btn-action course'; }
-            else if (currentPhase === 'tir') { btn.textContent = 'Valider le tir'; btn.className = 'btn-action tir'; }
-            else if (currentPhase === 'penalite') { btn.textContent = 'Effectuer les pénalités'; btn.className = 'btn-action pen'; }
+            if (currentPhase === 'course') {
+                btn.textContent = isRunning ? 'Arrivée au tir' : `Démarrer la course (${currentSerie+1}/${seanceConfig.nbSeries})`;
+                btn.className = 'btn-action course';
+                btn.style.display = 'block';
+            } else if (currentPhase === 'tir') {
+                btn.style.display = 'none';
+            } else if (currentPhase === 'penalite') {
+                btn.textContent = 'Effectuer les pénalités';
+                btn.className = 'btn-action pen';
+                btn.style.display = 'block';
+            }
         }
 
         // =====================================================================
@@ -495,14 +552,27 @@
         window.onGiantAction = function() {
             if (modeActuel === 'mille' || modeActuel === 'killbill') return;
             if (currentPhase === 'course') {
-                if (!isRunning) startTimer();
-                else {
+                if (!isRunning) {
+                    startTimer();
+                } else {
+                    // Arrivée au tir
                     stopTimer();
                     lapData.courseMs = phaseAccum;
-                    setPhase('tir');
+                    // Vérifier si c'est la dernière course (pas de tir après)
+                    if (currentSerie === seanceConfig.nbSeries - 1) {
+                        // Dernière course : on termine directement
+                        finishLap();
+                    } else {
+                        // Passage au tir
+                        setPhase('tir');
+                    }
                 }
-            } else if (currentPhase === 'tir') {
-                validerTir();
+            } else if (currentPhase === 'penalite') {
+                // Si l'élève a oublié de cliquer sur tous les tours, on peut forcer la fin
+                // Mais on va juste afficher un message
+                const errorDiv = document.getElementById('errorMessage');
+                errorDiv.textContent = "Cliquez sur chaque tour de pénalité effectué.";
+                errorDiv.style.display = 'block';
             }
         };
 
@@ -605,7 +675,7 @@
         };
 
         // =====================================================================
-        // FINISH LAP (avec enchaînement des séries)
+        // FINISH LAP (avec enchaînement automatique)
         // =====================================================================
         function finishLap() {
             const errorDiv = document.getElementById('errorMessage');
@@ -651,20 +721,21 @@
                                 vitesse: passageData.vitesse
                             };
                         }
-                        // Vérifier s'il reste des séries
+                        // Vérifier s'il reste des courses à faire
                         const nextSerie = currentSerie + 1;
                         if (nextSerie < seanceConfig.nbSeries) {
-                            // Passer à la série suivante
+                            // Passer à la course suivante
                             currentSerie = nextSerie;
                             document.getElementById('currentSerieChip').textContent = currentSerie + 1;
-                            document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
                             // Réinitialiser le tour et repasser en phase course
-                            resetLap(); // remet le chrono et le bouton à zéro
+                            resetLap(); // remet le chrono à zéro
                             setPhase('course');
-                            document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
-                            // On laisse l'élève démarrer la prochaine course
+                            // Démarrer automatiquement le chrono
+                            startTimer();
+                            // Mettre à jour le texte du bouton (déjà fait par startTimer)
                         } else {
-                            // Toutes les séries sont terminées
+                            // Toutes les courses sont terminées
                             if (scoresCoureur[key]) scoresCoureur[key].complet = true;
                             passageActuel++;
                             retourCoureurs();
@@ -682,6 +753,9 @@
             }
         }
 
+        // =====================================================================
+        // FINISH MILLE (spécifique)
+        // =====================================================================
         function finishMille() {
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.style.display = 'none';
@@ -707,10 +781,10 @@
                         if (nextSerie < seanceConfig.nbSeries) {
                             currentSerie = nextSerie;
                             document.getElementById('currentSerieChip').textContent = currentSerie + 1;
-                            document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                            document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
                             resetLap();
                             setPhase('course');
-                            document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
+                            startTimer();
                         } else {
                             if (scoresCoureur[key]) scoresCoureur[key].complet = true;
                             passageActuel++;
@@ -730,7 +804,7 @@
         }
 
         // =====================================================================
-        // PENALITE (identique)
+        // PENALITE
         // =====================================================================
         function renderPenalites() {
             const row = document.getElementById('penlapsRow');
@@ -747,6 +821,7 @@
             if (!isRunning) startTimer();
             document.getElementById('giantActionBtn').textContent = 'Effectuer les pénalités';
             document.getElementById('giantActionBtn').className = 'btn-action pen';
+            document.getElementById('giantActionBtn').style.display = 'block';
         }
 
         function clickPenalty(index) {
@@ -781,7 +856,7 @@
         }
 
         // =====================================================================
-        // MILLE
+        // MILLE (18s)
         // =====================================================================
         window.startTimer18 = function() {
             let timeLeft = 18;
@@ -809,16 +884,14 @@
                     phaseStartTime = Date.now();
                     isRunning = true;
                     tickLoop();
-                    document.getElementById('giantActionBtn').style.display = 'block';
-                    document.getElementById('giantActionBtn').textContent = 'Valider le tir';
-                    document.getElementById('giantActionBtn').className = 'btn-action tir';
+                    document.getElementById('giantActionBtn').style.display = 'none';
                     document.getElementById('btnValider').textContent = 'Valider le tir (Mille)';
                 }
             }, 1000);
         };
 
         // =====================================================================
-        // KILL BILL (identique)
+        // KILL BILL (mode duel)
         // =====================================================================
         function initKillBill() {
             const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
@@ -831,6 +904,7 @@
             document.getElementById('btnValiderDuel').disabled = true;
             document.getElementById('btnValiderDuel').classList.add('opacity-40');
         }
+
         window.tirerDuel = function(pts) {
             if (killBillState.tirsNous < killBillState.maxTirs) {
                 killBillState.scoreNous += pts; killBillState.tirsNous++;
@@ -850,7 +924,9 @@
                 }
             }
         };
+
         window.annulerDuel = function() { initKillBill(); };
+
         window.validerDuel = function() {
             const diff = killBillState.scoreNous - killBillState.scoreEux;
             let penalite = (diff < 0) ? (Math.abs(diff) < 5 ? 2 : 3) : (diff > 0 ? (diff < 5 ? 0 : 1) : 0);
@@ -870,10 +946,10 @@
                     if (nextSerie < seanceConfig.nbSeries) {
                         currentSerie = nextSerie;
                         document.getElementById('currentSerieChip').textContent = currentSerie + 1;
-                        document.getElementById('infoSerieVMA').textContent = `Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+                        document.getElementById('infoSerieVMA').textContent = `Course ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
                         resetLap();
                         setPhase('course');
-                        document.getElementById('giantActionBtn').textContent = `Démarrer la course (Série ${currentSerie+1})`;
+                        startTimer();
                     } else {
                         if (scoresCoureur[key]) scoresCoureur[key].complet = true;
                         passageActuel++;
@@ -903,7 +979,7 @@
             info.appendChild(span);
             document.getElementById('phasePanel').classList.add('hidden');
         });
-        console.log("✅ Arcathlon élève - version avec enchaînement des séries");
+        console.log("✅ Arcathlon élève - version finale avec enchaînement automatique et feedback");
     </script>
 </body>
 </html>
