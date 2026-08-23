@@ -13,14 +13,15 @@
         .btn-tap:active { transform: scale(0.96); }
         .cible-circle { cursor: pointer; transition: opacity 0.15s; }
         .cible-circle:active { opacity: 0.6; }
-        @keyframes pulse-impact { 
-            0% { transform: scale(1); stroke-width: 0; } 
-            50% { transform: scale(1.05); stroke-width: 4px; stroke: #fff; } 
-            100% { transform: scale(1); stroke-width: 0; } 
+        @keyframes pulse-impact {
+            0% { transform: scale(1); stroke-width: 0; }
+            50% { transform: scale(1.05); stroke-width: 4px; stroke: #fff; }
+            100% { transform: scale(1); stroke-width: 0; }
         }
         .impact { animation: pulse-impact 0.3s ease-out; }
         .score-badge { background: #1e293b; border-radius: 999px; padding: 2px 10px; font-size: 0.75rem; font-weight: bold; color: #a5b4fc; border: 1px solid #4f46e5; }
         .alerte-triche { color: #ef4444; font-weight: 900; background: rgba(239,68,68,0.2); padding: 4px 8px; border-radius: 8px; border: 1px solid #ef4444; }
+        .role-badge { background: #1e293b; border-radius: 999px; padding: 2px 12px; font-size: 0.7rem; font-weight: bold; color: #fbbf24; border: 1px solid #f59e0b; }
     </style>
 </head>
 <body class="text-white p-4 h-screen flex flex-col">
@@ -66,13 +67,14 @@
             <div id="maillotsGrid" class="grid grid-cols-2 gap-4 flex-1 content-center"></div>
         </div>
 
-        <!-- ================= ECRAN 3 : ACTION (Géré par Routeur) ================= -->
+        <!-- ================= ECRAN 3 : ACTION ================= -->
         <div id="ecranAction" class="hidden flex-col h-full">
             <button onclick="retourCoureurs()" class="text-slate-400 font-bold text-sm uppercase tracking-widest text-left mb-2 shrink-0">↩ Retour</button>
             
-            <div class="text-center font-black text-xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4">
+            <div class="text-center font-black text-xl text-slate-300 mb-4 bg-slate-950 py-3 rounded-xl border-2 border-slate-800 shrink-0 flex justify-center items-center gap-4 flex-wrap">
                 <span id="coureurLabel">Maillot</span>
                 <span id="infoSerieVMA" class="text-sm font-bold text-slate-400"></span>
+                <span id="roleActuel" class="role-badge">Rôle : --</span>
             </div>
 
             <!-- MODULE RELAIS : Cartes Stratégiques -->
@@ -100,7 +102,7 @@
                 <button id="btnStart18" onclick="startTimer18()" class="btn-tap bg-blue-600 px-12 py-6 rounded-2xl font-black text-3xl uppercase border-4 border-blue-400 shadow-xl">Top Départ</button>
             </div>
 
-            <!-- MODULE SAISIE TIR -->
+            <!-- MODULE SAISIE TIR (standard) -->
             <div id="moduleSaisieTir" class="flex-1 gap-4 min-h-0 hidden mt-4">
                 <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-2 flex flex-col items-center justify-center relative shadow-inner">
                     <svg viewBox="0 0 100 100" class="w-full max-w-[200px] mx-auto drop-shadow-2xl">
@@ -122,33 +124,77 @@
                     <button onclick="annulerTir()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler flèche</button>
                 </div>
             </div>
+
+            <!-- MODULE KILL BILL (Duel 2v2) -->
+            <div id="moduleKillBill" class="hidden flex-1 flex-col gap-4 mt-2">
+                <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-center">
+                    <div class="text-sm font-bold text-slate-400">Adversaire : <span id="adversaireLabel" class="text-white">--</span></div>
+                    <div class="flex justify-around mt-2 text-2xl font-black">
+                        <span>Nous : <span id="scoreNous" class="text-emerald-400">0</span></span>
+                        <span>Eux : <span id="scoreEux" class="text-red-400">0</span></span>
+                    </div>
+                    <div id="messageDuel" class="text-sm font-bold text-yellow-400 mt-2">Tire une flèche pour ton équipe</div>
+                </div>
+                <div class="flex-1 bg-black rounded-3xl border-2 border-slate-800 p-2 flex flex-col items-center justify-center">
+                    <svg viewBox="0 0 100 100" class="w-full max-w-[200px] mx-auto drop-shadow-2xl">
+                        <circle cx="50" cy="50" r="45" fill="#3b82f6" class="cible-circle" onclick="tirerDuel(6)" />
+                        <circle cx="50" cy="50" r="30" fill="#ef4444" class="cible-circle" onclick="tirerDuel(8)" />
+                        <circle cx="50" cy="50" r="15" fill="#eab308" class="cible-circle" onclick="tirerDuel(10)" />
+                    </svg>
+                    <div class="flex gap-2 mt-4 w-full px-2">
+                        <button onclick="tirerDuel(5)" class="flex-1 btn-tap bg-slate-800 text-xs font-bold py-3 rounded-xl border border-slate-600 text-slate-300">+5 (Bord)</button>
+                        <button onclick="tirerDuel(0)" class="flex-1 btn-tap bg-red-950/50 text-xs font-bold py-3 rounded-xl border border-red-900 text-red-400">0 (Manqué)</button>
+                    </div>
+                </div>
+                <button id="btnValiderDuel" onclick="validerDuel()" disabled class="btn-tap bg-emerald-600 border-2 border-emerald-400 py-4 rounded-2xl font-black text-lg uppercase tracking-widest text-white shadow-xl opacity-40 transition-opacity">
+                    Valider le Duel
+                </button>
+                <button onclick="annulerDuel()" class="btn-tap bg-slate-800 border border-slate-600 py-2 rounded-xl font-bold text-xs uppercase text-slate-400">↩ Annuler</button>
+            </div>
         </div>
     </div>
 
     <script>
+        // =====================================================================
+        // CONFIGURATION FIREBASE
+        // =====================================================================
         const firebaseConfig = { databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // =====================================================================
+        // ÉTAT GLOBAL (élève)
+        // =====================================================================
         let equipesConfig = {}, seanceConfig = {}, scoresCoureur = {};
         let currentEq = "", currentPin = "", currentMaillot = "", inputPin = "";
         let passageActuel = 1, tirs = [], chronoInterval = null, timer18Interval = null;
         let tempsDepart = 0, tempsEcoule = 0, currentSerie = 0;
         let currentVitesse = 0, currentPointsCourse = 0, modeActuel = "sprint";
-        let nbFlechesActuel = 2; // Peut varier selon le mode
+        let nbFlechesActuel = 2;
+        // Pour les cartes stratégiques
+        let effetCarte = null; // fonction à appliquer
+        // Pour Kill Bill
+        let killBillState = { equipeAdverse: "", scoreNous: 0, scoreEux: 0, tirsNous: 0, tirsEux: 0, maxTirs: 2 };
 
-        // Cartes Relais (Géré sur l'iPad élève pour robustesse hors-ligne)
+        // =====================================================================
+        // CARTES STRATÉGIQUES (avec effets)
+        // =====================================================================
         const cartesRelais = [
-            "Tir mauvaise main !", "1 tour effacé !", "Cible éloignée (7m50)", 
-            "Départ retardé (+10s)", "Volée > 10 pts = 0 pénalité", "Cible Scarface (Moitié compte)"
+            { nom: "Tir mauvaise main !", effet: () => { nbFlechesActuel = 1; document.getElementById('infoFleches').textContent = `Flèches : ${nbFlechesActuel}`; } },
+            { nom: "1 tour effacé !", effet: () => { /* pas d'effet direct, juste affiché */ } },
+            { nom: "Cible éloignée (7m50)", effet: () => { /* affiché seulement */ } },
+            { nom: "Départ retardé (+10s)", effet: () => { tempsEcoule += 10000; } },
+            { nom: "Volée > 10 pts = 0 pénalité", effet: () => { /* modifie le calcul des pénalités, on stocke un flag */ effetCarte = 'noPenalty'; } },
+            { nom: "Cible Scarface (Moitié compte)", effet: () => { effetCarte = 'halfScore'; } }
         ];
 
-        // Écoute de la configuration prof
+        // =====================================================================
+        // ÉCOUTE DE LA CONFIG PROF
+        // =====================================================================
         db.ref('arcathlon/config').on('value', snap => {
             const config = snap.val() || {};
             equipesConfig = config.equipes || {};
             modeActuel = config.mode || "sprint";
-            
             seanceConfig = {
                 seanceId: config.seanceId,
                 distanceTotale: config.distanceTotale || 1200,
@@ -156,11 +202,10 @@
                 nbFleches: config.nbFleches || 2,
                 vmaReference: config.vmaReference || {}
             };
-            
             document.getElementById('labelModeActuel').textContent = modeActuel;
             document.getElementById('seanceInfo').textContent = seanceConfig.seanceId ? seanceConfig.seanceId.substring(7, 15) : '--';
 
-            // Init scores locaux
+            // Initialisation des scores locaux
             scoresCoureur = {};
             Object.keys(equipesConfig).forEach(eq => {
                 (equipesConfig[eq].membres || []).forEach(m => {
@@ -171,6 +216,7 @@
                 });
             });
 
+            // Mise à jour du sélecteur d'équipe
             const sel = document.getElementById('selEquipe');
             const valActuelle = sel.value;
             sel.innerHTML = `<option value="">-- CHOISIR L'ÉQUIPE --</option>` + Object.keys(equipesConfig).map(eq => `<option value="${eq}">ÉQUIPE ${eq}</option>`).join('');
@@ -178,7 +224,9 @@
             if (currentEq && currentMaillot) buildCoureursGrid();
         });
 
-        // ================= LOGIQUE LOGIN & GRILLE =================
+        // =====================================================================
+        // LOGIN & GRILLE
+        // =====================================================================
         window.checkTeamSelection = function() {
             const val = document.getElementById('selEquipe').value;
             if (val) {
@@ -225,7 +273,6 @@
                 'Rouge': 'bg-red-950/80 border-red-600 text-red-400', 'Jaune': 'bg-yellow-950/80 border-yellow-600 text-yellow-400',
                 'Bleu': 'bg-blue-950/80 border-blue-600 text-blue-400', 'Vert': 'bg-green-950/80 border-green-600 text-green-400'
             };
-
             membres.forEach(m => {
                 if (m.absent) return;
                 const key = `${currentEq}-${m.maillot}`;
@@ -233,7 +280,6 @@
                 const complet = scores.complet || scores.series.every(s => s.course > 0 || s.tir > 0);
                 const cClass = colorMap[m.maillot] || 'bg-slate-800 border-slate-600 text-white';
                 const disabledClass = complet ? 'opacity-50 pointer-events-none' : 'btn-tap';
-
                 html += `
                 <button onclick="${complet ? '' : `openAction('${m.maillot}')`}" class="${cClass} border-4 py-8 rounded-3xl flex flex-col items-center justify-center shadow-lg ${disabledClass}">
                     <span class="font-black text-2xl uppercase tracking-widest">${m.maillot}</span>
@@ -244,7 +290,9 @@
             grid.innerHTML = html;
         }
 
-        // ================= ROUTEUR D'ACTION (Selon Mode) =================
+        // =====================================================================
+        // OUVERTURE D'UNE ACTION (ROUTEUR)
+        // =====================================================================
         window.openAction = function(maillot) {
             currentMaillot = maillot;
             const key = `${currentEq}-${maillot}`;
@@ -255,18 +303,27 @@
             document.getElementById('ecranAction').classList.remove('hidden');
             document.getElementById('ecranAction').classList.add('flex');
             
-            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot];
+            const colorTexte = {'Vert':'text-green-400','Bleu':'text-blue-400','Jaune':'text-yellow-400','Rouge':'text-red-400'}[maillot] || 'text-white';
             document.getElementById('coureurLabel').innerHTML = `<span class="${colorTexte}">${maillot}</span>`;
-            document.getElementById('infoSerieVMA').textContent = `| Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key]}`;
+            document.getElementById('infoSerieVMA').textContent = `| Série ${currentSerie + 1}/${seanceConfig.nbSeries} | VMA: ${seanceConfig.vmaReference[key] || '?'}`;
+
+            // Rôle (chronométreur, juge, responsable, coureur) selon série et index
+            const membres = equipesConfig[currentEq].membres || [];
+            const idx = membres.findIndex(m => m.maillot === maillot);
+            const roles = ['Chronométreur', 'Juge points', 'Responsable matériel', 'Coureur'];
+            const roleIdx = (currentSerie + idx) % roles.length;
+            document.getElementById('roleActuel').textContent = `Rôle : ${roles[roleIdx]}`;
 
             // Reset UI
-            ['moduleChrono', 'moduleMille', 'moduleRelais', 'moduleSaisieTir'].forEach(id => {
+            ['moduleChrono', 'moduleMille', 'moduleRelais', 'moduleSaisieTir', 'moduleKillBill'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
                 document.getElementById(id).classList.remove('flex');
             });
             document.getElementById('carteAffichee').classList.add('hidden');
             document.getElementById('btnTirerCarte').classList.remove('hidden');
             nbFlechesActuel = (modeActuel === 'killbill') ? 1 : seanceConfig.nbFleches;
+            effetCarte = null;
+            document.getElementById('infoFleches').textContent = `Flèches : ${nbFlechesActuel}`;
 
             // Routage
             if (modeActuel === 'mille') {
@@ -275,12 +332,11 @@
                 document.getElementById('chrono18s').textContent = "18";
                 document.getElementById('btnStart18').classList.remove('hidden');
             } else if (modeActuel === 'killbill') {
-                // Passage direct au tir
-                document.getElementById('moduleSaisieTir').classList.remove('hidden');
-                document.getElementById('moduleSaisieTir').classList.add('flex');
-                genererZonesFleches();
+                document.getElementById('moduleKillBill').classList.remove('hidden');
+                document.getElementById('moduleKillBill').classList.add('flex');
+                initKillBill();
             } else {
-                // Sprint, Poursuite, Relais utilisent le chrono classique
+                // Sprint, Poursuite, Relais
                 if (modeActuel === 'relais') {
                     document.getElementById('moduleRelais').classList.remove('hidden');
                     document.getElementById('moduleRelais').classList.add('flex');
@@ -299,16 +355,21 @@
             buildCoureursGrid();
         };
 
-        // --- Logique Cartes Relais ---
+        // =====================================================================
+        // CARTES RELAIS
+        // =====================================================================
         window.tirerCarteRelais = function() {
             const carte = cartesRelais[Math.floor(Math.random() * cartesRelais.length)];
             document.getElementById('btnTirerCarte').classList.add('hidden');
             const affichage = document.getElementById('carteAffichee');
-            affichage.textContent = carte;
+            affichage.textContent = carte.nom;
             affichage.classList.remove('hidden');
+            if (carte.effet) carte.effet();
         };
 
-        // --- Logique Chrono Classique ---
+        // =====================================================================
+        // CHRONO CLASSIQUE
+        // =====================================================================
         function demarrerChrono() {
             tempsDepart = Date.now() - tempsEcoule;
             chronoInterval = setInterval(mettreAJourChrono, 30);
@@ -354,14 +415,15 @@
             document.getElementById('btnArrivee').disabled = true;
         }
 
-        // --- Logique "Dans le 1000" (18s) ---
+        // =====================================================================
+        // DANS LE 1000 (18s)
+        // =====================================================================
         window.startTimer18 = function() {
             let timeLeft = 18;
             document.getElementById('btnStart18').classList.add('hidden');
             const display = document.getElementById('chrono18s');
             display.textContent = timeLeft;
             display.classList.replace('text-emerald-400', 'text-yellow-400');
-            
             timer18Interval = setInterval(() => {
                 timeLeft--;
                 display.textContent = timeLeft;
@@ -378,7 +440,9 @@
             }, 1000);
         };
 
-        // ================= SAISIE TIR ET VALIDATION =================
+        // =====================================================================
+        // SAISIE TIR STANDARD
+        // =====================================================================
         function genererZonesFleches() {
             const container = document.getElementById('flechesContainer');
             let html = '';
@@ -392,6 +456,8 @@
 
         window.marquerTir = function(pts, zoneName) {
             if (tirs.length >= nbFlechesActuel) return;
+            // Appliquer effet "Scarface" : moitié des points
+            if (effetCarte === 'halfScore') pts = Math.floor(pts / 2);
             tirs.push(pts);
             const aff = document.getElementById(`affF${tirs.length}`);
             aff.className = "bg-slate-800 text-white font-black text-sm py-3 rounded-xl text-center border-2 border-slate-500 shadow impact";
@@ -414,10 +480,11 @@
                 const ptsTir = tirs.reduce((a, b) => a + b, 0);
                 btn.disabled = false; btn.classList.remove('opacity-40');
                 
-                // Affichage dynamique selon le mode (Bonus Temps vs Tours de Pénalité)
                 const resDiv = document.getElementById('resultatTirSpecifique');
+                // Calcul des pénalités / bonus selon mode
                 if (modeActuel === 'poursuite' || modeActuel === 'relais') {
                     let pen = (ptsTir < 7) ? 3 : (ptsTir < 12) ? 2 : (ptsTir < 16) ? 1 : 0;
+                    if (effetCarte === 'noPenalty' && ptsTir > 10) pen = 0;
                     resDiv.innerHTML = `Pénalité : <span class="text-red-400 text-lg">${pen} tour(s)</span>`;
                 } else if (modeActuel === 'sprint') {
                     let bonus = (ptsTir < 7) ? 0 : (ptsTir < 12) ? 10 : (ptsTir < 16) ? 15 : 20;
@@ -435,22 +502,132 @@
             document.getElementById('btnValider').disabled = true;
             const ptsTir = tirs.reduce((a, b) => a + b, 0);
             
-            // Validation 100% Anonymisée RGPD
+            // Envoi anonyme
             const passageData = {
                 equipe: currentEq, maillot: currentMaillot,
                 ptsVMA: currentPointsCourse, ptsTir: ptsTir,
                 vitesse: currentVitesse, temps: tempsEcoule,
                 serie: currentSerie + 1, timestamp: Date.now(), mode: modeActuel
             };
-
-            db.ref('arcathlon/live/passages').push().set(passageData).then(() => {
-                const key = `${currentEq}-${currentMaillot}`;
-                if(scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
-                passageActuel++; retourCoureurs();
-            }).catch(() => {
-                alert("Erreur réseau. Retour à la grille."); retourCoureurs();
-            });
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    const key = `${currentEq}-${currentMaillot}`;
+                    if(scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
+                    passageActuel++; retourCoureurs();
+                })
+                .catch(() => {
+                    alert("Erreur réseau. Retour à la grille.");
+                    retourCoureurs();
+                });
         };
+
+        // =====================================================================
+        // KILL BILL (DUEL 2v2)
+        // =====================================================================
+        function initKillBill() {
+            // Trouver une équipe adverse (autre que la sienne)
+            const autres = Object.keys(equipesConfig).filter(eq => eq !== currentEq);
+            killBillState.equipeAdverse = autres.length ? autres[0] : 'Équipe X';
+            document.getElementById('adversaireLabel').textContent = killBillState.equipeAdverse;
+            killBillState.scoreNous = 0;
+            killBillState.scoreEux = 0;
+            killBillState.tirsNous = 0;
+            killBillState.tirsEux = 0;
+            killBillState.maxTirs = seanceConfig.nbFleches || 2;
+            document.getElementById('scoreNous').textContent = '0';
+            document.getElementById('scoreEux').textContent = '0';
+            document.getElementById('messageDuel').textContent = `Tire une flèche pour ton équipe (${killBillState.tirsNous+1}/${killBillState.maxTirs})`;
+            document.getElementById('btnValiderDuel').disabled = true;
+            document.getElementById('btnValiderDuel').classList.add('opacity-40');
+        }
+
+        window.tirerDuel = function(pts) {
+            if (killBillState.tirsNous < killBillState.maxTirs) {
+                // Tour de l'élève
+                killBillState.scoreNous += pts;
+                killBillState.tirsNous++;
+                document.getElementById('scoreNous').textContent = killBillState.scoreNous;
+                if (killBillState.tirsNous < killBillState.maxTirs) {
+                    document.getElementById('messageDuel').textContent = `Tire une flèche pour ton équipe (${killBillState.tirsNous+1}/${killBillState.maxTirs})`;
+                } else {
+                    // Maintenant c'est au tour de l'adversaire (simulé par l'élève)
+                    document.getElementById('messageDuel').textContent = `Tire maintenant pour l'équipe adverse (${killBillState.tirsEux+1}/${killBillState.maxTirs})`;
+                }
+            } else if (killBillState.tirsEux < killBillState.maxTirs) {
+                // Tour de l'adversaire
+                killBillState.scoreEux += pts;
+                killBillState.tirsEux++;
+                document.getElementById('scoreEux').textContent = killBillState.scoreEux;
+                if (killBillState.tirsEux < killBillState.maxTirs) {
+                    document.getElementById('messageDuel').textContent = `Tire pour l'adversaire (${killBillState.tirsEux+1}/${killBillState.maxTirs})`;
+                } else {
+                    // Fin du duel
+                    document.getElementById('messageDuel').textContent = "Duel terminé ! Clique sur Valider";
+                    document.getElementById('btnValiderDuel').disabled = false;
+                    document.getElementById('btnValiderDuel').classList.remove('opacity-40');
+                }
+            }
+        };
+
+        window.annulerDuel = function() {
+            // Réinitialiser le duel
+            initKillBill();
+        };
+
+        window.validerDuel = function() {
+            // Calcul des pénalités selon écart
+            const diff = killBillState.scoreNous - killBillState.scoreEux;
+            let penalite = 0;
+            if (diff < 0) penalite = (Math.abs(diff) < 5) ? 2 : 3;
+            else if (diff > 0) penalite = (diff < 5) ? 0 : 1;
+            // Envoyer le résultat (les points de tir sont les scores, mais on peut envoyer les pénalités)
+            const ptsTir = killBillState.scoreNous; // ou score total
+            const passageData = {
+                equipe: currentEq, maillot: currentMaillot,
+                ptsVMA: 0, // pas de course pour Kill Bill
+                ptsTir: ptsTir,
+                penalites: penalite,
+                vitesse: 0, temps: 0,
+                serie: currentSerie + 1, timestamp: Date.now(), mode: 'killbill'
+            };
+            db.ref('arcathlon/live/passages').push().set(passageData)
+                .then(() => {
+                    const key = `${currentEq}-${currentMaillot}`;
+                    if(scoresCoureur[key]) scoresCoureur[key].series[currentSerie].tir = ptsTir;
+                    passageActuel++; retourCoureurs();
+                })
+                .catch(() => {
+                    alert("Erreur réseau. Retour à la grille.");
+                    retourCoureurs();
+                });
+        };
+
+        // =====================================================================
+        // CONNEXION FIREBASE (statut)
+        // =====================================================================
+        db.ref('.info/connected').on('value', snap => {
+            document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
+            document.getElementById('connLabel').textContent = snap.val() ? "En ligne" : "Hors ligne";
+        });
+
+        // =====================================================================
+        // INITIALISATION
+        // =====================================================================
+        // La config est écoutée via le listener ci-dessus.
+        // On ajoute un petit élément pour afficher le nombre de flèches en cours
+        // (on ajoute dynamiquement un span dans l'en-tête si besoin)
+        // On ajoute un span dans l'info de la série
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ajouter un affichage du nombre de flèches dans la zone d'info
+            const infoDiv = document.getElementById('infoSerieVMA');
+            const spanFleches = document.createElement('span');
+            spanFleches.id = 'infoFleches';
+            spanFleches.className = 'text-xs font-bold text-slate-400 ml-2';
+            spanFleches.textContent = 'Flèches : 2';
+            infoDiv.appendChild(spanFleches);
+        });
+
+        console.log("Arcathlon élève chargé - Mode test");
     </script>
 </body>
 </html>
