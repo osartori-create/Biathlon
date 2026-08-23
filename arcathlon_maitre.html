@@ -52,6 +52,11 @@
         .stats-table { font-size: 0.75rem; }
         .stats-table th, .stats-table td { padding: 6px 4px; }
         .stats-table .photo-thumb { width: 28px; height: 28px; }
+        .handicap-badge { background: #1e293b; padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; color: #94a3b8; }
+        .depart-btn { background: #22c55e; color: #0a0f1a; font-weight: 900; padding: 12px 24px; border-radius: 999px; border: none; font-size: 1.2rem; box-shadow: 0 0 30px rgba(34,197,94,0.4); }
+        .depart-btn:active { transform: scale(0.95); }
+        .depart-btn:disabled { opacity: 0.5; }
+        .chrono-depart { font-size: 3rem; font-weight: 900; font-variant-numeric: tabular-nums; color: #facc15; }
     </style>
 </head>
 <body class="p-4 h-screen flex flex-col">
@@ -104,6 +109,7 @@
                 <div class="flex items-center gap-3">
                     <button onclick="generateTeams()" class="bg-orange-600 px-5 py-2.5 rounded-xl font-black uppercase text-xs border border-orange-400">🔄 Générer Équipes</button>
                     <span class="text-xs text-slate-400">(glisser-déposer pour modifier)</span>
+                    <button onclick="generateFakeSprint()" class="bg-purple-600 px-4 py-2 rounded-xl font-bold text-xs border border-purple-400">🎲 Temps fictifs (sprint)</button>
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="text-xs text-slate-400">Coureurs/équipe :</label>
@@ -116,7 +122,7 @@
                 <div class="flex flex-wrap gap-4 mb-4">
                     <div class="flex-1 min-w-[200px]">
                         <label class="block font-bold text-slate-400 uppercase text-xs mb-1">Mode d'épreuve :</label>
-                        <select id="modeEpreuve" class="w-full bg-slate-900 border-2 border-slate-600 rounded-xl p-3 text-sm font-bold text-white outline-none">
+                        <select id="modeEpreuve" class="w-full bg-slate-900 border-2 border-slate-600 rounded-xl p-3 text-sm font-bold text-white outline-none" onchange="togglePoursuiteOptions()">
                             <option value="sprint">🏃 Sprint (Standard)</option>
                             <option value="poursuite">⏱️ Poursuite Inversée</option>
                             <option value="relais">🃏 Relais (Cartes)</option>
@@ -124,7 +130,24 @@
                             <option value="killbill">⚔️ Kill Bill (Duel)</option>
                         </select>
                     </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block font-bold text-slate-400 uppercase text-xs mb-1">Longueur boucle pénalité (m)</label>
+                        <input type="number" id="longueurPenalite" value="30" min="10" max="100" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-center font-bold text-emerald-400">
+                    </div>
                 </div>
+                <!-- Options poursuite -->
+                <div id="poursuiteOptions" class="hidden bg-slate-900/50 p-3 rounded-xl border border-slate-700 mb-4">
+                    <p class="text-xs text-slate-400 mb-2">Les handicaps seront calculés automatiquement à partir des temps du sprint précédent (même niveau de maillot).</p>
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs text-slate-400">Sélectionner la séance sprint :</label>
+                        <select id="selectSprintSeance" class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none flex-1">
+                            <option value="">-- Dernier sprint enregistré --</option>
+                        </select>
+                        <button onclick="loadSprintTimes()" class="bg-blue-600 px-3 py-1 rounded text-xs font-bold">📥 Charger</button>
+                    </div>
+                    <div id="handicapPreview" class="mt-2 text-xs text-slate-400 max-h-40 overflow-y-auto"></div>
+                </div>
+
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mb-4">
                     <div>
                         <label class="block font-bold text-slate-400 uppercase mb-1">Longueur Piste (m)</label>
@@ -157,19 +180,27 @@
             <div id="teamsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6 content-start"></div>
         </div>
 
-        <!-- ONGLET 3 : RÉSULTATS & STATS (fusionné) -->
+        <!-- ONGLET 3 : RÉSULTATS & STATS -->
         <div id="viewLive" class="h-full flex flex-col hidden absolute inset-0">
             <div class="flex flex-wrap justify-between items-center mb-4 shrink-0 bg-slate-800 p-3 rounded-xl border border-slate-700 gap-2">
                 <div class="font-black text-blue-400 uppercase tracking-widest text-sm">Mode : <span id="liveModeBadge" class="text-white">--</span></div>
                 <div class="flex flex-wrap gap-2">
+                    <button onclick="sendDepart()" id="btnDepartCentral" class="depart-btn" disabled>🚦 Départ centralisé</button>
                     <button onclick="exportResults()" class="bg-emerald-600 px-4 py-2 rounded-xl font-bold text-xs uppercase border border-emerald-400">📤 Export CSV</button>
                     <button onclick="purgeLive()" class="bg-red-950/60 text-red-400 border border-red-800 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚠️ Purger</button>
-                    <button onclick="purgeComplete()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase">🔥 Purge complète Firebase</button>
+                    <button onclick="purgeComplete()" class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold text-xs uppercase">🔥 Purge complète</button>
                     <button onclick="loadStats()" class="bg-blue-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">🔄 Rafraîchir</button>
                     <button onclick="massAction()" class="bg-yellow-600 px-4 py-2 rounded-xl font-bold text-xs uppercase">⚙️ Action en masse</button>
                 </div>
             </div>
             <div class="flex-1 overflow-y-auto pr-1 space-y-6">
+
+                <!-- Chrono départ centralisé -->
+                <div id="departPanel" class="bg-slate-900 p-4 rounded-xl border border-slate-700 text-center hidden">
+                    <div class="text-xs text-slate-400">Départ dans :</div>
+                    <div id="departChrono" class="chrono-depart">--</div>
+                    <button onclick="cancelDepart()" class="btn btn-ghost btn-sm mt-2">Annuler</button>
+                </div>
 
                 <!-- Résumé -->
                 <div class="stats-card">
@@ -299,7 +330,7 @@
         // =====================================================================
         // 2. ÉTAT LOCAL
         // =====================================================================
-        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v13')) || {
+        let state = JSON.parse(localStorage.getItem('arcathlon_state_prof_v14')) || {
             classes: {}, equipes: {}, activeCl: "", seances: {}
         };
         let dbPhotos;
@@ -313,7 +344,7 @@
         request.onsuccess = e => { dbPhotos = e.target.result; initUI(); };
         request.onerror = e => console.error("IndexedDB error", e);
 
-        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v13', JSON.stringify(state)); }
+        function saveToLocal() { localStorage.setItem('arcathlon_state_prof_v14', JSON.stringify(state)); }
         function savePhoto(id, blob) {
             if (!dbPhotos) return;
             const tx = dbPhotos.transaction("eleves", "readwrite");
@@ -341,7 +372,6 @@
             return s.trim();
         }
 
-        // Helper pour résoudre l'idPhoto à partir de state.classes (et non de la copie figée)
         function currentIdPhoto(mProf) {
             if (!mProf) return null;
             const eleves = state.classes[state.activeCl] || [];
@@ -354,6 +384,7 @@
         let currentPassageKey = null;
         let statsChart = null;
         let lastPassagesData = {};
+        let departTimeout = null;
 
         // =====================================================================
         // 3. INITIALISATION
@@ -365,6 +396,7 @@
                 renderTeams();
             }
             updateSeancesList();
+            fillSprintSeances();
 
             db.ref('.info/connected').on('value', snap => {
                 document.getElementById('connDot').className = "w-3 h-3 rounded-full " + (snap.val() ? "bg-emerald-500" : "bg-red-500");
@@ -372,14 +404,48 @@
             });
             db.ref('arcathlon/config/mode').on('value', snap => {
                 document.getElementById('liveModeBadge').textContent = snap.val() || '--';
+                const mode = snap.val() || 'sprint';
+                document.getElementById('btnDepartCentral').disabled = (mode !== 'poursuite');
             });
             db.ref('arcathlon/live/passages').on('value', snap => {
                 updateLiveScores(snap.val() || {});
             });
+            // Écouter les commandes de départ pour afficher le statut
+            db.ref('arcathlon/commandes/depart').on('value', snap => {
+                const data = snap.val();
+                if (data && data.timestamp) {
+                    const panel = document.getElementById('departPanel');
+                    panel.classList.remove('hidden');
+                    const chrono = document.getElementById('departChrono');
+                    if (data.delai && data.delai > 0) {
+                        let remaining = data.delai;
+                        chrono.textContent = remaining + 's';
+                        if (departTimeout) clearInterval(departTimeout);
+                        departTimeout = setInterval(() => {
+                            remaining--;
+                            chrono.textContent = remaining + 's';
+                            if (remaining <= 0) {
+                                clearInterval(departTimeout);
+                                chrono.textContent = 'GO ! 🚀';
+                                setTimeout(() => {
+                                    panel.classList.add('hidden');
+                                    chrono.textContent = '--';
+                                }, 2000);
+                            }
+                        }, 1000);
+                    } else {
+                        chrono.textContent = 'GO ! 🚀';
+                        setTimeout(() => {
+                            panel.classList.add('hidden');
+                            chrono.textContent = '--';
+                        }, 3000);
+                    }
+                }
+            });
         }
 
         // =====================================================================
-        // 4. CLASSES
+        // 4. CLASSES (inchangé)
         // =====================================================================
         function updateClSelect() {
             const sel = document.getElementById('selectClasse');
@@ -563,7 +629,7 @@
         });
 
         // =====================================================================
-        // 9. GÉNÉRATION DES ÉQUIPES (avec code)
+        // 9. GÉNÉRATION DES ÉQUIPES
         // =====================================================================
         window.generateTeams = function() {
             if (!state.activeCl) return alert("Sélectionnez une classe.");
@@ -656,7 +722,7 @@
         }
 
         // =====================================================================
-        // 11. SORTABLE (glisser-déposer)
+        // 11. SORTABLE
         // =====================================================================
         let sortableInstances = [];
 
@@ -718,7 +784,142 @@
         };
 
         // =====================================================================
-        // 12. TRANSMISSION CONFIG (pushConfig) - AVEC LE CODE
+        // 12. TEMPS FICTIFS (simulation sprint)
+        // =====================================================================
+        window.generateFakeSprint = function() {
+            if (!state.activeCl) return alert("Sélectionnez une classe.");
+            const equipes = state.equipes[state.activeCl] || [];
+            if (!equipes.length) return alert("Générez d'abord des équipes.");
+            if (!confirm("Cela va générer des temps fictifs pour tous les coureurs (simulation d'un sprint). Continuer ?")) return;
+
+            const maintenant = Date.now();
+            const passages = {};
+
+            equipes.forEach(eq => {
+                eq.membres.forEach(m => {
+                    if (m.absent) return;
+                    // Générer un temps aléatoire entre 8s et 25s selon VMA
+                    const vma = m.vma || 12;
+                    const base = 20 - (vma / 20) * 10; // entre 10s et 20s
+                    const alea = (Math.random() - 0.5) * 4;
+                    const tempsMs = Math.max(5000, Math.round((base + alea) * 1000));
+                    const vitesse = (state.seances[Object.keys(state.seances)[0]]?.configObj?.distanceTotale || 400) / 1000 / (tempsMs / 1000 / 3600);
+                    const ptsVMA = (vitesse >= m.vma + 1) ? 3 : (vitesse >= m.vma - 0.5) ? 2 : (vitesse >= m.vma - 1) ? 1 : 0;
+                    const key = `${eq.id}-${m.maillot}-${Date.now()}`;
+                    passages[key] = {
+                        equipe: eq.id,
+                        maillot: m.maillot,
+                        ptsVMA: ptsVMA,
+                        ptsTir: Math.floor(Math.random() * 21),
+                        vitesse: Math.round(vitesse * 10) / 10,
+                        temps: tempsMs,
+                        courseMs: tempsMs * 0.8,
+                        tirMs: tempsMs * 0.2,
+                        penaliteMs: 0,
+                        shots: [Math.floor(Math.random() * 11), Math.floor(Math.random() * 11)],
+                        penReq: 0,
+                        penDone: 0,
+                        serie: 1,
+                        timestamp: maintenant + Math.random() * 1000,
+                        mode: 'sprint',
+                        alerteTriche: false,
+                        fake: true
+                    };
+                });
+            });
+
+            // Envoyer à Firebase
+            const ref = db.ref('arcathlon/live/passages');
+            Object.entries(passages).forEach(([key, data]) => {
+                ref.push().set(data);
+            });
+
+            alert(`✅ ${Object.keys(passages).length} temps fictifs générés et envoyés à Firebase.`);
+            // Rafraîchir l'affichage
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                updateLiveScores(snap.val() || {});
+            });
+            fillSprintSeances();
+        };
+
+        // =====================================================================
+        // 13. CHARGEMENT DES TEMPS DE SPRINT POUR LA POURSUITE
+        // =====================================================================
+        function fillSprintSeances() {
+            const select = document.getElementById('selectSprintSeance');
+            // Récupérer les séances qui ont des passages en mode sprint
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                const passages = snap.val() || {};
+                const seances = {};
+                Object.values(passages).forEach(p => {
+                    if (p.mode === 'sprint') {
+                        const date = new Date(p.timestamp).toLocaleDateString();
+                        const key = date + ' ' + new Date(p.timestamp).toLocaleTimeString();
+                        seances[key] = p.timestamp;
+                    }
+                });
+                const sorted = Object.entries(seances).sort((a, b) => b[1] - a[1]);
+                select.innerHTML = '<option value="">-- Sélectionner une séance --</option>' +
+                    sorted.map(([label]) => `<option value="${label}">${label}</option>`).join('');
+                if (sorted.length > 0) {
+                    select.value = sorted[0][0];
+                }
+            });
+        }
+
+        window.loadSprintTimes = function() {
+            const label = document.getElementById('selectSprintSeance').value;
+            if (!label) return alert("Sélectionnez une séance sprint.");
+            db.ref('arcathlon/live/passages').once('value', snap => {
+                const passages = snap.val() || {};
+                const sprintData = {};
+                Object.entries(passages).forEach(([key, p]) => {
+                    if (p.mode === 'sprint') {
+                        const date = new Date(p.timestamp).toLocaleDateString() + ' ' + new Date(p.timestamp).toLocaleTimeString();
+                        if (date === label) {
+                            if (!sprintData[p.equipe]) sprintData[p.equipe] = {};
+                            sprintData[p.equipe][p.maillot] = p.temps;
+                        }
+                    }
+                });
+                // Calculer les écarts par niveau
+                const niveaux = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
+                let preview = '';
+                niveaux.forEach(niveau => {
+                    const temps = [];
+                    Object.keys(sprintData).forEach(eq => {
+                        if (sprintData[eq][niveau]) {
+                            temps.push({ equipe: eq, temps: sprintData[eq][niveau] });
+                        }
+                    });
+                    if (temps.length > 0) {
+                        temps.sort((a, b) => a.temps - b.temps);
+                        const meilleur = temps[0].temps;
+                        preview += `<div class="font-bold text-blue-400 mt-1">${niveau} :</div>`;
+                        temps.forEach((t, idx) => {
+                            const ecart = t.temps - meilleur;
+                            const handicap = (idx === 0) ? 0 : ecart;
+                            preview += `<div class="flex justify-between text-slate-300"><span>${t.equipe} - ${niveau}</span><span>${(t.temps/1000).toFixed(2)}s <span class="text-yellow-400">(handicap +${(handicap/1000).toFixed(2)}s)</span></span></div>`;
+                        });
+                    }
+                });
+                document.getElementById('handicapPreview').innerHTML = preview || '<span class="text-slate-500">Aucune donnée sprint trouvée.</span>';
+            });
+        };
+
+        function togglePoursuiteOptions() {
+            const mode = document.getElementById('modeEpreuve').value;
+            const options = document.getElementById('poursuiteOptions');
+            if (mode === 'poursuite') {
+                options.classList.remove('hidden');
+                loadSprintTimes();
+            } else {
+                options.classList.add('hidden');
+            }
+        }
+
+        // =====================================================================
+        // 14. TRANSMISSION CONFIG (pushConfig) avec handicaps pour poursuite
         // =====================================================================
         window.pushConfig = function() {
             if (!state.activeCl || !(state.equipes[state.activeCl] || []).length) {
@@ -726,6 +927,43 @@
             }
             const seanceId = `SEANCE_${Date.now()}`;
             const modeChoisi = document.getElementById('modeEpreuve').value;
+            const longueurPenalite = parseInt(document.getElementById('longueurPenalite').value) || 30;
+
+            // Si mode poursuite, calculer les handicaps
+            let handicaps = {};
+            if (modeChoisi === 'poursuite') {
+                // Récupérer les temps sprint
+                db.ref('arcathlon/live/passages').once('value', snap => {
+                    const passages = snap.val() || {};
+                    const sprintData = {};
+                    Object.values(passages).forEach(p => {
+                        if (p.mode === 'sprint') {
+                            if (!sprintData[p.equipe]) sprintData[p.equipe] = {};
+                            sprintData[p.equipe][p.maillot] = p.temps;
+                        }
+                    });
+                    // Calculer les écarts par niveau
+                    const niveaux = ['Rouge', 'Jaune', 'Bleu', 'Vert'];
+                    niveaux.forEach(niveau => {
+                        const temps = [];
+                        state.equipes[state.activeCl].forEach(eq => {
+                            if (sprintData[eq.id] && sprintData[eq.id][niveau]) {
+                                temps.push({ equipe: eq.id, temps: sprintData[eq.id][niveau] });
+                            }
+                        });
+                        if (temps.length > 0) {
+                            temps.sort((a, b) => a.temps - b.temps);
+                            const meilleur = temps[0].temps;
+                            temps.forEach((t, idx) => {
+                                const ecart = t.temps - meilleur;
+                                const handicap = (idx === 0) ? 0 : ecart;
+                                handicaps[`${t.equipe}-${niveau}`] = Math.round(handicap);
+                            });
+                        }
+                    });
+                });
+            }
+
             const configObj = {
                 seanceId: seanceId,
                 mode: modeChoisi,
@@ -734,9 +972,12 @@
                 nbSeries: parseInt(document.getElementById('nbSeries').value) || 3,
                 nbFleches: parseInt(document.getElementById('nbFleches').value) || 2,
                 distanceTotale: (parseInt(document.getElementById('longueurPiste').value) || 100) * (parseInt(document.getElementById('nbTours').value) || 2),
+                longueurPenalite: longueurPenalite,
+                handicaps: handicaps,  // Pour la poursuite
                 equipes: {},
                 vmaReference: {}
             };
+
             state.equipes[state.activeCl].forEach(eq => {
                 configObj.equipes[eq.id] = {
                     pin: eq.pin,
@@ -744,25 +985,65 @@
                         maillot: m.maillot,
                         vma: m.vma,
                         absent: m.absent || false,
-                        code: m.code || `${eq.id} - ${m.maillot}`   // <-- CODE TRANSMIS
+                        code: m.code || `${eq.id} - ${m.maillot}`
                     }))
                 };
                 eq.membres.forEach(m => {
                     configObj.vmaReference[`${eq.id}-${m.maillot}`] = m.vma;
                 });
             });
+
             if (!state.seances) state.seances = {};
             state.seances[seanceId] = { configObj, date: new Date().toISOString() };
             saveToLocal();
             updateSeancesList();
 
+            // Envoyer à Firebase
             db.ref('arcathlon/config').set(configObj)
-                .then(() => alert(`🚀 Configuration transmise ! (Mode : ${modeChoisi.toUpperCase()})`))
+                .then(() => {
+                    alert(`🚀 Configuration transmise ! (Mode : ${modeChoisi.toUpperCase()})`);
+                    // Activer le bouton départ si poursuite
+                    if (modeChoisi === 'poursuite') {
+                        document.getElementById('btnDepartCentral').disabled = false;
+                    } else {
+                        document.getElementById('btnDepartCentral').disabled = true;
+                    }
+                })
                 .catch(err => { console.error(err); alert("Erreur de transmission."); });
         };
 
         // =====================================================================
-        // 13. MISE À JOUR DES RÉSULTATS EN TEMPS RÉEL
+        // 15. DÉPART CENTRALISÉ
+        // =====================================================================
+        window.sendDepart = function() {
+            const btn = document.getElementById('btnDepartCentral');
+            btn.disabled = true;
+            btn.textContent = '⏳ Envoi...';
+            // Envoyer un signal de départ à tous les iPads
+            db.ref('arcathlon/commandes/depart').set({
+                timestamp: Date.now(),
+                delai: 0  // départ immédiat
+            }).then(() => {
+                btn.textContent = '🚦 Départ envoyé !';
+                setTimeout(() => {
+                    btn.textContent = '🚦 Départ centralisé';
+                    btn.disabled = false;
+                }, 2000);
+            }).catch(err => {
+                alert("Erreur : " + err.message);
+                btn.textContent = '🚦 Départ centralisé';
+                btn.disabled = false;
+            });
+        };
+
+        window.cancelDepart = function() {
+            db.ref('arcathlon/commandes/depart').remove();
+            document.getElementById('departPanel').classList.add('hidden');
+            if (departTimeout) clearInterval(departTimeout);
+        };
+
+        // =====================================================================
+        // 16. MISE À JOUR DES RÉSULTATS EN TEMPS RÉEL
         // =====================================================================
         async function updateLiveScores(passages) {
             lastPassagesData = passages || {};
@@ -784,7 +1065,7 @@
             document.getElementById('statTotalTir').textContent = totalTir;
             document.getElementById('statTotalCourse').textContent = totalCourse;
 
-            // Journal (20 derniers)
+            // Journal
             let journalHtml = '';
             for (let i = 0; i < Math.min(entries.length, 30); i++) {
                 const [key, p] = entries[i];
@@ -806,13 +1087,16 @@
                         }
                     }
                 }
+                // Afficher le handicap si poursuite
+                let handicapInfo = '';
+                if (p.handicap && p.handicap > 0) handicapInfo = ` | Handicap +${(p.handicap/1000).toFixed(1)}s`;
                 journalHtml += `
                     <div class="flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-3 rounded-xl shadow-sm flex-wrap gap-2">
                         <div class="flex items-center gap-2">
                             ${photoHtml}
                             <span class="text-slate-500 font-mono">${h}</span>
                         </div>
-                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}</span>
+                        <span class="font-bold text-slate-200">${p.equipe} — ${p.maillot}${handicapInfo}</span>
                         <span class="text-emerald-400">C+${p.ptsVMA||0} | T+${p.ptsTir||0}</span>
                         ${alerte}
                         <span class="text-xs">${statut}</span>
@@ -847,7 +1131,7 @@
                 </div>
             `).join('');
 
-            // Tableau détaillé avec cases à cocher
+            // Tableau détaillé
             let rows = '';
             for (const [key, p] of entries) {
                 const temps = p.temps ? (p.temps/1000).toFixed(2) : '-';
@@ -927,7 +1211,7 @@
         }
 
         // =====================================================================
-        // 14. ACTIONS (individuelles et en masse)
+        // 17. ACTIONS (individuelles et en masse)
         // =====================================================================
         window.purgeLive = function() {
             if (confirm("⚠️ Supprimer tous les passages (mais garder la config) ?")) {
@@ -935,9 +1219,8 @@
             }
         };
 
-        // Purge complète Firebase (config + passages)
         window.purgeComplete = function() {
-            if (confirm("🔥 Supprimer TOUTES les données Firebase (config + passages) ? Cette action est irréversible.")) {
+            if (confirm("🔥 Supprimer TOUTES les données Firebase (config + passages + commandes) ? Cette action est irréversible.")) {
                 db.ref('arcathlon').remove()
                     .then(() => alert("✅ Firebase purgé complètement."))
                     .catch(err => alert("Erreur : " + err.message));
@@ -998,7 +1281,6 @@
                 .catch(err => { alert("Erreur : " + err.message); });
         };
 
-        // Actions en masse
         function toggleAllStats(checked) {
             document.querySelectorAll('.stats-checkbox').forEach(cb => cb.checked = checked);
         }
@@ -1057,13 +1339,13 @@
         };
 
         // =====================================================================
-        // 15. EXPORT RESULTS
+        // 18. EXPORT RESULTS
         // =====================================================================
         window.exportResults = function() {
             const passages = lastPassagesData;
             const data = Object.values(passages).filter(p => !p.disqualifie);
             if (!data.length) return alert("Aucune donnée à exporter.");
-            let csv = "Équipe;Maillot;Code;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Horodatage\n";
+            let csv = "Équipe;Maillot;Code;Série;Mode;Points Course;Points Tir;Total;Vitesse;Temps(s);Bonus(s);Temps bonifié(s);Alerte;Malus;Handicap(s);Horodatage\n";
             data.forEach(p => {
                 let code = p.maillot;
                 const eqProf = (state.equipes[state.activeCl] || []).find(e => e.id === p.equipe);
@@ -1081,7 +1363,8 @@
                 const tempsBonifie = (temps !== '-') ? (parseFloat(temps) + bonus).toFixed(2) : '-';
                 const alerte = p.alerteTriche ? 'Oui' : 'Non';
                 const malus = p.malus || 0;
-                csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${p.mode};${p.ptsVMA||0};${p.ptsTir||0};${(p.ptsVMA||0)+(p.ptsTir||0)};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${new Date(p.timestamp).toLocaleString()}\n`;
+                const handicap = p.handicap ? (p.handicap/1000).toFixed(2) : '0';
+                csv += `${p.equipe};${p.maillot};${code};${p.serie||1};${p.mode};${p.ptsVMA||0};${p.ptsTir||0};${(p.ptsVMA||0)+(p.ptsTir||0)};${p.vitesse ? p.vitesse.toFixed(2) : ''};${temps};${bonus};${tempsBonifie};${alerte};${malus};${handicap};${new Date(p.timestamp).toLocaleString()}\n`;
             });
             const blob = new Blob(["\ufeff"+csv], { type: 'text/csv;charset=utf-8;' });
             const a = document.createElement('a');
@@ -1091,7 +1374,7 @@
         };
 
         // =====================================================================
-        // 16. HISTORIQUE
+        // 19. HISTORIQUE
         // =====================================================================
         function updateSeancesList() {
             const select = document.getElementById('selectSeance');
@@ -1125,7 +1408,7 @@
         };
 
         // =====================================================================
-        // 17. SAUVEGARDE / RESTAURATION
+        // 20. SAUVEGARDE / RESTAURATION
         // =====================================================================
         window.exportData = function() {
             const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
@@ -1146,7 +1429,7 @@
         });
 
         // =====================================================================
-        // 18. SWITCH TABS
+        // 21. SWITCH TABS
         // =====================================================================
         window.switchTab = function(t) {
             ['viewImport', 'viewEquipes', 'viewLive', 'viewHistorique'].forEach(id =>
@@ -1159,12 +1442,16 @@
             const map = { 'import': '1', 'equipes': '2', 'live': '3', 'historique': '4' };
             document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
             document.getElementById('btnTab' + map[t]).classList.add('tab-active', 'text-blue-500');
+            if (t === 'equipes') {
+                fillSprintSeances();
+                togglePoursuiteOptions();
+            }
         };
 
         // =====================================================================
-        // 19. INIT
+        // 22. INIT
         // =====================================================================
-        console.log("✅ Arcathlon professeur - version finale avec pushConfig() et purge complète");
+        console.log("✅ Arcathlon professeur - version avec temps fictifs, départ centralisé, handicaps");
     </script>
 </body>
 </html>
