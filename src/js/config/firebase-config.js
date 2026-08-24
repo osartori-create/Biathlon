@@ -1,8 +1,12 @@
-// ⚠️ ATTENTION : Utilisez votre propre URL Firebase
-const firebaseConfig = { 
-    databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/" 
+// Configuration de la base de données (anonyme, RGPD)
+export const FIREBASE_CONFIG = {
+    databaseURL: "https://arcathlon-eps-default-rtdb.europe-west1.firebasedatabase.app/"
 };
 
-// Initialisation Firebase (les SDK sont déjà chargés dans index.html)
-firebase.initializeApp(firebaseConfig);
-export const db = firebase.database();
+// Chemins de la base (à centraliser ici !)
+export const DB_PATHS = {
+    CONFIG: 'arcathlon/config',
+    PASSAGES: 'arcathlon/live/passages',
+    EQUIPES: 'arcathlon/config/equipes',
+    VMA_REF: 'arcathlon/config/vmaReference'
+};
